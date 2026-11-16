@@ -15,7 +15,7 @@ The long-term workflow is:
 
 **Phase 0 — Project Foundation is complete and verified in Chrome.**
 
-**Phase 1 — YouTube Integration is implemented and awaiting browser verification.**
+**Phase 1 — YouTube Integration is complete and verified in Chrome.**
 
 Implemented:
 
@@ -39,7 +39,7 @@ Not implemented yet:
 - Vocabulary storage or mining.
 - AnkiConnect integration.
 
-Phase 1 browser verification and user approval are required before Phase 2 begins.
+Phase 1 was verified in Chrome on 16 November 2026. Phase 2 requires user approval.
 
 ## Project Structure
 

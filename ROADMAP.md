@@ -53,13 +53,13 @@ Tasks:
 - [x] Apply the placeholder softer subtitle font.
 - [x] Fall back to native subtitles if extraction fails.
 - [x] Handle videos without Korean subtitles.
-- [ ] Test different YouTube caption types.
+- [x] Test different YouTube caption types.
 
 Completion criteria:
 
 Korean subtitles can be reliably detected and displayed during video playback.
 
-Phase 1 is implemented and passes automated checks. Caption extraction reads YouTube's rendered caption windows, because YouTube normally does not expose caption tracks through `video.textTracks`. Browser verification is pending.
+Phase 1 is implemented and was verified in Chrome on 16 November 2026. Caption extraction reads YouTube's rendered caption windows, because YouTube normally does not expose caption tracks through `video.textTracks`.
 
 ## Phase 2 — Interactive Korean Words
 

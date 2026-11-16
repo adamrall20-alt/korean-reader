@@ -173,11 +173,11 @@ Implemented:
 - YouTube page detection and DOM-based caption extraction.
 - Korean caption detection, timestamp capture and change polling.
 - Shadow DOM subtitle overlay, scoped native caption hiding and automatic fallback.
+- Phase 1 verification in Chrome on 16 November 2026.
 - Unit, component and service tests plus a successful production build.
 
 Not implemented:
 
-- Phase 1 browser verification.
 - Korean tokenisation.
 - Dictionary lookup.
 - Vocabulary storage or mining.

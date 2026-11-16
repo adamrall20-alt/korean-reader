@@ -295,7 +295,7 @@ Business logic should remain in appropriate services rather than being duplicate
 
 Use appropriate automated testing tools.
 
-The Phase 0 setup uses:
+The current setup uses:
 
 - Vitest for unit and component testing.
 - Vue Test Utils for component tests.

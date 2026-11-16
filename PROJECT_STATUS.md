@@ -2,8 +2,8 @@
 
 ## Current Project State
 
-**Status:** Phase 1 implemented; awaiting browser verification
-**Current Phase:** Phase 1 — YouTube Integration
+**Status:** Phase 1 complete and verified in Chrome
+**Current Phase:** Phase 2 — Interactive Korean Words (awaiting approval)
 **Last Updated:** 16 November 2026
 
 ## Completed
@@ -41,7 +41,7 @@
 
 ## In Progress
 
-- [ ] Manual verification of Korean subtitle replacement in Chrome.
+- [ ] Awaiting user approval to begin Phase 2.
 
 ## Not Started
 
@@ -98,7 +98,7 @@ Not started.
 - [x] Apply the placeholder softer subtitle font.
 - [x] Fall back to native subtitles if extraction fails.
 - [x] Handle videos without Korean subtitles.
-- [ ] Test different YouTube caption types in Chrome.
+- [x] Test different YouTube caption types in Chrome.
 
 ## Manual Verification
 
@@ -116,18 +116,17 @@ Verified by the user in Chrome on 16 November 2026:
 
 ### Phase 1
 
-Pending user verification in Chrome:
+Verified by the user in Chrome on 16 November 2026:
 
-| Check | Expected result |
+| Check | Result |
 |---|---|
-| Korean captions | Native caption line is replaced by the custom overlay with the softer font |
-| Caption changes | Overlay text tracks caption changes during playback |
-| Captions stop | Native captions return within about half a second |
-| Non-Korean captions | Native captions remain visible and no overlay appears |
-| No Korean track | No overlay appears and native captions behave normally |
-| Video navigation | Overlay hides when switching videos and resumes on Korean captions |
-| Video controls | Overlay does not block play, seek, volume or subtitle controls |
-| Miniplayer/preview | Miniplayers keep their own native captions |
+| Korean captions | Pass — native caption line replaced by the custom overlay |
+| Caption changes | Pass — overlay text tracks caption changes during playback |
+| Non-Korean captions | Pass — native captions remained visible and no overlay appeared |
+| Video controls | Pass — play, seek, volume and subtitle controls unaffected |
+| Miniplayer/preview | Pass — miniplayer captions remained native |
+| Subtitle size | Pass — 1.5× the original size accepted as final |
+| Captions stop | Pass — native captions returned when Korean captions stopped |
 
 ## Automated Verification
 
@@ -184,8 +183,8 @@ Last run: 16 November 2026
 
 ## Development Notes
 
-Phase 1 is implemented and passes automated checks. Browser verification of Korean caption replacement is still required before Phase 1 is marked complete and Phase 2 begins.
+Phase 1 is complete and verified in Chrome. Korean captions are replaced by the custom overlay, native captions return when Korean captions stop, non-Korean captions remain native, video controls are unaffected and miniplayers keep their own captions.
 
 The production build is at `.output/chrome-mv3`. See `README.md` for setup, testing and manual verification instructions.
 
-Phase 2 begins only after Phase 1 is verified and the user approves.
+Phase 2 begins only after user approval.

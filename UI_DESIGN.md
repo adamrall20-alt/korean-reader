@@ -34,7 +34,7 @@ These colours are a starting point and may be refined throughout development.
 
 ### Typography
 
-Use a softer, rounded sans-serif for the custom subtitle overlay and interface. The final font has not been chosen yet, so Phase 0 uses a local placeholder stack with Korean system fallbacks. Do not load remote fonts; the extension must work offline and must not depend on a third-party font service.
+Use a softer, rounded sans-serif for the custom subtitle overlay and interface. The final font has not been chosen yet, so the extension currently uses a local placeholder stack with Korean system fallbacks. Do not load remote fonts; the extension must work offline and must not depend on a third-party font service.
 
 Korean subtitle text should be comfortable to read over video. Prefer clear glyph shapes and generous line height over decorative typography.
 
