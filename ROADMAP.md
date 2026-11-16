@@ -197,6 +197,8 @@ The minimum viable product works reliably under normal usage conditions.
 ## Phase 7 — Interface Refinement
 
 **Goal:** Improve the visual experience after core functionality is complete.
+This requires the user to first design and create wireframs for the UI.
+Do not progress this task without the user providing wireframes and Figma mockups.
 
 Tasks:
 
@@ -207,6 +209,7 @@ Tasks:
 - [ ] Add subtle animations where useful.
 - [ ] Refine dark and light appearances.
 - [ ] Improve loading and error states.
+- [ ] Create a logo for the extension.
 
 Completion criteria:
 
@@ -225,5 +228,8 @@ These features are outside the initial development scope.
 - [ ] Additional dictionary sources.
 - [ ] CSV export and vocabulary import.
 - [ ] Advanced subtitle customisation.
+- [ ] Stats and long term learning progress tracking.
+- [ ] Web server and accounts?
+- [ ] Import already known words from Anki or other sources.
 
 Future enhancements should only be considered after the minimum viable product is complete.
