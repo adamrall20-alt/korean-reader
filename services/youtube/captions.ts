@@ -1,7 +1,10 @@
 import type { CaptionSnapshot, CaptionTrack } from '@/types/youtube';
 
 const HANGUL_PATTERN = /[\u1100-\u11ff\u3131-\u318e\uac00-\ud7a3]/;
-const CAPTION_WINDOW_SELECTOR = '.ytp-caption-window-container .caption-window';
+const CAPTION_WINDOW_SELECTOR = '.ytp-caption-window-container :is(.caption-window, .ytp-caption-window-rollup)';
+const ROLLING_WINDOW = '.ytp-caption-window-rollup';
+const ROLLING_SETTLE_MS = 450;
+const ROLLING_MAX_WAIT_MS = 1250;
 const PLAYER_SELECTOR = '#movie_player, .html5-video-player';
 const VIDEO_SELECTOR = 'video.html5-main-video, video';
 
@@ -164,6 +167,11 @@ function isVisible(element: HTMLElement): boolean {
 }
 
 function readCaptionWindowText(captionWindow: HTMLElement): string {
+  const visualLines = captionWindow.querySelectorAll<HTMLElement>('.caption-visual-line');
+  if (captionWindow.matches(ROLLING_WINDOW) && visualLines.length) {
+    return normaliseCaptionText(Array.from(visualLines, (line) => line.textContent ?? '').join('\n'));
+  }
+
   const innerText = typeof captionWindow.innerText === 'string' ? captionWindow.innerText : '';
   const raw = innerText.trim() ? innerText : (captionWindow.textContent ?? '');
 
@@ -174,7 +182,7 @@ export function readVisibleCaptionLines(root: ParentNode): string[] {
   let captionWindows = Array.from(root.querySelectorAll<HTMLElement>(CAPTION_WINDOW_SELECTOR));
 
   if (captionWindows.length === 0) {
-    captionWindows = Array.from(root.querySelectorAll<HTMLElement>('.caption-window'));
+    captionWindows = Array.from(root.querySelectorAll<HTMLElement>('.caption-window, .ytp-caption-window-rollup'));
   }
 
   const lines: string[] = [];
@@ -203,7 +211,7 @@ export function readCaptionSnapshot(
 ): CaptionSnapshot {
   const player = findPlayer(doc);
   const video = findVideo(doc);
-  const lines = readVisibleCaptionLines(player ?? doc);
+  const lines = video?.seeking ? [] : readVisibleCaptionLines(player ?? doc);
   const text = lines.join('\n');
   const activeTrack = findActiveCaptionTrack(video);
 
@@ -217,7 +225,24 @@ export function readCaptionSnapshot(
     hasNativeCaptions: lines.length > 0,
     activeTrack,
     availableTracks: readCaptionTracks(video),
+    isRolling: activeTrack?.kind === 'asr' ||
+      Array.from((player ?? doc).querySelectorAll<HTMLElement>(ROLLING_WINDOW)).some(isVisible),
   };
+}
+
+function mergeRollingWords(previous: string[], incoming: string[]): string[] {
+  const overlap = Math.min(previous.length, incoming.length);
+  for (let count = overlap; count > 0; count -= 1) {
+    if (incoming.slice(0, count).every((word, index) => word === previous[previous.length - count + index])) {
+      return [...previous, ...incoming.slice(count)].slice(-14);
+    }
+  }
+
+  // Some roll-up windows expose only the newest spoken word.
+  if (incoming.length === 1 && !/[.!?。！？]$/u.test(previous.at(-1) ?? '')) {
+    return [...previous, ...incoming].slice(-14);
+  }
+  return incoming.slice(-14);
 }
 
 export interface CaptionMonitorOptions {
@@ -242,23 +267,50 @@ export function createCaptionMonitor({
   let timer: ReturnType<typeof setInterval> | null = null;
   let lastKey: string | null = null;
 
+  let rolling: { words: string[]; firstChange: number; lastChange: number; pending: CaptionSnapshot } | null = null;
+  let lastVideoId: string | null = null;
+
+  const emitRolling = (now: number) => {
+    if (!rolling || now - rolling.lastChange < ROLLING_SETTLE_MS &&
+      now - rolling.firstChange < ROLLING_MAX_WAIT_MS) return;
+    if (rolling.firstChange === Infinity) return;
+
+    const text = rolling.words.join(' ');
+    onUpdate({ ...rolling.pending, text, lines: [text] });
+    rolling.firstChange = Infinity;
+  };
+
   const read = () => {
     const snapshot = readCaptionSnapshot(doc, locationHref());
-    const key = [
-      snapshot.videoId ?? '',
-      snapshot.hasVideo ? '1' : '0',
-      snapshot.lines.join('\u0001'),
-      snapshot.isKorean ? '1' : '0',
-      snapshot.activeTrack?.language ?? '',
-      snapshot.hasNativeCaptions ? '1' : '0',
-    ].join('\u0002');
-
+    const key = JSON.stringify([
+      snapshot.videoId, snapshot.hasVideo, snapshot.lines, snapshot.isKorean,
+      snapshot.activeTrack?.language, snapshot.isRolling,
+    ]);
+    const now = Date.now();
     if (key === lastKey) {
+      emitRolling(now);
       return;
     }
 
     lastKey = key;
-    onUpdate(snapshot);
+    const changedVideo = snapshot.videoId !== lastVideoId;
+    lastVideoId = snapshot.videoId;
+    if (changedVideo) rolling = null;
+    if (!snapshot.isRolling || !snapshot.isKorean || !snapshot.hasVideo || !snapshot.videoId) {
+      rolling = null;
+      onUpdate(snapshot);
+      return;
+    }
+
+    if (changedVideo) onUpdate({ ...snapshot, lines: [], text: '' });
+    const incoming = snapshot.lines.join(' ').split(/\s+/u);
+    rolling = {
+      words: mergeRollingWords(rolling?.words ?? [], incoming),
+      firstChange: Math.min(rolling?.firstChange ?? now, now),
+      lastChange: now,
+      pending: snapshot,
+    };
+    emitRolling(now);
   };
 
   return {
@@ -268,6 +320,7 @@ export function createCaptionMonitor({
       }
 
       lastKey = null;
+      rolling = null;
       read();
       timer = setInterval(read, intervalMs);
     },

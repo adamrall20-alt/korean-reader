@@ -124,6 +124,65 @@ describe('caption monitor', () => {
     vi.useRealTimers();
   });
 
+  it('groups word-by-word roll-up captions and clears the buffer on a video switch', () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = `
+      <div class="html5-video-player">
+        <video></video>
+        <div class="ytp-caption-window-container">
+          <div class="ytp-caption-window-rollup">
+            <span class="caption-visual-line">오늘은</span>
+          </div>
+        </div>
+      </div>
+    `;
+    const line = document.querySelector('.caption-visual-line')!;
+    let url = 'https://www.youtube.com/watch?v=first';
+    const updates: CaptionSnapshot[] = [];
+    const monitor = createCaptionMonitor({
+      document, intervalMs: 250, locationHref: () => url,
+      onUpdate: (snapshot) => updates.push(snapshot),
+    });
+    monitor.start();
+    line.textContent = '비가';
+    vi.advanceTimersByTime(250);
+    line.textContent = '와요.';
+    vi.advanceTimersByTime(250);
+    expect(updates.map(({ text }) => text)).toEqual(['']);
+    vi.advanceTimersByTime(500);
+    expect(updates.at(-1)?.text).toBe('오늘은 비가 와요.');
+
+    url = 'https://www.youtube.com/watch?v=second';
+    line.textContent = '새 영상입니다.';
+    monitor.refresh();
+    expect(updates.at(-1)).toMatchObject({ videoId: 'second', text: '' });
+    vi.advanceTimersByTime(500);
+    expect(updates.at(-1)?.text).toBe('새 영상입니다.');
+    monitor.stop();
+  });
+
+  it('publishes roll-up phrases during a continuous stream and removes overlapping words', () => {
+    vi.useFakeTimers();
+    captionFixture('<div class="caption-window ytp-caption-window-rollup">오늘</div>');
+    document.body.insertAdjacentHTML('afterbegin', '<video></video>');
+    const window = document.querySelector('.caption-window')!;
+    const updates: CaptionSnapshot[] = [];
+    const monitor = createCaptionMonitor({
+      document, intervalMs: 250, locationHref: () => 'https://www.youtube.com/watch?v=test',
+      onUpdate: (snapshot) => updates.push(snapshot),
+    });
+    monitor.start();
+    for (const text of ['오늘 아침', '아침 일찍', '일찍 일어나서', '일어나서 밥을', '밥을 먹었어요.']) {
+      window.textContent = text;
+      vi.advanceTimersByTime(250);
+    }
+    expect(updates.at(-1)?.text).toBe('오늘 아침 일찍 일어나서 밥을 먹었어요.');
+    document.querySelector('.caption-window')?.remove();
+    vi.advanceTimersByTime(250);
+    expect(updates.at(-1)?.text).toBe('');
+    monitor.stop();
+  });
+
   it('emits when captions change and stays quiet when they do not', () => {
     vi.useFakeTimers();
     document.body.innerHTML = `

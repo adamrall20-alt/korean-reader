@@ -12,6 +12,7 @@ export interface CaptionSnapshot {
   videoId: string | null;
   hasVideo: boolean;
   hasNativeCaptions: boolean;
+  isRolling?: boolean;
   activeTrack: CaptionTrack | null;
   availableTracks: CaptionTrack[];
 }

@@ -1,16 +1,18 @@
 export const NATIVE_CAPTION_HIDDEN_CLASS = 'korean-reader-native-captions-hidden';
 const NATIVE_CAPTION_STYLE_ID = 'korean-reader-native-caption-style';
 
-const HIDDEN_PLAYER_SELECTOR = `.html5-video-player.${NATIVE_CAPTION_HIDDEN_CLASS}`;
+const HIDDEN_PLAYER_SELECTOR = `:is(#movie_player, .html5-video-player).${NATIVE_CAPTION_HIDDEN_CLASS}`;
 
 const NATIVE_CAPTION_STYLE = `
-.html5-video-player.${NATIVE_CAPTION_HIDDEN_CLASS} .ytp-caption-window-container {
+${HIDDEN_PLAYER_SELECTOR} .ytp-caption-window-container {
   pointer-events: none !important;
 }
 
-.html5-video-player.${NATIVE_CAPTION_HIDDEN_CLASS} .ytp-caption-window-container,
-.html5-video-player.${NATIVE_CAPTION_HIDDEN_CLASS} .ytp-caption-window-container .caption-window,
-.html5-video-player.${NATIVE_CAPTION_HIDDEN_CLASS} .ytp-caption-window-container .ytp-caption-segment {
+${HIDDEN_PLAYER_SELECTOR} .ytp-caption-window-container,
+${HIDDEN_PLAYER_SELECTOR} .ytp-caption-window-container .caption-window,
+${HIDDEN_PLAYER_SELECTOR} .ytp-caption-window-container .caption-window *,
+${HIDDEN_PLAYER_SELECTOR} .ytp-caption-window-rollup,
+${HIDDEN_PLAYER_SELECTOR} .ytp-caption-window-rollup * {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   text-shadow: none !important;
