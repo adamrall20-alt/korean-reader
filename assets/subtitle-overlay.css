@@ -1,0 +1,50 @@
+:host {
+  position: absolute;
+  right: 0;
+  bottom: 10%;
+  left: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.kr-subtitles {
+  display: flex;
+  max-width: min(92%, 960px);
+  padding: 0 1rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  color: #ffffff;
+  font-family:
+    "Pretendard Variable", "Pretendard", ui-rounded, "Apple SD Gothic Neo", "Noto Sans KR",
+    "Malgun Gothic", system-ui, sans-serif;
+  font-size: clamp(1.1rem, 2.2vw, 1.9rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.kr-subtitle-line {
+  margin: 0;
+  padding: 0.15em 0.55em;
+  border-radius: 0.6em;
+  background: rgba(10, 10, 10, 0.62);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.28);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+@media (max-width: 640px) {
+  :host {
+    bottom: 12%;
+  }
+
+  .kr-subtitles {
+    max-width: 96%;
+    font-size: clamp(1rem, 4.4vw, 1.45rem);
+  }
+}

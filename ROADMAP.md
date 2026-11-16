@@ -42,22 +42,24 @@ Phase 0 was verified in Chrome on 16 November 2026. The popup connected to the b
 
 Tasks:
 
-- [ ] Detect YouTube video pages.
-- [ ] Detect available subtitle tracks.
-- [ ] Identify Korean subtitles.
-- [ ] Extract currently rendered subtitle text.
-- [ ] Detect subtitle changes.
-- [ ] Extract video timestamps.
-- [ ] Synchronise subtitle updates with playback.
-- [ ] Hide YouTube's native subtitle line and display the custom overlay.
-- [ ] Apply the placeholder softer subtitle font.
-- [ ] Fall back to native subtitles if extraction fails.
-- [ ] Handle videos without Korean subtitles.
+- [x] Detect YouTube video pages.
+- [x] Detect available subtitle tracks.
+- [x] Identify Korean subtitles.
+- [x] Extract currently rendered subtitle text.
+- [x] Detect subtitle changes.
+- [x] Extract video timestamps.
+- [x] Synchronise subtitle updates with playback.
+- [x] Hide YouTube's native subtitle line and display the custom overlay.
+- [x] Apply the placeholder softer subtitle font.
+- [x] Fall back to native subtitles if extraction fails.
+- [x] Handle videos without Korean subtitles.
 - [ ] Test different YouTube caption types.
 
 Completion criteria:
 
 Korean subtitles can be reliably detected and displayed during video playback.
+
+Phase 1 is implemented and passes automated checks. Caption extraction reads YouTube's rendered caption windows, because YouTube normally does not expose caption tracks through `video.textTracks`. Browser verification is pending.
 
 ## Phase 2 — Interactive Korean Words
 

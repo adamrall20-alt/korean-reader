@@ -15,6 +15,8 @@ The long-term workflow is:
 
 **Phase 0 — Project Foundation is complete and verified in Chrome.**
 
+**Phase 1 — YouTube Integration is implemented and awaiting browser verification.**
+
 Implemented:
 
 - WXT + Vue 3 + TypeScript + Tailwind CSS project.
@@ -22,18 +24,22 @@ Implemented:
 - Background, content, popup and options entrypoints.
 - Toolbar popup and settings page shells.
 - Background health check used by the popup.
+- YouTube page detection for `/watch`, `/shorts/` and `/live/` URLs.
+- Caption extraction from YouTube's rendered caption windows.
+- Korean detection using Hangul ranges and track metadata where available.
+- Shadow DOM subtitle overlay with the placeholder soft-font stack.
+- Native caption hiding limited to the active player.
+- Automatic fallback to native captions when Korean captions stop.
 - Component tests, type checking and a production build.
 
 Not implemented yet:
 
-- YouTube subtitle detection.
-- Custom subtitle overlay.
 - Korean tokenisation or Kiwi integration.
 - Dictionary lookup or KRDict key entry.
 - Vocabulary storage or mining.
 - AnkiConnect integration.
 
-Phase 1 is not started and requires approval.
+Phase 1 browser verification and user approval are required before Phase 2 begins.
 
 ## Project Structure
 
@@ -53,7 +59,8 @@ korean-reader/
 ├── tsconfig.json
 ├── vitest.config.ts
 ├── assets/
-│   └── tailwind.css
+│   ├── tailwind.css
+│   └── subtitle-overlay.css
 ├── design/
 │   ├── references/
 │   ├── mockups/
@@ -81,16 +88,23 @@ korean-reader/
 │   └── SettingsPanel.vue
 ├── services/
 │   ├── youtube/
+│   │   ├── captions.ts
+│   │   ├── native-captions.ts
+│   │   ├── overlay.ts
+│   │   └── presenter.ts
 │   ├── dictionary/
 │   ├── korean/
 │   ├── anki/
 │   └── storage/
 ├── types/
-│   └── messages.ts
+│   ├── messages.ts
+│   └── youtube.ts
 └── tests/
     ├── setup.ts
     ├── components/
-    └── entrypoints/
+    ├── entrypoints/
+    └── services/
+        └── youtube/
 ```
 
 ## Requirements
@@ -161,11 +175,11 @@ Run the production build:
 npm run build
 ```
 
-Current Phase 0 result:
+Current Phase 1 result:
 
 | Check | Result |
 |---|---|
-| `npm run test:run` | 4 test files, 10 tests passing |
+| `npm run test:run` | 8 test files, 30 tests passing |
 | `npm run compile` | Passing |
 | `npm run build` | Passing |
 
@@ -206,7 +220,7 @@ If the status is **Unavailable**, open `chrome://extensions`, click **Errors** o
   data-korean-reader="ready"
   ```
 
-- No custom subtitle overlay should appear yet. Subtitle detection is Phase 1.
+- No overlay should appear until Korean captions are actually displayed.
 
 YouTube’s console can contain unrelated errors from YouTube itself, advertising requests and other extensions. Messages such as `net::ERR_BLOCKED_BY_CLIENT`, `Permissions-Policy` warnings or `Unsafe attempt to load URL` are not caused by Korean Reader. The `[Korean Reader]` line is the one to check.
 
@@ -228,7 +242,24 @@ Chrome may later label the worker **Inactive** when it is idle. This is normal M
 - Reload the YouTube page.
 - The popup should still connect and the content script log should appear again.
 
-Report any result that differs from the checklist before Phase 1 begins.
+### 6. Korean subtitles (Phase 1)
+
+Use a Korean video with captions available. Turn the video volume down or mute it before testing.
+
+1. Enable subtitles in YouTube's player and choose Korean, including an auto-generated Korean track if available.
+2. During dialogue, YouTube's native caption line should be replaced by the custom overlay.
+3. The overlay should use the softer subtitle font and stay centred near the bottom of the video.
+4. The overlay text should change in time with playback.
+5. Leave a silent moment: native captions should return after about half a second, then the overlay should take over again when Korean speech resumes.
+6. Switch to a non-Korean caption track. Native captions should remain and the overlay should disappear.
+7. Disable captions entirely. No overlay should appear.
+8. Switch to another video. The old overlay should not linger.
+9. Check that play, seek, volume and subtitle controls remain fully clickable beneath or around the overlay.
+10. If YouTube shows a miniplayer or preview with captions, its captions should not be hidden.
+
+Captions must be enabled for extraction to work; the extension does not turn them on automatically. If the overlay never appears while Korean captions are visible, include the video URL, caption type (manual or auto-generated) and any `[Korean Reader]` console messages in the report.
+
+Report any result that differs from the checklist before Phase 2 begins.
 
 ## Project Documentation
 
