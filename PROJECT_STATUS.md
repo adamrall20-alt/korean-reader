@@ -63,6 +63,7 @@
 - [x] On-demand Korean definition translation via Chrome’s on-device Translator API, covered with component tests.
 
 - [x] Explicit vocabulary mining with one local record per normalized headword.
+- [x] Red underlines for unknown subtitle words, updated when vocabulary status changes.
 - [x] Save subtitle context, original form, video source, playback timestamp, and mining date.
 - [x] Vocabulary panel with search, date sorting, status filtering, definition editing, deletion, and JSON export.
 
@@ -151,7 +152,7 @@ Last run: 16 November 2026
 
 | Check | Command | Result |
 |---|---|---|
-| Unit/component tests | `npm run test:run` | Pass — 11 files, 47 tests |
+| Unit/component tests | `npm run test:run` | Pass — 11 files, 48 tests |
 | Headless Chrome smoke test | Temporary unpacked build and KRDict fixtures | Pass — bundled Kiwi, local key settings, exact lookup, pronunciation, cache reuse and clearing |
 | Phase 4 Chrome fixture test | Unpacked extension with fixture captions and KRDict | Pass — explicit save, source metadata, duplicate handling, additional sentences, schema upgrade, cache isolation, status, edits, deletion and JSON export |
 | Type checking | `npm run compile` | Pass |

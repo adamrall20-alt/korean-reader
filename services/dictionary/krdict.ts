@@ -1,4 +1,5 @@
 import type { DictionaryEntry, KoreanMorpheme } from '@/types/messages';
+import { dictionaryCandidates } from '@/services/korean/dictionary-forms';
 import { cacheDictionaryEntry, getCachedDictionaryEntry } from '@/services/dictionary/cache';
 
 const API_URL = 'https://krdict.korean.go.kr/api';
@@ -142,35 +143,12 @@ async function addEntryDetails(
   if (examples.length) entry.examples = [...new Set(examples)];
 }
 
-function candidateWords(word: string, morphemes: KoreanMorpheme[]): string[] {
-  const lexicalMorphemes = morphemes.filter((morpheme) =>
-    /^(NN|NP|NR|VV|VA|VX|VCP|VCN|XR|XSV|XSA)/u.test(morpheme.tag),
-  );
-  const lexicalForm = lexicalMorphemes.map((morpheme) => morpheme.text).join('');
-  const hasPredicate = lexicalMorphemes.some((morpheme) =>
-    /^(VV|VA|VX|VCP|VCN|XSV|XSA)/u.test(morpheme.tag),
-  );
-  const dictionaryForm = hasPredicate && lexicalForm.length > 0 ? `${lexicalForm}다` : '';
-  const candidates = [
-    dictionaryForm,
-    word,
-    ...morphemes
-      .filter((morpheme) => /^(VV|VA|VX|VCP|VCN)/u.test(morpheme.tag))
-      .map((morpheme) => `${morpheme.text}다`),
-    ...morphemes
-      .filter((morpheme) => /^(NN|NP|NR|MAG|XR)/u.test(morpheme.tag))
-      .map((morpheme) => morpheme.text),
-  ];
-
-  return [...new Set(candidates.map((candidate) => candidate.trim().normalize('NFC')).filter(Boolean))];
-}
-
 export async function lookupKoreanWord(
   word: string,
   morphemes: KoreanMorpheme[],
   apiKey: string,
 ): Promise<DictionaryEntry> {
-  const candidates = candidateWords(word, morphemes);
+  const candidates = dictionaryCandidates(word, morphemes);
   const cacheKey = JSON.stringify(['exact-v3', ...candidates]);
 
   try {

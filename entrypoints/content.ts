@@ -2,6 +2,7 @@ import { createCaptionMonitor } from '@/services/youtube/captions';
 import { createSubtitleOverlay } from '@/services/youtube/overlay';
 import { createSubtitlePresenter } from '@/services/youtube/presenter';
 import type { TokenizeResponse } from '@/types/messages';
+import { VOCABULARY_REVISION_KEY, type KnownHeadwordsMessage, type KnownHeadwordsResponse } from '@/types/vocabulary';
 import { browser } from 'wxt/browser';
 
 export default defineContentScript({
@@ -13,6 +14,26 @@ export default defineContentScript({
 
     const overlay = createSubtitleOverlay(document);
     const presenter = createSubtitlePresenter({ document, overlay });
+    let vocabularyGeneration = 0;
+    const refreshKnownWords = async () => {
+      const generation = ++vocabularyGeneration;
+      try {
+        const response: KnownHeadwordsResponse | undefined = await browser.runtime.sendMessage({
+          type: 'get-known-headwords',
+        } satisfies KnownHeadwordsMessage);
+        if (generation === vocabularyGeneration && response?.ok) {
+          overlay.setKnownHeadwords(response.headwords);
+        }
+      } catch {
+        // Captions remain usable if the background is temporarily unavailable.
+      }
+    };
+    const onStorageChanged: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, area) => {
+      if (area === 'local' && VOCABULARY_REVISION_KEY in changes) void refreshKnownWords();
+    };
+    browser.storage.onChanged.addListener(onStorageChanged);
+    void refreshKnownWords();
+
     let updateGeneration = 0;
     const monitor = createCaptionMonitor({
       document,
@@ -50,6 +71,8 @@ export default defineContentScript({
       document.removeEventListener('yt-navigate-finish', refresh);
       document.removeEventListener('yt-page-data-updated', refresh);
       document.removeEventListener('visibilitychange', refresh);
+      browser.storage.onChanged.removeListener(onStorageChanged);
+      vocabularyGeneration += 1;
       monitor.stop();
       presenter.destroy();
     };

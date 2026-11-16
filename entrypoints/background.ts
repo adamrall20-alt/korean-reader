@@ -1,7 +1,8 @@
 import { browser } from 'wxt/browser';
 import { lookupKoreanWord } from '@/services/dictionary/krdict';
 import { clearDictionaryCache } from '@/services/dictionary/cache';
-import { getVocabulary } from '@/services/storage/vocabulary';
+import { VOCABULARY_REVISION_KEY, type KnownHeadwordsResponse } from '@/types/vocabulary';
+import { getVocabulary, listVocabulary } from '@/services/storage/vocabulary';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
 import type {
@@ -127,13 +128,32 @@ export default defineBackground(() => {
     }
 
     const fromExtensionPage = sender.url?.startsWith(browser.runtime.getURL('/'));
-    if (isVocabularyMessage(message)) {
-      const allowed = message.type === 'mine-word'
-        ? sender.url !== undefined && /^https?:\/\/(?:[\w-]+\.)*youtube\.com\//.test(sender.url)
-        : fromExtensionPage;
-      if (!allowed) return false;
+    const fromYouTube = /^https?:\/\/(?:[\w-]+\.)*youtube\.com\//.test(sender.url ?? '');
 
-      void handleVocabularyMessage(message).then(sendResponse).catch((error: unknown) => {
+    if (fromYouTube && typeof message === 'object' && message !== null &&
+      'type' in message && message.type === 'get-known-headwords') {
+      void listVocabulary().then(
+        (entries) => sendResponse({
+          ok: true,
+          headwords: entries.filter((entry) => entry.status === 'known').map((entry) => entry.headword),
+        } satisfies KnownHeadwordsResponse),
+        () => sendResponse({ ok: false } satisfies KnownHeadwordsResponse),
+      );
+      return true;
+    }
+
+    if (isVocabularyMessage(message)) {
+      if (message.type === 'mine-word' ? !fromYouTube : !fromExtensionPage) return false;
+
+      void handleVocabularyMessage(message).then(async (response) => {
+        if (response.ok && (message.type === 'set-vocabulary-status' ||
+          message.type === 'delete-vocabulary' || (message.type === 'mine-word' && response.outcome !== 'existing'))) {
+          await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: crypto.randomUUID() }).catch((error) => {
+            console.warn('[Korean Reader] Could not notify subtitle tabs of vocabulary changes.', error);
+          });
+        }
+        sendResponse(response);
+      }).catch((error: unknown) => {
         sendResponse({
           ok: false,
           error: error instanceof Error ? error.message : 'Could not access saved vocabulary.',

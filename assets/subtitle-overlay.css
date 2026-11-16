@@ -51,6 +51,13 @@
   pointer-events: auto;
 }
 
+.kr-word-token-unknown {
+  text-decoration-line: underline;
+  text-decoration-color: #f87171;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18em;
+}
+
 .kr-word-token:hover,
 .kr-word-token-selected {
   border-radius: 0.18em;

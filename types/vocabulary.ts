@@ -1,5 +1,13 @@
 import type { DictionaryEntry } from '@/types/messages';
 
+export const VOCABULARY_REVISION_KEY = 'vocabularyRevision';
+
+export interface KnownHeadwordsMessage {
+  type: 'get-known-headwords';
+}
+
+export type KnownHeadwordsResponse = { ok: true; headwords: string[] } | { ok: false };
+
 export type VocabularyStatus = 'known' | 'unknown';
 
 export interface VocabularyContext {

@@ -83,6 +83,7 @@ The stored record extends the dictionary entry with its known status, creation a
 - The normalized headword is the IndexedDB key. Adding a context uses a single read-write transaction to prevent duplicates across tabs.
 - Repeating the same subtitle text from the same video leaves the stored record as it was. A different context can be saved explicitly using **Save Sentence**.
 - Mining marks the word as known. The toolbar popup can toggle known status and edit English definitions.
+- Subtitle tabs read known headwords from the background and refresh when the vocabulary revision changes. Exact text, Kiwi predicate forms, and nouns with particles can match a known headword. Unmatched words are underlined in red.
 - JSON export includes the complete vocabulary collection. Phase 5 will use the stored contexts for Anki synchronisation.
 
 ## 7. Subtitle Overlay

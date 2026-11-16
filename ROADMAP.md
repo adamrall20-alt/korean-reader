@@ -128,6 +128,7 @@ Tasks:
 - [x] Detect existing vocabulary entries.
 - [x] Default unmarked words to unknown and mark mined words as known.
 - [x] Add the known/unknown toggle and filter.
+- [x] Underline unknown subtitle words in red.
 - [x] Allow additional example sentences to be saved for an existing word.
 - [x] Display mining confirmation.
 - [x] Implement the vocabulary management interface.
@@ -217,7 +218,6 @@ These features are outside the initial development scope.
 
 - [ ] Full transcript reader and dedicated reading panel.
 - [ ] Click a subtitle line to jump to its timestamp.
-- [ ] Known-word highlighting.
 - [ ] Vocabulary frequency information.
 - [ ] Screenshot capture for Anki cards.
 - [ ] Audio capture.

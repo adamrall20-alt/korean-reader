@@ -13,6 +13,7 @@ export interface SubtitleOverlay {
     player: HTMLElement | null,
     lines?: TokenizedSubtitleLine[] | null,
   ): void;
+  setKnownHeadwords(headwords: string[]): void;
   hide(): void;
   destroy(): void;
 }
@@ -21,9 +22,11 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
   const state = reactive<{
     lines: TokenizedSubtitleLine[];
     visible: boolean;
+    knownHeadwords: Set<string>;
     source?: Omit<VocabularyContext, 'originalForm'>;
   }>({
     lines: [],
+    knownHeadwords: new Set(),
     visible: false,
   });
 
@@ -55,7 +58,12 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
 
     app = createApp({
       setup() {
-        return () => h(SubtitleReader, { lines: state.lines, visible: state.visible, source: state.source });
+        return () => h(SubtitleReader, {
+          lines: state.lines,
+          visible: state.visible,
+          source: state.source,
+          knownHeadwords: state.knownHeadwords,
+        });
       },
     });
     app.mount(point);
@@ -128,6 +136,9 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
 
   return {
     update,
+    setKnownHeadwords(headwords) {
+      state.knownHeadwords = new Set(headwords);
+    },
     hide,
     destroy,
   };

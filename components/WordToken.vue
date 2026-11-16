@@ -3,6 +3,7 @@ defineProps<{
   word: string;
   tokenId: string;
   selected?: boolean;
+  unknown?: boolean;
 }>();
 
 defineEmits<{
@@ -14,7 +15,7 @@ defineEmits<{
   <button
     type="button"
     class="kr-word-token"
-    :class="{ 'kr-word-token-selected': selected }"
+    :class="{ 'kr-word-token-selected': selected, 'kr-word-token-unknown': unknown }"
     :data-token-id="tokenId"
     @click="$emit('select')"
   >

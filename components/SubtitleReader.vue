@@ -11,6 +11,7 @@ import type {
   TokenizedSubtitleLine,
 } from '@/types/messages';
 
+import { isKnownSubtitleWord } from '@/services/korean/dictionary-forms';
 import type { VocabularyContext } from '@/types/vocabulary';
 
 const miningContext = ref<VocabularyContext>();
@@ -101,6 +102,7 @@ const selectToken = async (token: SubtitleToken) => {
 const props = defineProps<{
   lines: TokenizedSubtitleLine[];
   visible: boolean;
+  knownHeadwords?: ReadonlySet<string>;
   source?: Omit<VocabularyContext, 'originalForm'>;
 }>();
 
@@ -153,6 +155,7 @@ onBeforeUnmount(() => {
           :word="token.text"
           :token-id="token.id"
           :selected="selectedTokenId === token.id"
+          :unknown="!knownHeadwords || !isKnownSubtitleWord(token, knownHeadwords)"
           @select="selectToken(token)"
         />
         <span v-else>{{ token.text }}</span>

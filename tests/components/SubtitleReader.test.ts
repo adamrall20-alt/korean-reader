@@ -135,6 +135,37 @@ describe('SubtitleReader', () => {
     expect(wrapper.get('.kr-dictionary-examples').text()).toContain('만나서 반갑다.');
   });
 
+  it('underlines unknown words and updates conjugated and particle forms in place', async () => {
+    const inflected: TokenizedSubtitleLine[] = [{
+      text: '밥을 먹어요.',
+      tokens: [
+        {
+          id: '0:0', text: '밥을', start: 0, length: 2, clickable: true,
+          morphemes: [
+            { text: '밥', tag: 'NNG', position: 0, length: 1 },
+            { text: '을', tag: 'JKO', position: 1, length: 1 },
+          ],
+        },
+        { id: '0:2', text: ' ', start: 2, length: 1, clickable: false, morphemes: [] },
+        {
+          id: '0:3', text: '먹어요', start: 3, length: 3, clickable: true,
+          morphemes: [
+            { text: '먹', tag: 'VV', position: 3, length: 1 },
+            { text: '어요', tag: 'EF', position: 4, length: 2 },
+          ],
+        },
+        { id: '0:6', text: '.', start: 6, length: 1, clickable: false, morphemes: [] },
+      ],
+    }];
+    const wrapper = mount(SubtitleReader, { props: { lines: inflected, visible: true } });
+
+    expect(wrapper.findAll('.kr-word-token-unknown').map((word) => word.text())).toEqual(['밥을', '먹어요']);
+    await wrapper.setProps({ knownHeadwords: new Set(['밥', '먹다']) });
+    expect(wrapper.findAll('.kr-word-token-unknown')).toHaveLength(0);
+    await wrapper.setProps({ knownHeadwords: new Set(['밥']) });
+    expect(wrapper.get('.kr-word-token-unknown').text()).toBe('먹어요');
+  });
+
   it('renders nothing when hidden', () => {
     const wrapper = mount(SubtitleReader, {
       props: {

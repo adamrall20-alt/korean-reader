@@ -37,6 +37,7 @@ Implemented:
 - Dictionary popup with up to three English definitions, Korean definitions as a fallback, and optional entry details.
 - On-demand English translation of Korean definitions on desktop Chrome when its built-in Translator API is available.
 - YouTube playback pauses when a subtitle word is selected.
+- Red underlines for unknown Korean subtitle words, removed when the word is marked known.
 - Explicit **Mine Word** and **Save Sentence** actions in the dictionary popup.
 - Local vocabulary management with search, date sorting, known status, definition edits, deletion, and JSON export.
 - Direct Settings shortcut in the toolbar popup.
@@ -189,7 +190,7 @@ Current automated result:
 
 | Check | Result |
 |---|---|
-| `npm run test:run` | 11 test files, 47 tests passing |
+| `npm run test:run` | 11 test files, 48 tests passing |
 | `npm run compile` | Passing |
 | `npm run build` | Passing |
 

@@ -49,6 +49,7 @@ function setupPlayer(): HTMLElement {
 function makeOverlay(): SubtitleOverlay {
   return {
     update: vi.fn(),
+    setKnownHeadwords: vi.fn(),
     hide: vi.fn(),
     destroy: vi.fn(),
   };
