@@ -32,6 +32,12 @@ Support dark and light appearances where practical, with dark mode as the initia
 
 These colours are a starting point and may be refined throughout development.
 
+### Typography
+
+Use a softer, rounded sans-serif for the custom subtitle overlay and interface. The final font has not been chosen yet, so Phase 0 uses a local placeholder stack with Korean system fallbacks. Do not load remote fonts; the extension must work offline and must not depend on a third-party font service.
+
+Korean subtitle text should be comfortable to read over video. Prefer clear glyph shapes and generous line height over decorative typography.
+
 ## 2. Design Priorities
 
 Development should prioritise:
@@ -47,6 +53,8 @@ Do not spend excessive development time on animations or decorative effects befo
 ## 3. YouTube Subtitle Interface
 
 Subtitles should be displayed in an accessible, readable format.
+
+The extension hides YouTube's native subtitle line and renders its own custom subtitle overlay. The overlay uses a softer font and supports subtitle appearance settings. If subtitle extraction fails, YouTube's native subtitles should remain visible as a fallback.
 
 Requirements:
 
@@ -69,8 +77,8 @@ It should:
 
 - Appear only when a word is clicked.
 - Be compact and unobtrusive.
-- Appear near the selected word where practical.
-- Remain within the visible browser viewport.
+- Open directly above the selected word.
+- Remain within the visible browser viewport, shifting horizontally or below the word only when there is not enough room above.
 - Close when the user clicks outside it.
 - Update when another word is selected.
 - Avoid blocking important video controls.
@@ -115,11 +123,14 @@ The panel should display:
 
 - Saved Korean words.
 - English meanings.
+- Known/unknown status with a toggle.
 - Selection controls.
 - Number of selected words.
 - Anki connection status.
 - Selected Anki deck.
 - Synchronisation button.
+
+A word defaults to unknown until it is marked. Mining a word marks it as known. The user can change the status later.
 
 The interface should make it easy to review collected vocabulary and synchronise it with Anki.
 
@@ -130,6 +141,8 @@ Use a clearly visible button labelled:
 "Sync to Anki"
 
 Only selected vocabulary should be synchronised unless the user explicitly chooses an option to synchronise all eligible entries.
+
+Each word has a maximum of one Anki card. The extension must never create duplicate cards for the same headword. Multiple example sentences for a word are combined in the card's Sentence field, separated by newlines.
 
 Display successful and unsuccessful synchronisation results.
 
@@ -165,6 +178,8 @@ Initial component concepts:
 - AnkiSyncButton
 - AnkiConnectionStatus
 - SettingsPanel
+
+The proposed file structure starts with five top-level component files: `DictionaryPopup`, `SubtitleReader`, `WordToken`, `MiningPanel` and `SettingsPanel`. Smaller elements such as definition rows, the mine button and status badges may live inside those files. Extract a new component file only when it improves clarity.
 
 Components should be visually consistent.
 

@@ -18,21 +18,23 @@ Prioritise the minimum viable product before optional enhancements.
 
 Tasks:
 
-- [ ] Initialise Git repository.
-- [ ] Configure WXT.
-- [ ] Configure Vue 3.
-- [ ] Configure TypeScript.
-- [ ] Configure Tailwind CSS.
-- [ ] Configure Chrome Manifest V3.
-- [ ] Establish initial directory structure.
-- [ ] Create initial extension entrypoints.
-- [ ] Confirm the extension builds.
-- [ ] Load the extension into Chrome.
-- [ ] Establish basic testing infrastructure.
+- [x] Initialise Git repository.
+- [x] Configure WXT.
+- [x] Configure Vue 3.
+- [x] Configure TypeScript.
+- [x] Configure Tailwind CSS.
+- [x] Configure Chrome Manifest V3.
+- [x] Establish initial directory structure.
+- [x] Create initial extension entrypoints.
+- [x] Confirm the extension builds.
+- [x] Establish basic testing infrastructure.
+- [x] Load the extension into Chrome and verify the popup, options page and YouTube content script.
 
 Completion criteria:
 
 The extension loads successfully in Chrome and displays a basic working interface.
+
+Phase 0 was verified in Chrome on 16 November 2026. The popup connected to the background worker, the options page opened, and the YouTube content script logged readiness.
 
 ## Phase 1 — YouTube Integration
 
@@ -47,7 +49,9 @@ Tasks:
 - [ ] Detect subtitle changes.
 - [ ] Extract video timestamps.
 - [ ] Synchronise subtitle updates with playback.
-- [ ] Display extracted subtitles in the extension.
+- [ ] Hide YouTube's native subtitle line and display the custom overlay.
+- [ ] Apply the placeholder softer subtitle font.
+- [ ] Fall back to native subtitles if extraction fails.
 - [ ] Handle videos without Korean subtitles.
 - [ ] Test different YouTube caption types.
 
@@ -61,6 +65,7 @@ Korean subtitles can be reliably detected and displayed during video playback.
 
 Tasks:
 
+- [ ] Complete the bundled Kiwi WebAssembly feasibility spike.
 - [ ] Implement Korean tokenisation.
 - [ ] Integrate Kiwi or a suitable browser-compatible alternative.
 - [ ] Identify individual Korean words.
@@ -90,9 +95,10 @@ Tasks:
 - [ ] Display parts of speech.
 - [ ] Display grammatical information where available.
 - [ ] Implement dictionary popup.
-- [ ] Implement popup positioning.
-- [ ] Implement popup closing behaviour.
+- [ ] Open the popup directly above the selected word.
+- [ ] Keep the popup inside the viewport and close it on an outside click.
 - [ ] Cache dictionary results locally.
+- [ ] Store the KRDict API key locally through the Settings page.
 - [ ] Handle missing dictionary entries.
 
 Completion criteria:
@@ -105,18 +111,22 @@ Clicking a Korean subtitle word displays its correct dictionary information in a
 
 Tasks:
 
-- [ ] Design vocabulary data structure.
-- [ ] Implement IndexedDB storage.
-- [ ] Implement Mine Word button.
+- [ ] Design the one-entry-per-headword vocabulary data structure.
+- [ ] Implement IndexedDB storage in the background service worker.
+- [ ] Implement the Mine Word button.
 - [ ] Save dictionary information.
 - [ ] Save original subtitle context.
 - [ ] Save YouTube video information.
 - [ ] Save video timestamps.
 - [ ] Detect existing vocabulary entries.
+- [ ] Default unmarked words to unknown and mark mined words as known.
+- [ ] Add the known/unknown toggle and filter.
+- [ ] Allow additional example sentences to be saved for an existing word.
 - [ ] Display mining confirmation.
-- [ ] Implement vocabulary management interface.
+- [ ] Implement the vocabulary management interface.
 - [ ] Implement search and filtering.
 - [ ] Implement vocabulary deletion.
+- [ ] Implement JSON vocabulary export.
 
 Completion criteria:
 
@@ -137,14 +147,17 @@ Tasks:
 - [ ] Implement deck selection.
 - [ ] Implement note type selection.
 - [ ] Implement field mapping.
-- [ ] Implement duplicate detection.
+- [ ] Implement duplicate detection by dictionary headword.
+- [ ] Enforce a maximum of one Anki card per headword.
 - [ ] Implement single-note creation.
 - [ ] Implement bulk-note creation.
+- [ ] Join additional example sentences in the Sentence field with newlines.
+- [ ] Update an existing note's Sentence field when new example sentences are added.
 - [ ] Display synchronisation results.
 - [ ] Handle connection failures.
 - [ ] Retrieve and verify Kimchi Sentence Mining note type fields.
 - [ ] Implement Kimchi Sentence Mining field mapping.
-- [ ] Populate all six Anki fields.
+- [ ] Populate required fields; leave Image and Audio empty until capture is implemented.
 - [ ] Verify compatibility with existing card templates.
 - [ ] Test front and back card rendering in Anki.
 
@@ -195,14 +208,15 @@ The interface feels consistent, polished and comfortable to use.
 
 These features are outside the initial development scope.
 
-- [ ] Full transcript reader.
+- [ ] Full transcript reader and dedicated reading panel.
+- [ ] Click a subtitle line to jump to its timestamp.
 - [ ] Known-word highlighting.
 - [ ] Vocabulary frequency information.
 - [ ] Screenshot capture for Anki cards.
 - [ ] Audio capture.
 - [ ] Sentence-level grammar analysis.
 - [ ] Additional dictionary sources.
-- [ ] Vocabulary import and export.
+- [ ] CSV export and vocabulary import.
 - [ ] Advanced subtitle customisation.
 
 Future enhancements should only be considered after the minimum viable product is complete.

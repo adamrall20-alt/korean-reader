@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  /* The final Korean-friendly font is still to be chosen. This is the
+     placeholder stack: rounded Latin shapes with Korean system fallbacks. */
+  --font-sans: "Pretendard Variable", "Pretendard", ui-rounded, "Apple SD Gothic Neo",
+    "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --font-korean: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+
+  --color-ink: #111111;
+  --color-ink-soft: #1c1c1c;
+  --color-ink-lift: #262626;
+  --color-paper: #ffffff;
+  --color-surface: #f3f3f3;
+  --color-accent: #16a34a;
+  --color-accent-soft: #dcfce7;
+  --color-muted: #888888;
+  --color-line: #2a2a2a;
+}
+
+@layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+}

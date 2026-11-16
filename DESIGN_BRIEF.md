@@ -51,22 +51,26 @@ Vocabulary must only be transferred to Anki when the user explicitly initiates s
 - Detect available Korean subtitles.
 - Read currently displayed subtitle text.
 - Extract subtitle timing information where available.
-- Display interactive subtitles.
+- Hide YouTube's native subtitle line and display the extension's own interactive subtitle overlay.
+- Use a softer font for the custom subtitles. A placeholder font stack is used until the final font is chosen.
 - Identify individual Korean words.
 - Synchronise subtitle updates with video playback.
 - Allow subtitle interaction without interfering with normal YouTube controls.
 
 The initial implementation should prioritise reliable extraction of currently displayed subtitles.
 
+If custom subtitle extraction fails, the extension should fall back to leaving YouTube's native subtitles visible.
+
 Full transcript retrieval and dedicated transcript reading modes are future enhancements.
 
 ### 3.2 Interactive Korean Words
 
 - Split Korean subtitles into individually clickable words.
-- Clicking a word opens its dictionary popup.
+- Clicking a word opens its dictionary popup directly above the selected word.
 - Hovering over a word must not open anything.
 - Clicking another word updates the existing popup.
 - Clicking outside the popup closes it.
+- When the popup opens above the word, it must remain inside the visible browser viewport.
 - Preserve the original sentence context.
 - Identify the original word form where possible.
 
@@ -106,14 +110,21 @@ When selected:
 - Save the source video URL.
 - Save the video timestamp where available.
 - Record the date mined.
+- Mark the vocabulary entry as known.
 
 Display a confirmation when a word has been successfully mined.
 
 If a word has already been mined, indicate that it is already in the vocabulary collection.
 
-Do not automatically create duplicate vocabulary entries.
+Do not automatically create duplicate vocabulary entries. One vocabulary entry is allowed per dictionary headword.
 
-Allow the user to save additional example sentences for previously mined words.
+Allow the user to save additional example sentences for previously mined words. Additional sentences are stored in the vocabulary entry. When syncing to Anki, all saved sentences are placed in the note's Sentence field, separated by a newline.
+
+Known/unknown status rules:
+
+- A word that has not been marked before defaults to unknown.
+- Mining a word marks it as known.
+- The user can change the status with a known/unknown toggle.
 
 ### 3.5 Vocabulary Management
 
@@ -125,13 +136,15 @@ Required functionality:
 - Search vocabulary.
 - Sort by date mined.
 - Filter by known or unknown status.
+- Display and toggle known/unknown status.
 - Display dictionary definitions.
-- Display original sentence context.
+- Display original sentence context. Additional sentences can be added to an existing word.
 - Display source video information.
 - Delete vocabulary entries.
 - Edit vocabulary information.
 - Select individual entries for Anki synchronisation.
 - Select multiple entries for bulk synchronisation.
+- Export vocabulary as JSON. CSV export and import are future enhancements.
 
 ### 3.6 Anki Integration
 
@@ -178,6 +191,12 @@ The note type contains the following fields:
 
 The application must populate these fields using information collected during vocabulary mining.
 
+One Anki card is allowed per vocabulary headword. The extension must never create duplicate notes for the same word. Duplicate detection is based on the dictionary headword.
+
+The Sentence field contains the original subtitle sentence. If the user has saved additional example sentences for the word, they are appended in the same field, separated by newlines.
+
+The Image and Audio fields remain empty until screenshot and audio capture are implemented. Missing optional media must not prevent note creation.
+
 #### Front of Card
 
 The front of the card displays the following elements in order:
@@ -213,12 +232,12 @@ Hanja definitions and character breakdowns are not required.
 Provide configuration for:
 
 - Dictionary preferences.
-- API credentials.
+- KRDict API credentials. The key is entered in Settings and stored locally; it is never committed to source control or read by the content script.
 - Anki connection.
 - Default Anki deck.
 - Anki note type.
 - Field mapping.
-- Subtitle appearance.
+- Subtitle appearance, including the custom subtitle font.
 - Vocabulary management.
 
 ## 4. Storage and Privacy

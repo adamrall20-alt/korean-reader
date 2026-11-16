@@ -43,7 +43,9 @@ Avoid untyped JavaScript unless required by a third-party integration.
 
 **Tailwind CSS**
 
-Use Tailwind CSS for consistent styling and rapid interface development.
+Use Tailwind CSS v4 for consistent styling and rapid interface development. It is compiled through the `@tailwindcss/vite` plugin. The shared style entry point is `assets/tailwind.css`.
+
+Do not load remote fonts or remote stylesheets. The extension must work offline.
 
 ### Build System
 
@@ -60,6 +62,20 @@ Separate responsibilities between:
 - Extension interface.
 - Storage and application services.
 
+### Data Ownership
+
+The background service worker is the single source of truth for:
+
+- IndexedDB vocabulary and dictionary cache data.
+- `chrome.storage.local` settings, including the KRDict API key.
+- KRDict API requests.
+- AnkiConnect requests.
+- Duplicate detection.
+
+The content script must never read the KRDict key, open extension-origin IndexedDB, or call KRDict or AnkiConnect directly. It sends typed messages to the background.
+
+The popup and options pages also request data through the background rather than maintaining their own copies of application state. This avoids multiple competing sources of truth.
+
 ### Content Scripts
 
 Responsible for:
@@ -68,7 +84,9 @@ Responsible for:
 - Detecting rendered subtitles.
 - Extracting subtitle text.
 - Identifying subtitle updates.
-- Rendering or enabling subtitle interactions.
+- Hiding native captions and rendering the custom interactive subtitle overlay.
+- Rendering the dictionary popup in an isolated Shadow DOM so YouTube styles do not leak into it.
+- Sending selected-word and mining requests to the background.
 
 ### Background Service Worker
 
@@ -76,17 +94,19 @@ Responsible for:
 
 - Coordinating extension functionality.
 - Managing messages between extension components.
+- IndexedDB and settings access.
+- Dictionary and Anki API calls.
 - Handling operations requiring background execution.
 
-Do not rely on the service worker remaining continuously active.
+Do not rely on the service worker remaining continuously active. It can be woken by messages.
 
 ### Interface
 
 Responsible for:
 
-- Dictionary popup.
-- Vocabulary mining interface.
-- Settings.
+- Dictionary popup inside the YouTube page.
+- Vocabulary mining interface in the toolbar popup.
+- Settings page.
 - User interactions.
 
 ## 4. Korean Language Processing
@@ -109,6 +129,8 @@ Consider WebAssembly or a lightweight local processing service.
 
 Do not assume the native Kiwi library can execute directly inside a Chrome extension.
 
+Chrome Manifest V3 forbids loading remote code, so any Kiwi build must be bundled with the extension. A short feasibility spike is required before Phase 2 to determine whether bundled Kiwi WebAssembly is practical, what CSP changes it needs, and how large it makes the extension. If it is not practical, present the alternatives and trade-offs before changing the stack.
+
 ## 5. Dictionary Integration
 
 Preferred primary dictionary: National Institute of Korean Language (KRDict).
@@ -125,6 +147,8 @@ Requirements:
 - Avoid unnecessary repeated API requests.
 - Support multiple definitions.
 - Preserve dictionary metadata.
+
+The KRDict API key is entered by the user in the Settings page and stored in `chrome.storage.local`. It must not be committed to Git, injected into the built bundle, or read by the content script. Only the background service worker uses it.
 
 Investigate API registration, authentication, usage restrictions and response formats before implementation.
 
@@ -144,7 +168,7 @@ Potential stored information:
 
 Use Chrome Storage API for appropriate extension configuration and settings.
 
-Avoid maintaining multiple competing sources of truth.
+IndexedDB access is centralised in the background service worker. Content scripts run in the YouTube page context and must not own extension-origin IndexedDB. Avoid maintaining multiple competing sources of truth.
 
 ## 7. Anki Integration
 
@@ -168,6 +192,7 @@ Required operations include:
 - canAddNotes
 - addNote
 - addNotes
+- updateNoteFields
 
 Implement AnkiConnect as an independent service module.
 
@@ -210,17 +235,17 @@ Implement configurable field mapping if necessary.
 | Anki Field | Data Source |
 |---|---|
 | Focus Word | Korean dictionary headword |
-| Sentence | Original YouTube subtitle sentence |
+| Sentence | Original YouTube subtitle sentence, plus additional saved sentences separated by newlines |
 | Definition | English dictionary definition |
 | Pronunciation | Dictionary pronunciation |
-| Image | Associated image, if available |
-| Audio | Focus word pronunciation audio, if available |
+| Image | Empty until screenshot capture is implemented |
+| Audio | Empty until audio capture is implemented |
 
 #### Duplicate Detection
 
-Before creating a note, check whether the vocabulary already exists in Anki.
+One vocabulary headword may have at most one Anki card. Before creating a note, check whether the headword already has a note in Anki.
 
-Avoid creating duplicate notes.
+Avoid creating duplicate notes. A new sentence for an existing word updates the existing vocabulary record and its Sentence field rather than creating a second card.
 
 #### Template Compatibility
 
@@ -256,6 +281,10 @@ AnkiConnect communication, deck retrieval, duplicate detection and note creation
 
 IndexedDB operations and persistent application data.
 
+### Messages
+
+Message payloads are defined in `types/messages.ts`. Keep message handling on the background side and validate incoming payloads rather than trusting their shape.
+
 ### Components
 
 Vue components should focus on presentation and user interaction.
@@ -266,15 +295,16 @@ Business logic should remain in appropriate services rather than being duplicate
 
 Use appropriate automated testing tools.
 
-Suggested:
+The Phase 0 setup uses:
 
-- Vitest for unit testing.
-- Vue Test Utils for component testing.
-- Playwright where browser-level testing is useful.
+- Vitest for unit and component testing.
+- Vue Test Utils for component tests.
+- jsdom as the test DOM.
+- Playwright later, only where browser-level extension testing is useful.
 
-Test important functionality independently.
+Test important functionality independently. Tests live in `tests/`. Run `npm run test:run` for a single non-watching run and `npm run compile` for type checking.
 
-Prioritise tests for Korean word processing, dictionary lookup, storage and AnkiConnect.
+Prioritise tests for Korean word processing, dictionary lookup, storage and AnkiConnect as those features are added.
 
 ## 10. Dependencies and Constraints
 
