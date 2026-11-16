@@ -165,6 +165,8 @@ The production extension is written to:
 
 For development, use `.output/chrome-mv3-dev` after running `npm run dev`.
 
+If captions appear as plain text with no clickable words, check the **Loaded from** path for Korean Reader in `chrome://extensions`. If it points to `.output/chrome-mv3`, click **Reload** on that entry and refresh the YouTube tab. If it points to another folder, check that folder before replacing the installation. Chrome stores vocabulary under the installed extension ID, which can change when you load from a different folder.
+
 ## Automated Checks
 
 Run the tests once:

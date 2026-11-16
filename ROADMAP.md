@@ -179,7 +179,7 @@ The user confirmed Phase 5 is complete.
 
 Tasks:
 
-- [ ] Test the complete YouTube-to-Anki workflow.
+- [x] Test the complete YouTube-to-Anki workflow.
 - [x] Test missing dictionary entries.
 - [ ] Test unusual Korean conjugations.
 - [x] Test duplicate vocabulary.
@@ -187,7 +187,7 @@ Tasks:
 - [x] Test Anki connection failures.
 - [x] Test storage persistence.
 - [ ] Test different YouTube videos.
-- [ ] Resolve major bugs.
+- [x] Resolve major bugs.
 - [x] Confirm successful production build.
 
 Completion criteria:
@@ -233,5 +233,6 @@ These features are outside the initial development scope.
 - [ ] Stats and long term learning progress tracking.
 - [ ] Web server and accounts?
 - [ ] Import already known words from Anki or other sources.
+- [ ] Fix word checking against common conjugations, prefering the noun over the verb when both are valid dictionary entries.
 
 Future enhancements should only be considered after the minimum viable product is complete.
