@@ -3,7 +3,7 @@
 ## Current Project State
 
 **Status:** Phase 5 implemented and verified in Chrome with a loopback AnkiConnect fixture
-**Current Phase:** Phase 5 — AnkiConnect Integration
+**Current Phase:** Phase 6 — Reliability and Testing
 **Last Updated:** 16 November 2026
 
 ## Completed
@@ -151,7 +151,7 @@ Last run: 16 November 2026
 
 | Check | Command | Result |
 |---|---|---|
-| Unit/component tests | `npm run test:run` | Pass — 12 files, 54 tests |
+| Unit/component tests | `npm run test:run` | Pass — 12 files, 56 tests |
 | Headless Chrome smoke test | Temporary unpacked build and KRDict fixtures | Pass — bundled Kiwi, local key settings, exact lookup, pronunciation, cache reuse and clearing |
 | Phase 4 Chrome fixture test | Unpacked extension with fixture captions and KRDict | Pass — explicit save, source metadata, duplicate handling, additional sentences, schema upgrade, cache isolation, status, edits, deletion and JSON export |
 | Phase 5 Chrome fixture test | Unpacked extension with a loopback mock AnkiConnect server | Pass — connection, default settings, explicit sync, creation, duplicate skip, added sentence, and saved note ID |
@@ -209,3 +209,10 @@ Phase 1 is complete and verified in Chrome. Korean captions are replaced by the 
 The production build is at `.output/chrome-mv3`. See `README.md` for setup, testing and manual verification instructions.
 
 Phase 6 is the next milestone and requires user approval.
+
+
+## Phase 6 verification — 16 November 2026
+
+The user confirmed Phase 5 is complete. The automated suite passed 56 tests, type checking passed, and the production extension built successfully. Additional tests cover a missing dictionary entry and a KRDict HTTP failure. A Chrome test with simulated captions, dictionary responses and AnkiConnect passed mining, sync, duplicate handling, adding a sentence and saving the Anki note ID.
+
+Live testing across multiple YouTube videos, unusual conjugations and the complete workflow remains to be verified. The automated Chrome check uses simulated services and does not establish those live results. No new failures were found in the checks run.

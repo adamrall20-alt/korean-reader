@@ -134,4 +134,16 @@ describe('KRDict lookup', () => {
     expect(details.searchParams.get('trans_lang')).toBe('1');
   });
 
+  it('reports a missing dictionary entry after trying the available forms', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<channel></channel>'));
+    await expect(lookupKoreanWord('없는말', [], 'test-key'))
+      .rejects.toThrow('No dictionary entry was found');
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('reports an HTTP error instead of displaying an empty result', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 503 }));
+    await expect(lookupKoreanWord('나무', [], 'test-key')).rejects.toThrow('HTTP 503');
+  });
+
 });
