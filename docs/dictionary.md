@@ -3,7 +3,7 @@
 ## Status
 
 Phase 3 lookup, popup functionality, dictionary-form matching and caching are implemented.
-Vocabulary persistence is planned for Phase 4.
+Phase 4 adds the explicit mining action. Dictionary metadata and any completed machine translation can be saved with the selected subtitle context.
 
 ## Source
 
@@ -28,18 +28,17 @@ The user has obtained a KRDict API key.
 
 1. The content script sends the selected Korean word and Kiwi morphemes to the background.
 2. The background reads the locally stored KRDict API key.
-3. The background tries the surface form, followed by Kiwi-built dictionary-form candidates.
-4. The background calls the official KRDict search endpoint.
-5. The XML response is normalized with a worker-safe parser, cached in IndexedDB and returned
-   to the content script.
-6. The dictionary popup displays the result or a useful error.
+3. The background builds normalized lookup candidates, preferring the Kiwi dictionary form for predicates.
+4. It checks IndexedDB for the resolved entry for that candidate list, then makes exact headword searches as needed.
+5. For a matching search result with a target code, it requests English translations, pronunciation, conjugations, Hanja and examples from the entry endpoint. Search definitions remain usable if the details request fails.
+6. The worker normalizes the XML, caches the resolved entry and returns it to the popup.
 
 ## What the Popup Displays
 
 - Korean dictionary headword.
 - Original subtitle form.
-- English definitions.
-- At most three definitions per language.
+- Up to three English definitions or short English glosses. Korean definitions are shown when KRDict provides no English.
+- **Translate to English** uses the desktop Chrome Translator API for Korean definitions when exposed by the browser. The first request may download a language pack. The popup labels the local translation separately and retains the source definition.
 - Part of speech.
 - Conjugation information where available.
 - Pronunciation.
@@ -48,7 +47,7 @@ The user has obtained a KRDict API key.
 
 ## Morphological Analysis
 
-Kiwi is the preferred analyser, but its browser integration must be verified first. See `docs/architecture.md`.
+Kiwi runs as bundled WebAssembly in the background worker. See `docs/architecture.md`.
 
 The analyser is responsible for:
 
@@ -60,7 +59,7 @@ The analyser is responsible for:
 ## Caching
 
 - Cache dictionary results in IndexedDB.
-- Cache by the normalised lookup key, not only by the surface form.
+- Cache by the ordered, normalized candidate list so different analyses of the same spelling can resolve independently. Older cache keys are ignored and can be removed from Settings.
 - Store the original response metadata needed to render definitions and examples.
 - Avoid repeated API requests for the same lookup.
 - Provide a way to clear the cache from Settings.
@@ -89,7 +88,5 @@ Show a useful message in the dictionary popup rather than failing silently.
 
 ## Open Questions
 
-- Exact KRDict endpoint and response format.
-- Whether KRDict returns sufficient information for conjugation and Hanja display.
 - Rate limits and request throttling.
-- Cache key strategy for homonyms and multiple parts of speech.
+- Context-based selection among homonyms with the same headword.

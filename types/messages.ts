@@ -1,3 +1,5 @@
+import type { VocabularyContext, VocabularyMessage } from '@/types/vocabulary';
+
 export interface PingMessage {
   type: 'ping';
 }
@@ -46,6 +48,8 @@ export interface DictionaryEntry {
   definitions: string[];
   partOfSpeech?: string;
   pronunciation?: string;
+  hanja?: string[];
+  conjugations?: string[];
   examples: string[];
 }
 
@@ -58,6 +62,7 @@ export interface LookupMessage {
 export interface LookupResponse {
   ok: boolean;
   entry?: DictionaryEntry;
+  savedContexts?: VocabularyContext[];
   error?: string;
 }
 
@@ -86,4 +91,5 @@ export type ExtensionMessage =
   | LookupMessage
   | GetSettingsMessage
   | SetKrDictApiKeyMessage
-  | ClearDictionaryCacheMessage;
+  | ClearDictionaryCacheMessage
+  | VocabularyMessage;

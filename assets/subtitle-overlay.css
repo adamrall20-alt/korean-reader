@@ -26,7 +26,7 @@
   line-height: 1.45;
   text-align: center;
   text-wrap: balance;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .kr-subtitle-line {
@@ -48,6 +48,7 @@
   font: inherit;
   line-height: inherit;
   cursor: pointer;
+  pointer-events: auto;
 }
 
 .kr-word-token:hover,
@@ -58,6 +59,7 @@
 }
 
 .kr-dictionary-popup {
+  box-sizing: border-box;
   position: fixed;
   z-index: 70;
   width: min(44rem, calc(100vw - 1rem));
@@ -131,6 +133,22 @@
   font-weight: 600;
 }
 
+.kr-translate-button {
+  margin-top: 0.7rem;
+  padding: 0.35em 0.65em;
+  border: 1px solid #16a34a;
+  border-radius: 0.4em;
+  color: #b7f7c7;
+  background: rgba(22, 163, 74, 0.18);
+  font: inherit;
+  cursor: pointer;
+}
+
+.kr-translate-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .kr-dictionary-examples {
   margin-top: 1.2rem;
   padding-top: 1rem;
@@ -152,4 +170,28 @@
     max-width: 96%;
     font-size: clamp(1.5rem, 6.6vw, 2.18rem);
   }
+}
+
+.kr-mining-actions {
+  margin-top: 1rem;
+}
+
+.kr-mining-actions p {
+  margin: 0.35rem 0;
+}
+
+.kr-mine-button {
+  padding: 0.35em 0.75em;
+  border: 0;
+  border-radius: 0.4em;
+  background: #15803d;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kr-mine-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }

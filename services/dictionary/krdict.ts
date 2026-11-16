@@ -1,17 +1,17 @@
 import type { DictionaryEntry, KoreanMorpheme } from '@/types/messages';
 import { cacheDictionaryEntry, getCachedDictionaryEntry } from '@/services/dictionary/cache';
 
-const API_URL = 'https://krdict.korean.go.kr/api/search';
+const API_URL = 'https://krdict.korean.go.kr/api';
 
 function decodeXml(value: string): string {
   return value
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 16)));
+    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&amp;/g, '&');
 }
 
 function readTag(source: string, tag: string): string | undefined {
@@ -32,14 +32,39 @@ function readBlocks(source: string, tag: string): string[] {
   return blocks;
 }
 
-function parseResponse(xmlText: string, originalForm: string): DictionaryEntry | null {
-  const apiError = readTag(xmlText, 'error') ?? readTag(xmlText, 'error_message');
+function validateResponse(xmlText: string): void {
+  const errorBlock = readBlocks(xmlText, 'error')[0];
+  const apiError = errorBlock !== undefined
+    ? readTag(errorBlock, 'message') ?? 'KRDict returned an API error.'
+    : readTag(xmlText, 'error_message');
 
   if (apiError) {
     throw new Error(apiError);
   }
 
-  const item = readBlocks(xmlText, 'item')[0];
+  if (!/<channel(?:\s[^>]*)?\s*\/>|<channel(?:\s[^>]*)?>[\s\S]*<\/channel>/i.test(xmlText)) {
+    throw new Error('KRDict returned an invalid dictionary response.');
+  }
+}
+
+function englishDefinitions(senses: string[]): string[] {
+  const definitions = senses.flatMap((sense) =>
+    readBlocks(sense, 'translation').flatMap((translation) => {
+      const language = readTag(translation, 'trans_lang');
+      if (language && !/^(영어|english|en|1)$/i.test(language)) return [];
+
+      const meaning = readTag(translation, 'trans_dfn') ?? readTag(translation, 'trans_word');
+      return meaning ? [meaning] : [];
+    }),
+  );
+  return [...new Set(definitions)];
+}
+
+function parseResponse(xmlText: string, candidate: string, originalForm: string) {
+  validateResponse(xmlText);
+  const item = readBlocks(xmlText, 'item').find(
+    (result) => readTag(result, 'word')?.normalize('NFC') === candidate,
+  );
   if (!item) {
     return null;
   }
@@ -49,45 +74,95 @@ function parseResponse(xmlText: string, originalForm: string): DictionaryEntry |
     const definition = readTag(sense, 'definition');
     return definition ? [definition] : [];
   });
-  const definitions = senses.flatMap((sense) =>
-    readBlocks(sense, 'translation').flatMap((translation) =>
-      readBlocks(translation, 'trans_dfn')
-        .map((value) => decodeXml(value.replace(/<[^>]+>/g, '').trim()))
-        .filter((value) => value.length > 0),
-    ),
-  );
-
-  return {
-    headword: readTag(item, 'word') ?? originalForm,
+  const entry: DictionaryEntry = {
+    headword: readTag(item, 'word') ?? candidate,
     originalForm,
     koreanDefinitions,
-    definitions,
+    definitions: englishDefinitions(senses),
     partOfSpeech: readTag(item, 'pos'),
     pronunciation: readTag(item, 'pronunciation'),
     examples: readBlocks(item, 'example')
       .map((example) => decodeXml(example.replace(/<[^>]+>/g, '').trim()))
       .filter((example) => example.length > 0),
   };
+  return { entry, targetCode: readTag(item, 'target_code') };
+}
+
+async function addEntryDetails(
+  entry: DictionaryEntry,
+  targetCode: string,
+  apiKey: string,
+): Promise<void> {
+  const params = new URLSearchParams({
+    key: apiKey,
+    method: 'target_code',
+    q: targetCode,
+    translated: 'y',
+    trans_lang: '1',
+  });
+  const response = await fetch(`${API_URL}/view?${params}`, {
+    signal: AbortSignal.timeout(4000),
+  });
+  if (!response.ok) return;
+
+  const xml = await response.text();
+  validateResponse(xml);
+  const info = readBlocks(xml, 'word_info')[0];
+  if (!info || readTag(info, 'word') !== entry.headword) return;
+
+  // Read headword pronunciation before the conjugation and sense sections.
+  const headwordInfo = info.split(/<conju_info>|<sense_info>/i, 1)[0] ?? '';
+  entry.pronunciation = readTag(headwordInfo, 'pronunciation') ?? entry.pronunciation;
+  const hanja = readBlocks(info, 'original_language_info').flatMap((block) => {
+    const original = readTag(block, 'original_language');
+    return original && /\p{Script=Han}/u.test(original) ? [original] : [];
+  });
+  if (hanja.length) entry.hanja = hanja;
+  const conjugations = readBlocks(info, 'conju_info').flatMap((block) => {
+    return [readTag(block, 'conjugation'), readTag(block, 'abbreviation')].filter(
+      (form): form is string => Boolean(form),
+    );
+  });
+  if (conjugations.length) entry.conjugations = [...new Set(conjugations)];
+  const senses = readBlocks(info, 'sense_info');
+  const definitions = englishDefinitions(senses);
+  if (!entry.definitions.length && definitions.length) entry.definitions = definitions;
+  if (!entry.koreanDefinitions.length) {
+    entry.koreanDefinitions = senses.flatMap((sense) => {
+      const definition = readTag(sense, 'definition');
+      return definition ? [definition] : [];
+    });
+  }
+  const examples = senses.flatMap((sense) =>
+    readBlocks(sense, 'example_info').flatMap((block) => {
+      const example = readTag(block, 'example');
+      return example ? [example] : [];
+    }),
+  );
+  if (examples.length) entry.examples = [...new Set(examples)];
 }
 
 function candidateWords(word: string, morphemes: KoreanMorpheme[]): string[] {
   const lexicalMorphemes = morphemes.filter((morpheme) =>
-    /^(NN|VV|VA|VX|XR|XSV|XSA|MAG)/u.test(morpheme.tag),
+    /^(NN|NP|NR|VV|VA|VX|VCP|VCN|XR|XSV|XSA)/u.test(morpheme.tag),
   );
   const lexicalForm = lexicalMorphemes.map((morpheme) => morpheme.text).join('');
   const hasPredicate = lexicalMorphemes.some((morpheme) =>
-    /^(VV|VA|VX|XSV|XSA)/u.test(morpheme.tag),
+    /^(VV|VA|VX|VCP|VCN|XSV|XSA)/u.test(morpheme.tag),
   );
   const dictionaryForm = hasPredicate && lexicalForm.length > 0 ? `${lexicalForm}다` : '';
   const candidates = [
-    word,
     dictionaryForm,
+    word,
     ...morphemes
-      .filter((morpheme) => /^(NN|VV|VA|VX|MAG|XR)/u.test(morpheme.tag))
+      .filter((morpheme) => /^(VV|VA|VX|VCP|VCN)/u.test(morpheme.tag))
+      .map((morpheme) => `${morpheme.text}다`),
+    ...morphemes
+      .filter((morpheme) => /^(NN|NP|NR|MAG|XR)/u.test(morpheme.tag))
       .map((morpheme) => morpheme.text),
   ];
 
-  return [...new Set(candidates.filter((candidate) => candidate.length > 0))];
+  return [...new Set(candidates.map((candidate) => candidate.trim().normalize('NFC')).filter(Boolean))];
 }
 
 export async function lookupKoreanWord(
@@ -95,33 +170,46 @@ export async function lookupKoreanWord(
   morphemes: KoreanMorpheme[],
   apiKey: string,
 ): Promise<DictionaryEntry> {
-  for (const candidate of candidateWords(word, morphemes)) {
-    try {
-      const cachedEntry = await getCachedDictionaryEntry(candidate);
-      if (cachedEntry) {
-        return { ...cachedEntry, originalForm: word };
-      }
-    } catch (error: unknown) {
-      console.warn('[Korean Reader] Dictionary cache read failed.', error);
-    }
+  const candidates = candidateWords(word, morphemes);
+  const cacheKey = JSON.stringify(['exact-v3', ...candidates]);
 
+  try {
+    const cachedEntry = await getCachedDictionaryEntry(cacheKey);
+    if (cachedEntry) return { ...cachedEntry, originalForm: word };
+  } catch (error: unknown) {
+    console.warn('[Korean Reader] Dictionary cache read failed.', error);
+  }
+
+  for (const candidate of candidates) {
     const params = new URLSearchParams({
       key: apiKey,
       q: candidate,
       translated: 'y',
       trans_lang: '1',
+      advanced: 'y',
+      method: 'exact',
       num: '10',
     });
-    const response = await fetch(`${API_URL}?${params}`);
+    const response = await fetch(`${API_URL}/search?${params}`, { signal: AbortSignal.timeout(10000) });
 
     if (!response.ok) {
       throw new Error(`KRDict request failed with HTTP ${response.status}.`);
     }
 
-    const entry = parseResponse(await response.text(), word);
-    if (entry && (entry.definitions.length > 0 || entry.koreanDefinitions.length > 0)) {
+    const result = parseResponse(await response.text(), candidate, word);
+    if (result) {
+      const { entry, targetCode } = result;
+      if (targetCode && /^\d+$/.test(targetCode)) {
+        try {
+          await addEntryDetails(entry, targetCode, apiKey);
+        } catch {
+          // A search result is still usable if optional details are unavailable.
+        }
+      }
+      if (!entry.definitions.length && !entry.koreanDefinitions.length) continue;
+
       try {
-        await cacheDictionaryEntry(candidate, entry);
+        await cacheDictionaryEntry(cacheKey, entry);
       } catch (error: unknown) {
         console.warn('[Korean Reader] Dictionary cache write failed.', error);
       }

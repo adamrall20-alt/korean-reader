@@ -41,24 +41,23 @@ describe('KRDict lookup', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('key=test-key');
   });
 
-  it('tries a morpheme candidate when the surface form has no result', async () => {
+  it('rejects a mismatched headword and falls back to the surface form', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response('<channel />'))
+      .mockResolvedValueOnce(new Response('<channel><item><word>다른 말</word></item></channel>'))
       .mockResolvedValueOnce(
-        new Response('<channel><item><word>가다</word><sense><definition>to go</definition></sense></item></channel>'),
+        new Response('<channel><item><word>가요</word><sense><definition>song</definition></sense></item></channel>'),
       );
 
     const entry = await lookupKoreanWord('가요', [
       { text: '가', tag: 'VV', position: 0, length: 1 },
     ], 'test-key');
 
-    expect(entry.headword).toBe('가다');
+    expect(entry.headword).toBe('가요');
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('builds a dictionary form from a derived verb', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response('<channel />'))
       .mockResolvedValueOnce(
         new Response('<channel><item><word>공부하다</word><sense><translation><trans_dfn>to study</trans_dfn></translation></sense></item></channel>'),
       );
@@ -69,6 +68,70 @@ describe('KRDict lookup', () => {
       { text: '고', tag: 'EC', position: 3, length: 1 },
     ], 'test-key');
 
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('q=%EA%B3%B5%EB%B6%80%ED%95%98%EB%8B%A4');
+    expect(new URL(String(fetchMock.mock.calls[0]?.[0])).searchParams.get('q')).toBe('공부하다');
   });
+  it('reads optional dictionary details and excludes non-English translations', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(`
+        <channel><item><word>공부하다</word><target_code>123</target_code>
+          <sense><translation><trans_lang>일본어</trans_lang><trans_dfn>学ぶ</trans_dfn></translation>
+            <translation><trans_lang>영어</trans_lang><trans_dfn>to study</trans_dfn></translation>
+          </sense>
+        </item></channel>
+      `))
+      .mockResolvedValueOnce(new Response(`
+        <channel><item><word_info><word>공부하다</word>
+          <original_language_info><original_language>工夫</original_language></original_language_info>
+          <pronunciation_info><pronunciation>공부하다</pronunciation></pronunciation_info>
+          <conju_info><conjugation_info><conjugation>공부하여</conjugation></conjugation_info></conju_info>
+          <sense_info><example_info><example>한국어를 공부하다.</example></example_info></sense_info>
+        </word_info></item></channel>
+      `));
+
+    await expect(lookupKoreanWord('공부하다', [], 'test-key')).resolves.toMatchObject({
+      definitions: ['to study'],
+      pronunciation: '공부하다',
+      hanja: ['工夫'],
+      conjugations: ['공부하여'],
+      examples: ['한국어를 공부하다.'],
+    });
+    const search = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(search.searchParams.get('method')).toBe('exact');
+    expect(search.searchParams.get('trans_lang')).toBe('1');
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/view?');
+  });
+
+  it('reports a KRDict key error without treating it as a missing word', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      '<error><error_code>020</error_code><message>Unregistered key</message></error>',
+    ));
+    await expect(lookupKoreanWord('나무', [], 'test-key')).rejects.toThrow('Unregistered key');
+  });
+
+  it('uses an English gloss from entry details when search has only Korean definitions', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(`
+        <channel><item><word>장난하다</word><target_code>123</target_code>
+          <sense><definition>재미로 하는 짓을 하다.</definition></sense>
+        </item></channel>
+      `))
+      .mockResolvedValueOnce(new Response(`
+        <channel><item><word_info><word>장난하다</word>
+          <sense_info>
+            <translation><trans_lang>English</trans_lang><trans_word>to fool around</trans_word>
+              <trans_dfn /></translation>
+            <example_info><example>친구와 장난하다.</example></example_info>
+          </sense_info>
+        </word_info></item></channel>
+      `));
+    await expect(lookupKoreanWord('장난하다', [], 'test-key')).resolves.toMatchObject({
+      definitions: ['to fool around'],
+      koreanDefinitions: ['재미로 하는 짓을 하다.'],
+      examples: ['친구와 장난하다.'],
+    });
+    const details = new URL(String(fetchMock.mock.calls[1]?.[0]));
+    expect(details.searchParams.get('translated')).toBe('y');
+    expect(details.searchParams.get('trans_lang')).toBe('1');
+  });
+
 });

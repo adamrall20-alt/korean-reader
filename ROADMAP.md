@@ -104,13 +104,13 @@ Tasks:
 - [x] Keep the popup inside the viewport and close it on an outside click.
 - [x] Cache dictionary results locally in IndexedDB.
 - [x] Provide a Settings action to clear the dictionary cache.
-- [x] Limit popup definitions to the top three results per language.
+- [x] Show up to three English definitions, falling back to Korean definitions when needed.
 - [x] Store the KRDict API key locally through the Settings page.
 - [x] Handle missing dictionary entries.
 
 Completion criteria:
 
-Clicking a Korean subtitle word displays its dictionary information in an English/Korean popup.
+Clicking a Korean subtitle word displays its dictionary headword, English definitions and available entry details.
 
 ## Phase 4 — Vocabulary Mining
 
@@ -118,26 +118,26 @@ Clicking a Korean subtitle word displays its dictionary information in an Englis
 
 Tasks:
 
-- [ ] Design the one-entry-per-headword vocabulary data structure.
-- [ ] Implement IndexedDB storage in the background service worker.
-- [ ] Implement the Mine Word button.
-- [ ] Save dictionary information.
-- [ ] Save original subtitle context.
-- [ ] Save YouTube video information.
-- [ ] Save video timestamps.
-- [ ] Detect existing vocabulary entries.
-- [ ] Default unmarked words to unknown and mark mined words as known.
-- [ ] Add the known/unknown toggle and filter.
-- [ ] Allow additional example sentences to be saved for an existing word.
-- [ ] Display mining confirmation.
-- [ ] Implement the vocabulary management interface.
-- [ ] Implement search and filtering.
-- [ ] Implement vocabulary deletion.
-- [ ] Implement JSON vocabulary export.
+- [x] Design the one-entry-per-headword vocabulary data structure.
+- [x] Implement IndexedDB storage in the background service worker.
+- [x] Implement the Mine Word button.
+- [x] Save dictionary information.
+- [x] Save original subtitle context.
+- [x] Save YouTube video information.
+- [x] Save video timestamps.
+- [x] Detect existing vocabulary entries.
+- [x] Default unmarked words to unknown and mark mined words as known.
+- [x] Add the known/unknown toggle and filter.
+- [x] Allow additional example sentences to be saved for an existing word.
+- [x] Display mining confirmation.
+- [x] Implement the vocabulary management interface.
+- [x] Implement search and filtering.
+- [x] Implement definition editing and vocabulary deletion.
+- [x] Implement JSON vocabulary export.
 
 Completion criteria:
 
-Words can be explicitly mined and retrieved from persistent local storage.
+Words can be explicitly mined and retrieved from persistent local storage. The Chrome fixture test passed. Live user acceptance is pending.
 
 ## Phase 5 — AnkiConnect Integration
 

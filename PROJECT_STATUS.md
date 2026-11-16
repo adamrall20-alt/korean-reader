@@ -2,8 +2,8 @@
 
 ## Current Project State
 
-**Status:** Phases 2 and 3 implemented; awaiting final Chrome verification of caching and form matching
-**Current Phase:** Phase 3 — Dictionary Integration
+**Status:** Phase 4 implemented and verified in Chrome with fixture captions and KRDict responses
+**Current Phase:** Phase 4 — Vocabulary Mining
 **Last Updated:** 16 November 2026
 
 ## Completed
@@ -47,34 +47,32 @@
 - [x] KRDict API key storage through Settings.
 - [x] Dictionary popup with definitions, pronunciation and part of speech.
 - [x] Dictionary lookup errors and missing-entry messages.
-- [x] English and Korean dictionary definitions in the popup.
+- [x] English dictionary definitions in the popup.
 - [x] IndexedDB dictionary-result caching.
 - [x] Dictionary cache clearing from Settings.
 - [x] Dictionary-form candidates built from Kiwi lexical morphemes.
 - [x] Enlarged dictionary popup for improved readability.
 - [x] Dictionary popup positioned within the browser viewport.
-- [x] Dictionary definitions limited to the top three English and Korean results.
+- [x] Dictionary popup shows up to three English definitions, with Korean definitions as a fallback.
 - [x] YouTube video pauses when a subtitle word is selected.
 - [x] Direct Settings button added to the toolbar popup.
 
+- [x] Exact KRDict headword matching and optional entry details (pronunciation, conjugations, Hanja and examples).
+- [x] Popup ignores older lookup responses and repositions after content changes.
+
+- [x] On-demand Korean definition translation via Chrome’s on-device Translator API, covered with component tests.
+
+- [x] Explicit vocabulary mining with one local record per normalized headword.
+- [x] Save subtitle context, original form, video source, playback timestamp, and mining date.
+- [x] Vocabulary panel with search, date sorting, status filtering, definition editing, deletion, and JSON export.
+
+The user confirmed the Phase 2–3 workflow on a live YouTube video, including on-device definition translation.
+
 ## In Progress
 
-- [ ] Manually verify Phase 2 and 3 interactions in Chrome, including cache reuse and cache clearing.
+- [ ] User acceptance of the Phase 4 mining workflow on live YouTube.
 
 ## Not Started
-
-### Phase 2 — Interactive Korean Words
-
-Implemented, including clickable subtitle words and Kiwi-backed dictionary-form candidates.
-
-### Phase 3 — Dictionary Integration
-
-Implemented, including the enlarged popup, top-three definition limit, and Settings shortcut.
-Vocabulary persistence and mining belong to Phase 4.
-
-### Phase 4 — Vocabulary Mining
-
-Not started.
 
 ### Phase 5 — AnkiConnect Integration
 
@@ -153,7 +151,9 @@ Last run: 16 November 2026
 
 | Check | Command | Result |
 |---|---|---|
-| Unit/component tests | `npm run test:run` | Pass — 10 files, 36 tests |
+| Unit/component tests | `npm run test:run` | Pass — 11 files, 47 tests |
+| Headless Chrome smoke test | Temporary unpacked build and KRDict fixtures | Pass — bundled Kiwi, local key settings, exact lookup, pronunciation, cache reuse and clearing |
+| Phase 4 Chrome fixture test | Unpacked extension with fixture captions and KRDict | Pass — explicit save, source metadata, duplicate handling, additional sentences, schema upgrade, cache isolation, status, edits, deletion and JSON export |
 | Type checking | `npm run compile` | Pass |
 | Production build | `npm run build` | Pass — `.output/chrome-mv3`, approximately 114.9 MB |
 | Packaging | `npm run zip` | Pass — `.output/korean-reader-0.1.0-chrome.zip`, approximately 89.2 MB |
@@ -189,14 +189,13 @@ Last run: 16 November 2026
 - `npm install` reports engine warnings from two transitive packages (`nopt`, `abbrev`) because the local Node version is v24.14.0 while those packages declare support for v24.15.0 or newer. Installation, tests, type checking and the production build all succeed.
 - YouTube usually leaves `video.textTracks` empty for its custom caption renderer. Korean detection therefore relies mainly on the rendered caption text; track metadata is used when it is present.
 - Captions must be enabled in YouTube's player for extraction to work. The extension does not force captions on.
-- Phase 2 still requires manual Chrome verification on live YouTube captions.
+- KRDict homonyms sharing the same headword are resolved in dictionary order.
 - Phase 3 requires the user's KRDict API key before definitions can be retrieved.
 - AnkiConnect browser-origin/CORS behaviour has not been verified.
 
 ## Pending Investigation
 
 - Native caption DOM reliability across YouTube layouts, live streams and auto-generated captions.
-- KRDict API registration, authentication and response formats.
 - Dictionary result caching and expiry policy.
 - AnkiConnect communication permissions and CORS configuration.
 - Tailwind CSS behaviour inside a Shadow DOM content-script UI.
@@ -208,4 +207,4 @@ Phase 1 is complete and verified in Chrome. Korean captions are replaced by the 
 
 The production build is at `.output/chrome-mv3`. See `README.md` for setup, testing and manual verification instructions.
 
-Phase 2 begins only after user approval.
+Phase 5 is the next milestone and requires user approval.

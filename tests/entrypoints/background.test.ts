@@ -10,6 +10,7 @@ const { listeners } = vi.hoisted(() => ({
 vi.mock('wxt/browser', () => ({
   browser: {
     runtime: {
+      getURL: (path: string) => `chrome-extension://test${path}`,
       getManifest: () => ({ version: '0.1.0' }),
       onInstalled: {
         addListener: (listener: (...args: unknown[]) => void) => {
@@ -54,4 +55,14 @@ describe('background entrypoint', () => {
     expect(result).toBe(false);
     expect(sendResponse).not.toHaveBeenCalled();
   });
+  it('rejects malformed mining requests and blocks vocabulary listing from YouTube', () => {
+    const messageListener = listeners.message[0]!;
+    const sender = { url: 'https://www.youtube.com/watch?v=abcdefghijk' };
+    const sendResponse = vi.fn();
+
+    expect(messageListener({ type: 'mine-word', entry: {} }, sender, sendResponse)).toBe(false);
+    expect(messageListener({ type: 'list-vocabulary' }, sender, sendResponse)).toBe(false);
+    expect(sendResponse).not.toHaveBeenCalled();
+  });
+
 });

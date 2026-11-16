@@ -57,6 +57,10 @@ export function tokenizeSubtitleLine(
   for (const morpheme of sortedMorphemes) {
     const end = Math.min(line.length, morpheme.position + morpheme.length);
     if (end <= cursor) {
+      // Kiwi can give a suffix the same source span as the preceding stem.
+      if (word && morpheme.position >= word.start && isClickableMorpheme(morpheme)) {
+        word.morphemes.push(toMorpheme(morpheme));
+      }
       continue;
     }
 

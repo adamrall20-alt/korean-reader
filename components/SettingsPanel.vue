@@ -16,6 +16,8 @@ onMounted(async () => {
 
     if (response?.ok) {
       krDictApiKey.value = response.krDictApiKey ?? '';
+    } else {
+      settingsMessage.value = response?.error ?? 'Could not load dictionary settings.';
     }
   } catch (error: unknown) {
     settingsMessage.value =

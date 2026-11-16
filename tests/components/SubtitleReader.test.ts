@@ -1,7 +1,15 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import SubtitleReader from '@/components/SubtitleReader.vue';
-import type { TokenizedSubtitleLine } from '@/types/messages';
+import type { LookupResponse, TokenizedSubtitleLine } from '@/types/messages';
+
+const { sendMessage } = vi.hoisted(() => ({
+  sendMessage: vi.fn<() => Promise<LookupResponse | undefined>>(),
+}));
+
+vi.mock('wxt/browser', () => ({
+  browser: { runtime: { sendMessage } },
+}));
 
 const lines: TokenizedSubtitleLine[] = [
   {
@@ -69,6 +77,62 @@ describe('SubtitleReader', () => {
     expect(pause).toHaveBeenCalledOnce();
     wrapper.unmount();
     video.remove();
+  });
+
+  it('only shows English definitions and ignores an older lookup result', async () => {
+    let resolveFirst!: (response: LookupResponse) => void;
+    sendMessage.mockReset();
+    sendMessage.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveFirst = resolve;
+    }));
+    sendMessage.mockResolvedValueOnce({
+      ok: true,
+      entry: {
+        headword: '반갑다',
+        originalForm: '반갑습니다',
+        definitions: ['glad to meet', 'pleased', 'happy', 'fourth definition'],
+        koreanDefinitions: ['기쁘다'],
+        examples: [],
+      },
+    });
+
+    const wrapper = mount(SubtitleReader, { props: { lines, visible: true } });
+    const [first, second] = wrapper.findAll('button');
+    await first!.trigger('mouseenter');
+    expect(sendMessage).not.toHaveBeenCalled();
+    await first!.trigger('click');
+    await second!.trigger('click');
+    await flushPromises();
+
+    resolveFirst({ ok: false, error: 'Outdated lookup error' });
+    await flushPromises();
+
+    const popup = wrapper.get('[role="dialog"]');
+    expect(popup.text()).toContain('반갑다');
+    expect(popup.findAll('li').map((item) => item.text())).toEqual([
+      'glad to meet', 'pleased', 'happy',
+    ]);
+    expect(popup.text()).not.toContain('기쁘다');
+    expect(popup.text()).not.toContain('Outdated lookup error');
+  });
+
+  it('shows the Korean definition separately from examples when English is unavailable', async () => {
+    sendMessage.mockResolvedValueOnce({
+      ok: true,
+      entry: {
+        headword: '반갑다',
+        originalForm: '반갑습니다',
+        definitions: [],
+        koreanDefinitions: ['기쁘다'],
+        examples: ['만나서 반갑다.'],
+      },
+    });
+    const wrapper = mount(SubtitleReader, { props: { lines, visible: true } });
+    await wrapper.findAll('button')[1]!.trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('.kr-dictionary-definitions').text()).toBe('기쁘다');
+    expect(wrapper.get('.kr-dictionary-examples').text()).toContain('만나서 반갑다.');
   });
 
   it('renders nothing when hidden', () => {

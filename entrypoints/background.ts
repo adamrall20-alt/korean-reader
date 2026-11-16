@@ -1,6 +1,8 @@
 import { browser } from 'wxt/browser';
 import { lookupKoreanWord } from '@/services/dictionary/krdict';
 import { clearDictionaryCache } from '@/services/dictionary/cache';
+import { getVocabulary } from '@/services/storage/vocabulary';
+import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
 import type {
   GetSettingsMessage,
@@ -41,7 +43,12 @@ function isLookupMessage(message: unknown): message is LookupMessage {
     message !== null &&
     (message as { type?: unknown }).type === 'lookup' &&
     typeof (message as { word?: unknown }).word === 'string' &&
-    Array.isArray((message as { morphemes?: unknown }).morphemes)
+    Array.isArray((message as { morphemes?: unknown }).morphemes) &&
+    (message as { morphemes: unknown[] }).morphemes.every((morpheme) => {
+      if (!morpheme || typeof morpheme !== 'object') return false;
+      return 'text' in morpheme && typeof morpheme.text === 'string' &&
+        'tag' in morpheme && typeof morpheme.tag === 'string';
+    })
   );
 }
 
@@ -73,7 +80,7 @@ export default defineBackground(() => {
     console.info(`[Korean Reader] Extension ${details.reason}.`);
   });
 
-  browser.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
     if (isPingMessage(message)) {
       const response: PingResponse = {
         ok: true,
@@ -107,18 +114,36 @@ export default defineBackground(() => {
           return;
         }
 
-        try {
-          const entry = await lookupKoreanWord(message.word, message.morphemes, apiKey);
-          sendResponse({ ok: true, entry } satisfies LookupResponse);
-        } catch (error: unknown) {
-          sendResponse({
-            ok: false,
-            error: error instanceof Error ? error.message : 'Dictionary lookup failed.',
-          } satisfies LookupResponse);
-        }
+        const entry = await lookupKoreanWord(message.word, message.morphemes, apiKey);
+        const saved = await getVocabulary(entry.headword).catch(() => undefined);
+        sendResponse({ ok: true, entry, savedContexts: saved?.contexts } satisfies LookupResponse);
+      }).catch((error: unknown) => {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : 'Dictionary lookup failed.',
+        } satisfies LookupResponse);
       });
       return true;
     }
+
+    const fromExtensionPage = sender.url?.startsWith(browser.runtime.getURL('/'));
+    if (isVocabularyMessage(message)) {
+      const allowed = message.type === 'mine-word'
+        ? sender.url !== undefined && /^https?:\/\/(?:[\w-]+\.)*youtube\.com\//.test(sender.url)
+        : fromExtensionPage;
+      if (!allowed) return false;
+
+      void handleVocabularyMessage(message).then(sendResponse).catch((error: unknown) => {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : 'Could not access saved vocabulary.',
+        });
+      });
+      return true;
+    }
+
+    // Only extension pages can read or change dictionary settings.
+    if (!fromExtensionPage) return false;
 
     if (isGetSettingsMessage(message)) {
       void browser.storage.local
@@ -131,7 +156,11 @@ export default defineBackground(() => {
                 ? settings[KRDICT_API_KEY_STORAGE]
                 : '',
           } satisfies SettingsResponse),
-        );
+        )
+        .catch(() => sendResponse({
+          ok: false,
+          error: 'Could not read dictionary settings.',
+        } satisfies SettingsResponse));
       return true;
     }
 

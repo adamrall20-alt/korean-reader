@@ -13,14 +13,14 @@ The long-term workflow is:
 
 ## Current Status
 
-**Phases 2 and 3 — Interactive Words and Dictionary Integration are implemented.**
+**Phase 4 — Local vocabulary mining and management are implemented.**
 
 Implemented:
 
 - WXT + Vue 3 + TypeScript + Tailwind CSS project.
 - Chrome Manifest V3 configuration.
 - Background, content, popup and options entrypoints.
-- Toolbar popup and settings page shells.
+- Vocabulary toolbar popup and settings page.
 - Background health check used by the popup.
 - YouTube page detection for `/watch`, `/shorts/` and `/live/` URLs.
 - Caption extraction from YouTube's rendered caption windows.
@@ -34,19 +34,21 @@ Implemented:
 - KRDict lookup popup with definitions, pronunciation and part of speech.
 - Local KRDict API-key settings.
 - IndexedDB dictionary-result caching with a Settings clear-cache action.
-- Enlarged dictionary popup with a maximum of three definitions per language.
+- Dictionary popup with up to three English definitions, Korean definitions as a fallback, and optional entry details.
+- On-demand English translation of Korean definitions on desktop Chrome when its built-in Translator API is available.
 - YouTube playback pauses when a subtitle word is selected.
+- Explicit **Mine Word** and **Save Sentence** actions in the dictionary popup.
+- Local vocabulary management with search, date sorting, known status, definition edits, deletion, and JSON export.
 - Direct Settings shortcut in the toolbar popup.
 - Component tests, type checking and a production build.
 
 Not implemented yet:
 
-- Vocabulary storage or mining.
 - AnkiConnect integration.
 
-Phase 1 was verified in Chrome on 16 November 2026. Final Chrome verification of the
-Phase 2/3 cache, dictionary-form behavior and pause-on-selection behavior remains. Enter
-a KRDict API key in Settings before testing definitions.
+The user verified Phases 2–3 on live YouTube. Phase 4 passed in headless Chrome using
+fixture captions and KRDict responses. A KRDict API key in Settings is needed for a
+live lookup.
 
 ## Project Structure
 
@@ -187,7 +189,7 @@ Current automated result:
 
 | Check | Result |
 |---|---|
-| `npm run test:run` | 10 test files, 36 tests passing |
+| `npm run test:run` | 11 test files, 47 tests passing |
 | `npm run compile` | Passing |
 | `npm run build` | Passing |
 
@@ -198,10 +200,9 @@ After loading `.output/chrome-mv3` in Chrome:
 ### 1. Popup
 
 - Click the Korean Reader toolbar icon.
-- The popup should show **Korean Reader**, a **Phases 2–3 complete** badge, a Settings button
-  and an **Extension status** card.
+- The popup should show **Korean Reader**, a Settings button, the connection status, and the vocabulary panel.
 - The status should change to **Connected** with the text “The background service worker is responding.”
-- The footer should show `v0.1.0 · Phases 2–3 complete`.
+- The footer should show `v0.1.0`.
 - The **Sync to Anki** button should be disabled. This is intentional; Anki sync is Phase 5.
 
 If the status is **Unavailable**, open `chrome://extensions`, click **Errors** or the background service worker link, and check for a startup error.
@@ -212,7 +213,7 @@ If the status is **Unavailable**, open `chrome://extensions`, click **Errors** o
   page should open directly. The Options entry in `chrome://extensions` remains available.
 - A full-page Settings interface should open.
 - It should list **General**, **Dictionary**, **Anki**, **Appearance** and **Storage**.
-- Each section should say it is a placeholder and does not save settings yet.
+- Under Dictionary, the KRDict API key can be saved locally and the dictionary cache can be cleared.
 
 ### 3. YouTube content script
 
@@ -269,7 +270,13 @@ Use a Korean video with captions available. Turn the video volume down or mute i
 
 Captions must be enabled for extraction to work; the extension does not turn them on automatically. If the overlay never appears while Korean captions are visible, include the video URL, caption type (manual or auto-generated) and any `[Korean Reader]` console messages in the report.
 
-Report any result that differs from the checklist before Phase 4 begins.
+### 7. Vocabulary mining (Phase 4)
+
+1. Click a Korean subtitle word and confirm it appears in the dictionary popup.
+2. Click **Mine Word**. Open the toolbar panel and confirm it lists the word as **Known**.
+3. Expand its sentence and check the source link and timestamp.
+4. Reopen the same subtitle word to check its saved state. Find it in a different sentence and click **Save Sentence**. The toolbar panel should show both sentences under one word.
+5. Check search, the status filter, definition editing, and **Export JSON**. Delete the test entry when finished.
 
 ## Project Documentation
 

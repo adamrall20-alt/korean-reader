@@ -2,6 +2,7 @@ import { createApp, h, reactive, type App } from 'vue';
 import subtitleOverlayStyles from '@/assets/subtitle-overlay.css?inline';
 import SubtitleReader from '@/components/SubtitleReader.vue';
 import type { TokenizedSubtitleLine } from '@/types/messages';
+import type { VocabularyContext } from '@/types/vocabulary';
 import type { CaptionSnapshot } from '@/types/youtube';
 
 export const SUBTITLE_OVERLAY_HOST_ID = 'korean-reader-subtitle-overlay';
@@ -17,7 +18,11 @@ export interface SubtitleOverlay {
 }
 
 export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay {
-  const state = reactive<{ lines: TokenizedSubtitleLine[]; visible: boolean }>({
+  const state = reactive<{
+    lines: TokenizedSubtitleLine[];
+    visible: boolean;
+    source?: Omit<VocabularyContext, 'originalForm'>;
+  }>({
     lines: [],
     visible: false,
   });
@@ -50,7 +55,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
 
     app = createApp({
       setup() {
-        return () => h(SubtitleReader, { lines: state.lines, visible: state.visible });
+        return () => h(SubtitleReader, { lines: state.lines, visible: state.visible, source: state.source });
       },
     });
     app.mount(point);
@@ -96,6 +101,12 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
 
     ensureMounted(player);
 
+    state.source = snapshot.videoId ? {
+      sentence: snapshot.text,
+      sourceUrl: `https://www.youtube.com/watch?v=${encodeURIComponent(snapshot.videoId)}`,
+      sourceTitle: doc.title.replace(/ - YouTube$/, ''),
+      timestamp: snapshot.timestamp ?? undefined,
+    } : undefined;
     state.lines = lines ?? [];
     state.visible = snapshot.isKorean && state.lines.length > 0;
 

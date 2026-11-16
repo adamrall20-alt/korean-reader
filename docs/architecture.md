@@ -4,7 +4,7 @@
 
 Korean Reader is a personal Chrome Manifest V3 extension for learning Korean from YouTube. This document records the runtime structure and the decisions that must remain consistent as features are added.
 
-Phase 0 implements the foundation. Phase 1 implements YouTube caption extraction and the custom subtitle overlay. Phases 2 and 3 implement interactive words, dictionary lookup and local dictionary caching.
+Phase 0 implements the foundation. Phase 1 implements YouTube caption extraction and the custom subtitle overlay. Phases 2 and 3 implement interactive words, dictionary lookup and local dictionary caching. Phase 4 adds local vocabulary mining and management.
 
 ## 2. Runtime Components
 
@@ -63,8 +63,8 @@ Toolbar popup
 
 Object stores:
 
-- `vocabulary` — one record per dictionary headword.
-- `dictionaryCache` — cached KRDict results keyed by the searched form.
+- `vocabulary` — one record per normalized dictionary headword. IndexedDB schema version 2 adds this store and preserves the existing dictionary cache.
+- `dictionaryCache` — cached KRDict results keyed by the ordered lookup candidates.
 
 ### `chrome.storage.local`
 
@@ -78,41 +78,12 @@ Do not store the API key in source code, a committed `.env` file or the built bu
 
 ## 6. Vocabulary Model
 
-Planned record shape:
+The stored record extends the dictionary entry with its known status, creation and update dates, optional machine-translated definitions, and one or more subtitle contexts. Each context includes the clicked form, subtitle text, YouTube URL and title, playback timestamp when available, and date mined.
 
-```ts
-interface VocabularyContext {
-  sentence: string;
-  sourceUrl: string;
-  sourceTitle: string;
-  timestamp?: number;
-  minedAt: string;
-}
-
-interface VocabularyEntry {
-  id: string;
-  headword: string;
-  originalForm: string;
-  definitions: string[];
-  partOfSpeech?: string;
-  pronunciation?: string;
-  contexts: VocabularyContext[];
-  status: 'known' | 'unknown';
-  ankiNoteId?: number;
-  ankiSyncedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-```
-
-Rules:
-
-- One vocabulary record per dictionary headword.
-- A word that has not been marked defaults to `unknown`.
-- Mining a word sets `status` to `known`. The user can toggle it later.
-- Additional example sentences are appended to `contexts`, not stored as duplicate vocabulary records.
-- A maximum of one Anki card is allowed per headword.
-- All saved sentences are placed in the Anki `Sentence` field, separated by newlines.
+- The normalized headword is the IndexedDB key. Adding a context uses a single read-write transaction to prevent duplicates across tabs.
+- Repeating the same subtitle text from the same video leaves the stored record as it was. A different context can be saved explicitly using **Save Sentence**.
+- Mining marks the word as known. The toolbar popup can toggle known status and edit English definitions.
+- JSON export includes the complete vocabulary collection. Phase 5 will use the stored contexts for Anki synchronisation.
 
 ## 7. Subtitle Overlay
 
@@ -143,8 +114,8 @@ Implemented behaviour (Phase 1 and Phase 2):
 - Closes when the user clicks outside it.
 - Updates when another word is clicked.
 - Hovering never triggers a lookup or opens the popup.
-- The popup uses enlarged text and displays no more than the first three definitions in each
-  available language.
+- The popup uses enlarged text and displays up to three definitions, preferring English and falling back to Korean. It repositions
+  after the lookup finishes, and earlier responses cannot replace a newer selection.
 - Clicking a word never mines it. Mining requires the explicit Mine Word button.
 
 ## 9. Korean Processing
@@ -184,13 +155,12 @@ Implemented:
 - Korean caption detection, timestamp capture and change polling.
 - Shadow DOM subtitle overlay, scoped native caption hiding and automatic fallback.
 - Phase 1 verification in Chrome on 16 November 2026.
+- Local vocabulary persistence, mining controls, a toolbar management panel and JSON export.
 - Unit, component and service tests plus a successful production build.
 
 Not implemented:
 
-- Vocabulary storage or mining.
 - AnkiConnect integration.
-- Full vocabulary persistence and mining controls.
 
 Key Phase 1 modules:
 

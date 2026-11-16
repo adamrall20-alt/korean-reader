@@ -57,4 +57,45 @@ describe('MiningPanel', () => {
     expect(syncButton?.text()).toBe('Sync to Anki');
     expect(syncButton?.attributes('disabled')).toBeDefined();
   });
+  it('filters stored entries and persists an edited definition', async () => {
+    const entry = {
+      headword: '먹다',
+      originalForm: '먹어요',
+      definitions: ['to eat'],
+      koreanDefinitions: [],
+      examples: [],
+      contexts: [],
+      status: 'known',
+      createdAt: '2026-11-16T00:00:00.000Z',
+      updatedAt: '2026-11-16T00:00:00.000Z',
+    };
+    sendMessage.mockImplementation(async (message) => {
+      if (message.type === 'ping') return { ok: true, version: '0.1.0' };
+      if (message.type === 'edit-vocabulary') {
+        return { ok: true, entries: [{ ...entry, definitions: message.definitions }] };
+      }
+      return { ok: true, entries: [entry] };
+    });
+
+    const wrapper = mount(MiningPanel);
+    await flushPromises();
+    expect(wrapper.text()).toContain('to eat');
+
+    await wrapper.get('select').setValue('unknown');
+    expect(wrapper.text()).toContain('No matching words.');
+    await wrapper.get('select').setValue('known');
+    await wrapper.get('input[type="search"]').setValue('unknown term');
+    expect(wrapper.text()).toContain('No matching words.');
+    await wrapper.get('input[type="search"]').setValue('먹');
+
+    await wrapper.findAll('button').find((button) => button.text() === 'Edit')!.trigger('click');
+    await wrapper.get('textarea').setValue('consume');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(sendMessage).toHaveBeenCalledWith({
+      type: 'edit-vocabulary', headword: '먹다', definitions: ['consume'],
+    });
+    expect(wrapper.text()).toContain('consume');
+  });
+
 });
