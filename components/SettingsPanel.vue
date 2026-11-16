@@ -50,7 +50,7 @@ const sections = [
         <span
           class="ml-auto rounded-full border border-white/10 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted"
         >
-          Phase 0
+          Phase 1
         </span>
       </div>
     </header>

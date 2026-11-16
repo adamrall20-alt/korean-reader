@@ -56,7 +56,7 @@ onMounted(async () => {
         <span
           class="ml-auto rounded-full border border-white/10 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted"
         >
-          Phase 0
+          Phase 1
         </span>
       </div>
     </header>
@@ -107,14 +107,14 @@ onMounted(async () => {
       <div class="rounded-2xl border border-white/10 bg-ink-soft p-4">
         <h2 class="text-sm font-medium">Next up</h2>
         <p class="mt-2 text-xs leading-5 text-muted">
-          Phase 1 adds Korean subtitle detection and the custom subtitle reader on YouTube.
+          Phase 2 adds individually clickable words to the subtitle overlay.
         </p>
       </div>
     </section>
 
     <footer class="mt-auto border-t border-white/10 px-5 py-3">
       <p class="text-[11px] text-muted">
-        v{{ version || '0.1.0' }} · Phase 0 foundation
+        v{{ version || '0.1.0' }} · Phase 1 subtitles
       </p>
     </footer>
   </main>

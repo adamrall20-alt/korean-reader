@@ -190,9 +190,9 @@ After loading `.output/chrome-mv3` in Chrome:
 ### 1. Popup
 
 - Click the Korean Reader toolbar icon.
-- The popup should show **Korean Reader**, a **Phase 0** badge and an **Extension status** card.
+- The popup should show **Korean Reader**, a **Phase 1** badge and an **Extension status** card.
 - The status should change to **Connected** with the text “The background service worker is responding.”
-- The footer should show `v0.1.0 · Phase 0 foundation`.
+- The footer should show `v0.1.0 · Phase 1 subtitles`.
 - The **Sync to Anki** button should be disabled. This is intentional; Anki sync is Phase 5.
 
 If the status is **Unavailable**, open `chrome://extensions`, click **Errors** or the background service worker link, and check for a startup error.
