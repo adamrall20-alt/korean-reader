@@ -166,12 +166,12 @@ Tasks:
 - [x] Retrieve and verify Kimchi Sentence Mining note type fields.
 - [x] Implement Kimchi Sentence Mining field mapping.
 - [x] Populate required fields; leave Image and Audio empty until capture is implemented.
-- [ ] Verify compatibility with the user’s existing card templates in Anki.
-- [ ] Test front and back card rendering in Anki.
+- [x] Verify compatibility with the user’s existing card templates in Anki.
+- [x] Test front and back card rendering in Anki.
 
 Completion criteria:
 
-Selected vocabulary can be synchronised into a chosen deck in the Chrome fixture. Acceptance against the user’s Anki collection is pending.
+The user confirmed Phase 5 is complete.
 
 ## Phase 6 — Reliability and Testing
 
@@ -180,19 +180,21 @@ Selected vocabulary can be synchronised into a chosen deck in the Chrome fixture
 Tasks:
 
 - [ ] Test the complete YouTube-to-Anki workflow.
-- [ ] Test missing dictionary entries.
+- [x] Test missing dictionary entries.
 - [ ] Test unusual Korean conjugations.
-- [ ] Test duplicate vocabulary.
-- [ ] Test missing subtitles.
-- [ ] Test Anki connection failures.
-- [ ] Test storage persistence.
+- [x] Test duplicate vocabulary.
+- [x] Test missing subtitles.
+- [x] Test Anki connection failures.
+- [x] Test storage persistence.
 - [ ] Test different YouTube videos.
 - [ ] Resolve major bugs.
-- [ ] Confirm successful production build.
+- [x] Confirm successful production build.
 
 Completion criteria:
 
-The minimum viable product works reliably under normal usage conditions.
+The automated suite passes 56 tests, type checking, and the production build. A Chrome test with simulated captions, dictionary responses, and AnkiConnect passed the mining-to-sync workflow, duplicate handling, and sentence updates.
+
+Live checks across multiple YouTube videos, unusual conjugations, and the complete workflow remain pending. Phase 6 is in progress.
 
 ## Phase 7 — Interface Refinement
 
