@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ANKI_DEFAULT_FIELDS, DEFAULT_ANKI_SETTINGS } from '@/types/anki';
 import MiningPanel from '@/components/MiningPanel.vue';
 
 const { sendMessage } = vi.hoisted(() => ({
@@ -19,38 +20,67 @@ describe('MiningPanel', () => {
     sendMessage.mockReset();
   });
 
-  it('checks the background worker and displays the connected state', async () => {
-    sendMessage.mockResolvedValue({ ok: true, version: '0.1.0' });
-
+  it('keeps the vocabulary list collapsed and shows the new-word counter', () => {
     const wrapper = mount(MiningPanel);
-    await flushPromises();
-
-    expect(sendMessage).toHaveBeenCalledWith({ type: 'ping' });
-    expect(wrapper.get('[data-testid="connection-status"]').text()).toContain('Connected');
-    expect(wrapper.text()).toContain('The background service worker is responding.');
-    expect(wrapper.text()).toContain('v0.1.0');
+    expect(wrapper.get('summary').text()).toBe('Connection settings');
+    const management = wrapper.findAll('details').find((details) => details.text().includes('Manage vocabulary'))!;
+    expect(management.attributes('open')).toBeUndefined();
+    expect(wrapper.text()).toContain('New unsynced words');
+    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(0);
   });
 
-  it('shows an unavailable state when the background worker fails', async () => {
-    sendMessage.mockRejectedValue(new Error('No receiving end'));
+  it('uses the Anki count and sends saved translations on explicit sync', async () => {
+    const entry = {
+      headword: '먹다',
+      definitions: [],
+      koreanDefinitions: ['밥을 먹는 행동.'],
+      originalForm: '먹어요',
+      examples: [],
+      contexts: [],
+      status: 'known',
+      createdAt: '2026-11-16T00:00:00.000Z',
+      updatedAt: '2026-11-16T00:00:00.000Z',
+    };
+    const settings = { ...DEFAULT_ANKI_SETTINGS, deckName: 'Korean' };
+    const dismiss = vi.fn();
+    const translate = vi.fn().mockResolvedValue('The act of eating.');
+    vi.stubGlobal('Translator', { create: vi.fn().mockResolvedValue({ translate, destroy: dismiss }) });
+    let unsynced = 1;
+    sendMessage.mockImplementation(async (message) => {
+      switch (message.type) {
+        case 'list-vocabulary': return { ok: true, entries: [entry] };
+        case 'get-anki-settings': return { ok: true, settings };
+        case 'connect-anki': return { ok: true, decks: ['Korean'], models: [settings.modelName] };
+        case 'get-anki-fields': return { ok: true, fields: Object.values(ANKI_DEFAULT_FIELDS) };
+        case 'count-unsynced': return { ok: true, unsynced };
+        case 'sync-anki':
+          unsynced = 0;
+          return { ok: true, results: [{ headword: '먹다', status: 'created' }] };
+      }
+    });
 
-    const wrapper = mount(MiningPanel);
-    await flushPromises();
-
-    expect(wrapper.get('[data-testid="connection-status"]').text()).toContain('Unavailable');
-    expect(wrapper.text()).toContain('The background service worker did not respond.');
+    try {
+      const wrapper = mount(MiningPanel);
+      await flushPromises();
+      expect(wrapper.get('.tabular-nums').text()).toBe('1');
+      expect(translate).not.toHaveBeenCalled();
+      const sync = wrapper.findAll('button').find((button) => button.text() === 'Sync to Anki')!;
+      await sync.trigger('click');
+      await flushPromises();
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'sync-anki',
+        settings,
+        translations: [{ headword: '먹다', korean: ['밥을 먹는 행동.'], english: ['The act of eating.'] }],
+      });
+      expect(wrapper.get('.tabular-nums').text()).toBe('0');
+      expect(wrapper.text()).toContain('1 created');
+      expect(dismiss).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
-  it('shows an unavailable state when the background worker returns no response', async () => {
-    sendMessage.mockResolvedValue(undefined);
-
-    const wrapper = mount(MiningPanel);
-    await flushPromises();
-
-    expect(wrapper.get('[data-testid="connection-status"]').text()).toContain('Unavailable');
-  });
-
-  it('keeps Anki sync disabled before connection and selection', () => {
+  it('keeps Anki sync disabled before connection', () => {
     const wrapper = mount(MiningPanel);
     const syncButton = wrapper.findAll('button').find((button) => button.text() === 'Sync to Anki');
 
@@ -70,7 +100,7 @@ describe('MiningPanel', () => {
       updatedAt: '2026-11-16T00:00:00.000Z',
     };
     sendMessage.mockImplementation(async (message) => {
-      if (message.type === 'ping') return { ok: true, version: '0.1.0' };
+      if (message.type === 'get-anki-settings') return { ok: true };
       if (message.type === 'edit-vocabulary') {
         return { ok: true, entries: [{ ...entry, definitions: message.definitions }] };
       }

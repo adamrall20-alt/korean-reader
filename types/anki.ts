@@ -32,12 +32,19 @@ export interface AnkiSyncResult {
   message?: string;
 }
 
+export interface AnkiTranslation {
+  headword: string;
+  korean: string[];
+  english: string[];
+}
+
 export type AnkiMessage =
   | { type: 'get-anki-settings' }
   | { type: 'save-anki-settings'; settings: AnkiSettings }
   | { type: 'connect-anki'; port: number; apiKey: string; requestPermission: boolean }
   | { type: 'get-anki-fields'; port: number; apiKey: string; modelName: string }
-  | { type: 'sync-anki'; settings: AnkiSettings; headwords: string[] };
+  | { type: 'count-unsynced'; settings: AnkiSettings }
+  | { type: 'sync-anki'; settings: AnkiSettings; translations: AnkiTranslation[] };
 
 export type AnkiResponse = {
   ok: true;
@@ -45,5 +52,6 @@ export type AnkiResponse = {
   decks?: string[];
   models?: string[];
   fields?: string[];
+  unsynced?: number;
   results?: AnkiSyncResult[];
 } | { ok: false; error: string };

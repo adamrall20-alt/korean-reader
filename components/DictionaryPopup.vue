@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } from 'vue';
+import { createDefinitionTranslator, getDefinitionTranslatorApi, translateDefinitionList } from '@/services/korean/translation';
 import { browser } from 'wxt/browser';
 import { sameVocabularyContext, type VocabularyContext, type VocabularyMessage, type VocabularyResponse } from '@/types/vocabulary';
 import type { DictionaryEntry } from '@/types/messages';
@@ -19,20 +20,7 @@ const emit = defineEmits<{
   resize: [];
 }>();
 
-interface DefinitionTranslator {
-  translate(text: string, options: { signal: AbortSignal }): Promise<string>;
-  destroy(): void;
-}
-
-const translatorApi = (globalThis as typeof globalThis & {
-  Translator?: {
-    create(options: {
-      sourceLanguage: string;
-      targetLanguage: string;
-      signal: AbortSignal;
-    }): Promise<DefinitionTranslator>;
-  };
-}).Translator;
+const translatorApi = getDefinitionTranslatorApi();
 
 const popupElement = ref<HTMLElement | null>(null);
 let resizeObserver: ResizeObserver | undefined;
@@ -70,23 +58,14 @@ async function translateDefinitions() {
   const { signal } = request;
   translating.value = true;
   translationStatus.value = 'Preparing Chrome translation. The first use may download a language pack.';
-  let translator: DefinitionTranslator | undefined;
+  let translator: Awaited<ReturnType<typeof createDefinitionTranslator>> | undefined;
 
   try {
-    translator = await translatorApi.create({
-      sourceLanguage: 'ko',
-      targetLanguage: 'en',
-      signal,
-    });
+    translator = await createDefinitionTranslator(signal);
     if (signal.aborted) return;
     translationStatus.value = 'Translating definitions…';
-
-    const results: string[] = [];
-    for (const definition of definitions) {
-      results.push((await translator.translate(definition, { signal })).trim());
-      if (signal.aborted) return;
-    }
-    if (results.some((result) => !result)) throw new Error('Empty translation');
+    const results = await translateDefinitionList(translator, definitions, signal);
+    if (signal.aborted) return;
     translatedDefinitions.value = results;
     translationStatus.value = '';
   } catch {

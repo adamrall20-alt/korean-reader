@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ANKI_DEFAULT_FIELDS, DEFAULT_ANKI_SETTINGS } from '@/types/anki';
 import type { VocabularyEntry } from '@/types/vocabulary';
-import { syncVocabulary } from '@/services/anki/sync';
+import { countUnsynced, syncVocabulary } from '@/services/anki/sync';
 
-const { getVocabulary, recordAnkiSync } = vi.hoisted(() => ({
+const { getVocabulary, listVocabulary, recordAnkiSync } = vi.hoisted(() => ({
   getVocabulary: vi.fn(),
+  listVocabulary: vi.fn(),
   recordAnkiSync: vi.fn(),
 }));
-vi.mock('@/services/storage/vocabulary', () => ({ getVocabulary, recordAnkiSync }));
+vi.mock('@/services/storage/vocabulary', () => ({ getVocabulary, listVocabulary, recordAnkiSync }));
 
 const settings = { ...DEFAULT_ANKI_SETTINGS, deckName: 'Korean' };
 const word: VocabularyEntry = {
@@ -96,6 +97,47 @@ describe('Anki sync', () => {
     await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'existing' }]);
     expect(calls.mock.calls.filter(([action]) => action === 'updateNoteFields')).toHaveLength(1);
     expect(calls).toHaveBeenCalledWith('findNotes', { query: expect.stringContaining('"Focus Word:먹다"') });
+  });
+
+  it('counts only headwords missing from the Anki collection', async () => {
+    listVocabulary.mockResolvedValueOnce([word, { ...word, headword: '가다' }]);
+    fakeAnki((action) => {
+      if (action === 'findNotes') return [21];
+      if (action === 'notesInfo') return [{
+        noteId: 21, modelName: settings.modelName, fields: { 'Focus Word': { value: '먹다' } },
+      }];
+      throw new Error(action);
+    });
+    await expect(countUnsynced(settings)).resolves.toBe(1);
+  });
+
+  it('adds saved English to a previously synced Korean-only definition', async () => {
+    getVocabulary.mockResolvedValueOnce({
+      ...word, definitions: [], machineDefinitions: ['to eat'], koreanDefinitions: ['음식을 먹다.'],
+    });
+    let definition = '음식을 먹다.';
+    const calls = vi.fn((action: string, params) => {
+      if (action === 'findNotes') return [21];
+      if (action === 'notesInfo') return [{
+        noteId: 21, modelName: settings.modelName,
+        fields: {
+          'Focus Word': { value: '먹다' },
+          Sentence: { value: '밥을 &lt;먹어요&gt; &amp; 물을 마셔요.' },
+          Definition: { value: definition },
+        },
+      }];
+      if (action === 'updateNoteFields') {
+        definition = params.note.fields.Definition;
+        return null;
+      }
+      throw new Error(action);
+    });
+    fakeAnki(calls);
+
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'updated' }]);
+    expect(calls).toHaveBeenCalledWith('updateNoteFields', {
+      note: { id: 21, fields: { Definition: 'to eat<br>음식을 먹다.' } },
+    });
   });
 
   it('reports partial failures from bulk creation', async () => {

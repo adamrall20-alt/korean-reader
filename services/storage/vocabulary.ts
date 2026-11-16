@@ -1,3 +1,4 @@
+import type { AnkiTranslation } from '@/types/anki';
 import { openDatabase, VOCABULARY_STORE } from '@/services/storage/database';
 import { sameVocabularyContext, type VocabularyEntry, type VocabularyMessage } from '@/types/vocabulary';
 
@@ -63,7 +64,13 @@ export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word'
     const now = new Date().toISOString();
     const context = { ...message.context, minedAt: now };
     const entry: VocabularyEntry = existing
-      ? { ...existing, contexts: [...existing.contexts, context], status: 'known', updatedAt: now }
+      ? {
+          ...existing,
+          contexts: [...existing.contexts, context],
+          machineDefinitions: existing.machineDefinitions?.length ? existing.machineDefinitions : message.machineDefinitions,
+          status: 'known',
+          updatedAt: now,
+        }
       : {
           ...message.entry,
           headword,
@@ -102,5 +109,14 @@ export function recordAnkiSync(headword: string, noteId: number, focusField: str
       ankiFocusField: focusField,
       ankiSyncedAt: new Date().toISOString(),
     });
+  });
+}
+
+export function saveMachineTranslation(translation: AnkiTranslation) {
+  return updateVocabulary(normalizeHeadword(translation.headword), (store, entry) => {
+    if (!entry || entry.definitions.length || entry.machineDefinitions?.length) return;
+    if (!translation.korean.every((definition, index) => definition === entry.koreanDefinitions[index])) return;
+
+    store.put({ ...entry, machineDefinitions: translation.english, updatedAt: new Date().toISOString() });
   });
 }

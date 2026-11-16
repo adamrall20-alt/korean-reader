@@ -2,32 +2,13 @@
 import AnkiPanel from '@/components/AnkiPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
-import type { PingResponse } from '@/types/messages';
 import type { VocabularyContext, VocabularyEntry, VocabularyMessage, VocabularyResponse } from '@/types/vocabulary';
-
-type ConnectionState = 'checking' | 'connected' | 'unavailable';
-
-const connection = ref<ConnectionState>('checking');
-const version = ref('');
 
 const openSettings = () => {
   void browser.runtime.openOptionsPage();
 };
 
-const connectionLabel = computed(() => {
-  if (connection.value === 'connected') return 'Connected';
-  if (connection.value === 'checking') return 'Checking…';
-  return 'Unavailable';
-});
-
-const connectionClass = computed(() => {
-  if (connection.value === 'connected') return 'bg-accent/10 text-accent';
-  if (connection.value === 'checking') return 'bg-white/5 text-muted';
-  return 'bg-red-500/10 text-red-300';
-});
-
 const entries = ref<VocabularyEntry[]>([]);
-const selected = ref<string[]>([]);
 const query = ref('');
 const filter = ref('all');
 const newestFirst = ref(true);
@@ -59,8 +40,6 @@ async function updateVocabulary(message: VocabularyMessage): Promise<boolean> {
       throw new Error(response?.error ?? 'Could not access saved vocabulary.');
     }
     entries.value = response.entries ?? [];
-    const available = new Set(entries.value.map((entry) => entry.headword));
-    selected.value = selected.value.filter((headword) => available.has(headword));
     return true;
   } catch (error) {
     vocabularyError.value = error instanceof Error ? error.message : 'Could not access saved vocabulary.';
@@ -108,27 +87,10 @@ function exportVocabulary() {
 
 onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
 
-onMounted(async () => {
-  try {
-    const response = (await browser.runtime.sendMessage({ type: 'ping' })) as
-      | PingResponse
-      | undefined;
-
-    if (response?.ok) {
-      connection.value = 'connected';
-      version.value = response.version;
-      return;
-    }
-
-    connection.value = 'unavailable';
-  } catch {
-    connection.value = 'unavailable';
-  }
-});
 </script>
 
 <template>
-  <main class="flex min-h-[480px] flex-col bg-ink text-paper">
+  <main class="flex min-h-[280px] flex-col bg-ink text-paper">
     <header class="border-b border-white/10 px-5 py-4">
       <div class="flex items-center gap-3">
         <div
@@ -154,35 +116,13 @@ onMounted(async () => {
     </header>
 
     <section class="space-y-3 px-5 py-5">
-      <div class="rounded-2xl border border-white/10 bg-ink-soft p-4">
-        <div class="flex items-center justify-between gap-3">
-          <h2 class="text-sm font-medium">Extension status</h2>
-          <span
-            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-            :class="connectionClass"
-            data-testid="connection-status"
-            aria-live="polite"
-          >
-            <span class="size-1.5 rounded-full bg-current" aria-hidden="true" />
-            {{ connectionLabel }}
-          </span>
-        </div>
-        <p class="mt-2 text-xs leading-5 text-muted">
-          {{
-            connection === 'connected'
-              ? 'The background service worker is responding.'
-              : connection === 'checking'
-                ? 'Contacting the background service worker…'
-                : 'The background service worker did not respond. Reload the extension.'
-          }}
-        </p>
-      </div>
-
-      <section aria-labelledby="vocabulary-heading" class="space-y-3">
+      <AnkiPanel :vocabulary="entries" @synced="updateVocabulary({ type: 'list-vocabulary' })" />
+      <details class="rounded-xl border border-white/10 px-3 py-2">
+        <summary class="cursor-pointer text-sm font-medium">Manage vocabulary
+          <span class="ml-1 text-xs font-normal text-muted">{{ entries.length }} words</span>
+        </summary>
+      <section aria-label="Vocabulary management" class="mt-3 space-y-3">
         <div class="flex items-center justify-between gap-2">
-          <h2 id="vocabulary-heading" class="font-semibold">Vocabulary
-            <span class="ml-1 text-xs font-normal text-muted">{{ entries.length }} words</span>
-          </h2>
           <button
             type="button"
             class="rounded-lg border border-white/15 px-2.5 py-1.5 text-xs disabled:opacity-50"
@@ -214,20 +154,9 @@ onMounted(async () => {
         <p v-if="!visibleEntries.length && !vocabularyError" class="py-4 text-sm text-muted" role="status">
           {{ busy ? 'Loading vocabulary…' : entries.length ? 'No matching words.' : 'Mine a word from a YouTube subtitle to save it here.' }}
         </p>
-        <div v-if="visibleEntries.length" class="flex items-center justify-between text-xs text-muted">
-          <button type="button" class="underline" @click="selected = [...new Set([...selected, ...visibleEntries.map((entry) => entry.headword)])]">Select visible</button>
-          <button v-if="selected.length" type="button" class="underline" @click="selected = []">Clear {{ selected.length }} selected</button>
-        </div>
         <ul v-if="visibleEntries.length" class="space-y-2">
           <li v-for="entry in visibleEntries" :key="entry.headword" class="space-y-2 rounded-xl border border-white/10 bg-ink-soft p-3">
             <div class="flex items-center gap-2">
-              <input
-                v-model="selected"
-                type="checkbox"
-                :value="entry.headword"
-                :aria-label="`Select ${entry.headword} for Anki`"
-                class="accent-accent"
-              />
               <h3 lang="ko" class="min-w-0 flex-1 break-words font-semibold">{{ entry.headword }}</h3>
               <button
                 type="button"
@@ -284,14 +213,8 @@ onMounted(async () => {
             </div>
           </li>
         </ul>
-        <AnkiPanel :headwords="selected" class="border-t border-white/10 pt-3" @synced="updateVocabulary({ type: 'list-vocabulary' })" />
       </section>
+      </details>
     </section>
-
-    <footer class="mt-auto border-t border-white/10 px-5 py-3">
-      <p class="text-[11px] text-muted">
-        v{{ version || '0.1.0' }}
-      </p>
-    </footer>
   </main>
 </template>

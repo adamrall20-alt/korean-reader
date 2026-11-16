@@ -1,5 +1,5 @@
 import { AnkiClient, type AnkiNote, type AnkiNoteInfo } from '@/services/anki/client';
-import { getVocabulary, recordAnkiSync } from '@/services/storage/vocabulary';
+import { getVocabulary, listVocabulary, recordAnkiSync } from '@/services/storage/vocabulary';
 import { ANKI_DEFAULT_FIELDS, ANKI_FIELD_ROLES, type AnkiSettings, type AnkiSyncResult } from '@/types/anki';
 import type { VocabularyEntry } from '@/types/vocabulary';
 
@@ -41,14 +41,17 @@ function sentenceFields(entry: VocabularyEntry): Map<string, string> {
   return sentences;
 }
 
+function definitionField(entry: VocabularyEntry): string {
+  const english = entry.definitions.length ? entry.definitions : entry.machineDefinitions ?? [];
+  return [...english, ...entry.koreanDefinitions].map(escapeHtml).join('<br>');
+}
+
 function buildNote(entry: VocabularyEntry, settings: AnkiSettings): AnkiNote {
   const { deckName, modelName, fields } = settings;
   const values = {
     word: escapeHtml(entry.headword),
     sentence: [...sentenceFields(entry).values()].join('<br>'),
-    definition: (entry.definitions.length ? entry.definitions
-      : entry.machineDefinitions?.length ? entry.machineDefinitions : entry.koreanDefinitions)
-      .map(escapeHtml).join('<br>'),
+    definition: definitionField(entry),
     pronunciation: escapeHtml(entry.pronunciation ?? ''),
     image: '',
     audio: '',
@@ -57,22 +60,52 @@ function buildNote(entry: VocabularyEntry, settings: AnkiSettings): AnkiNote {
   return { deckName, modelName, fields: Object.fromEntries(mapped), tags: [NOTE_TAG, headwordTag(entry.headword)], options: { allowDuplicate: false } };
 }
 
+function getFocusFields(entry: VocabularyEntry, settings: AnkiSettings): string[] {
+  return [...new Set([settings.fields.word, ANKI_DEFAULT_FIELDS.word, entry.ankiFocusField])]
+    .filter((field): field is string => !!field);
+}
+
+function searchTerms(entry: VocabularyEntry, settings: AnkiSettings): string[] {
+  const searches = getFocusFields(entry, settings).map((field) =>
+    `"${escapeSearch(field)}:${escapeSearch(entry.headword)}"`,
+  );
+  searches.push(`tag:${headwordTag(entry.headword)}`);
+  if (entry.ankiNoteId) searches.push(`nid:${entry.ankiNoteId}`);
+  return searches;
+}
+
+function exactMatch(note: AnkiNoteInfo, entry: VocabularyEntry, settings: AnkiSettings): boolean {
+  return getFocusFields(entry, settings).some((field) =>
+    plainText(note.fields[field]?.value ?? '') === entry.headword,
+  );
+}
+
+export async function countUnsynced(settings: AnkiSettings): Promise<number> {
+  const client = new AnkiClient(settings);
+  const entries = await listVocabulary();
+  let count = 0;
+  for (let index = 0; index < entries.length; index += 20) {
+    const batch = entries.slice(index, index + 20);
+    const query = [...new Set(batch.flatMap((entry) => searchTerms(entry, settings)))].join(' OR ');
+    const ids = await client.request('findNotes', { query });
+    const notes = ids.length ? await client.request('notesInfo', { notes: ids }) : [];
+    count += batch.filter((entry) => !notes.some((note) =>
+      exactMatch(note, entry, settings) || note.tags?.includes(headwordTag(entry.headword)),
+    )).length;
+  }
+  return count;
+}
+
 async function findExisting(
   client: AnkiClient,
   entry: VocabularyEntry,
   settings: AnkiSettings,
 ): Promise<AnkiNoteInfo | undefined> {
-  const focusFields = [...new Set([settings.fields.word, ANKI_DEFAULT_FIELDS.word, entry.ankiFocusField].filter(Boolean))];
-  const searches = focusFields.map((field) => `"${escapeSearch(field!)}:${escapeSearch(entry.headword)}"`);
-  searches.push(`tag:${headwordTag(entry.headword)}`);
-  if (entry.ankiNoteId) searches.push(`nid:${entry.ankiNoteId}`);
-  const ids = await client.request('findNotes', { query: searches.join(' OR ') });
+  const ids = await client.request('findNotes', { query: searchTerms(entry, settings).join(' OR ') });
   if (!ids.length) return undefined;
 
   const notes = await client.request('notesInfo', { notes: ids });
-  const matches = notes.filter((note) => focusFields.some((field) =>
-    plainText(note.fields[field!]?.value ?? '') === entry.headword,
-  ));
+  const matches = notes.filter((note) => exactMatch(note, entry, settings));
   if (!matches.length && notes.some((note) => note.tags?.includes(headwordTag(entry.headword)))) {
     throw new Error('A previously synced note exists. Check its focus word and field mapping in Anki.');
   }
@@ -80,7 +113,7 @@ async function findExisting(
   return matches[0];
 }
 
-async function appendSentences(
+async function updateExistingNote(
   client: AnkiClient,
   existing: AnkiNoteInfo,
   entry: VocabularyEntry,
@@ -97,13 +130,25 @@ async function appendSentences(
   const added = [...sentenceFields(entry)].filter(([sentence]) =>
     !`\n${lines.join('\n')}\n`.includes(`\n${sentence.split(/\r?\n/).map((line) => line.trim()).join('\n')}\n`),
   );
-  if (!added.length) return false;
-
   const merged = [current, ...added.map(([, html]) => html)].filter(Boolean).join('<br>');
-  await client.request('updateNoteFields', { note: { id: existing.noteId, fields: { [field]: merged } } });
+  const changes: Record<string, string> = {};
+  if (added.length) changes[field] = merged;
+  const definition = settings.fields.definition;
+  const currentDefinition = existing.fields[definition]?.value;
+  const hasEnglish = entry.definitions.length || entry.machineDefinitions?.length;
+  const koreanLines = entry.koreanDefinitions.map((text) => text.normalize('NFC').trim());
+  const existingLines = currentDefinition === undefined ? [] : plainText(
+    currentDefinition.replace(/<(?:br\b[^>]*|\/div|\/p)>/gi, '\n'),
+  ).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (hasEnglish && currentDefinition !== undefined &&
+    (!existingLines.length || existingLines.every((line, index) => line === koreanLines[index]))) {
+    changes[definition] = definitionField(entry);
+  }
+  if (!Object.keys(changes).length) return false;
+  await client.request('updateNoteFields', { note: { id: existing.noteId, fields: changes } });
   const [updated] = await client.request('notesInfo', { notes: [existing.noteId] });
-  if (updated?.fields[field]?.value !== merged) {
-    throw new Error('Anki did not save the sentence update. Close the note in Anki’s browser and retry.');
+  if (!Object.entries(changes).every(([name, value]) => updated?.fields[name]?.value === value)) {
+    throw new Error('Anki did not save the update. Close the note in Anki’s browser and retry.');
   }
   return true;
 }
@@ -154,7 +199,7 @@ export async function syncVocabulary(settings: AnkiSettings, headwords: string[]
         if (!entry) throw new Error('This word is no longer in your vocabulary.');
         const existing = await findExisting(client, entry, settings);
         if (existing) {
-          const updated = await appendSentences(client, existing, entry, settings);
+          const updated = await updateExistingNote(client, existing, entry, settings);
           results.push(await saveResult(headword, updated ? 'updated' : 'existing', existing.noteId, settings.fields.word));
         } else {
           candidates.push({ headword, note: buildNote(entry, settings) });

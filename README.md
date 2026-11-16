@@ -9,7 +9,7 @@ The long-term workflow is:
 3. Click a word to see its dictionary entry.
 4. Mine the word explicitly.
 5. Review saved vocabulary.
-6. Synchronise selected words to Anki through AnkiConnect.
+6. Synchronise newly mined words to Anki through AnkiConnect.
 
 ## Current Status
 
@@ -43,7 +43,7 @@ Implemented:
 - Direct Settings shortcut in the toolbar popup.
 - Component tests, type checking and a production build.
 
-- AnkiConnect with deck and note type selection, configurable field mapping, and explicit selected-word sync.
+- AnkiConnect with deck and note type selection, configurable field mapping, and one-click sync for newly mined words, with a live unsynced count.
 
 The user verified Phases 2–3 on live YouTube. Phase 4 passed in headless Chrome using
 fixture captions and KRDict responses. A KRDict API key in Settings is needed for a
@@ -189,7 +189,7 @@ Current automated result:
 
 | Check | Result |
 |---|---|
-| `npm run test:run` | 12 test files, 53 tests passing |
+| `npm run test:run` | 12 test files, 54 tests passing |
 | `npm run compile` | Passing |
 | `npm run build` | Passing |
 
@@ -203,7 +203,7 @@ After loading `.output/chrome-mv3` in Chrome:
 - The popup should show **Korean Reader**, a Settings button, the connection status, and the vocabulary panel.
 - The status should change to **Connected** with the text “The background service worker is responding.”
 - The footer should show `v0.1.0`.
-- **Sync to Anki** becomes available after connecting Anki, mapping the required fields, choosing a deck, and selecting vocabulary.
+- **Sync to Anki** becomes available after connecting Anki, mapping the required fields, and choosing a deck. The word list is under **Manage vocabulary**.
 
 If the status is **Unavailable**, open `chrome://extensions`, click **Errors** or the background service worker link, and check for a startup error.
 

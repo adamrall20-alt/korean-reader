@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { AnkiClient } from '@/services/anki/client';
-import { syncVocabulary, validateAnkiSettings } from '@/services/anki/sync';
+import { listVocabulary, saveMachineTranslation } from '@/services/storage/vocabulary';
+import { countUnsynced, syncVocabulary, validateAnkiSettings } from '@/services/anki/sync';
 import { ANKI_FIELD_ROLES, DEFAULT_ANKI_SETTINGS, type AnkiMessage, type AnkiResponse, type AnkiSettings } from '@/types/anki';
 
 const STORAGE_KEY = 'ankiSettings';
@@ -28,9 +29,15 @@ export function isAnkiMessage(value: unknown): value is AnkiMessage {
     case 'connect-anki': return isConnection(value) && typeof value.requestPermission === 'boolean';
     case 'get-anki-fields': return isConnection(value) && typeof value.modelName === 'string' && !!value.modelName;
     case 'save-anki-settings': return isSettings(value.settings);
+    case 'count-unsynced': return isSettings(value.settings);
     case 'sync-anki':
-      return isSettings(value.settings) && Array.isArray(value.headwords) &&
-        value.headwords.length > 0 && value.headwords.every((word) => typeof word === 'string' && word.trim());
+      return isSettings(value.settings) && Array.isArray(value.translations) &&
+        value.translations.every((translation) => isRecord(translation) &&
+          typeof translation.headword === 'string' && !!translation.headword.trim() &&
+          Array.isArray(translation.korean) && Array.isArray(translation.english) &&
+          translation.korean.length > 0 && translation.korean.length <= 3 &&
+          translation.korean.length === translation.english.length &&
+          [...translation.korean, ...translation.english].every((text) => typeof text === 'string' && !!text.trim()));
     default: return false;
   }
 }
@@ -46,8 +53,13 @@ export async function handleAnkiMessage(message: AnkiMessage): Promise<AnkiRespo
     await browser.storage.local.set({ [STORAGE_KEY]: settings });
     return { ok: true };
   }
+  if (message.type === 'count-unsynced') {
+    return { ok: true, unsynced: await countUnsynced(message.settings) };
+  }
   if (message.type === 'sync-anki') {
-    return { ok: true, results: await syncVocabulary(message.settings, message.headwords) };
+    for (const translation of message.translations) await saveMachineTranslation(translation);
+    const entries = await listVocabulary();
+    return { ok: true, results: await syncVocabulary(message.settings, entries.map((entry) => entry.headword)) };
   }
 
   const client = new AnkiClient(message);

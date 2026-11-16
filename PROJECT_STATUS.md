@@ -67,7 +67,8 @@
 - [x] Save subtitle context, original form, video source, playback timestamp, and mining date.
 - [x] Vocabulary panel with search, date sorting, status filtering, definition editing, deletion, and JSON export.
 
-- [x] AnkiConnect connection and field mapping, explicit single and bulk sync, duplicate detection, incremental sentence updates and per-word results.
+- [x] AnkiConnect connection and field mapping, one-click sync, duplicate detection, incremental sentence updates, and sync results.
+- [x] Compact toolbar with an unsynced count and collapsed vocabulary management. Missing English is translated on-device when possible and saved before Anki sync.
 
 The user confirmed the Phase 2–3 workflow on a live YouTube video, including on-device definition translation.
 
@@ -150,7 +151,7 @@ Last run: 16 November 2026
 
 | Check | Command | Result |
 |---|---|---|
-| Unit/component tests | `npm run test:run` | Pass — 12 files, 53 tests |
+| Unit/component tests | `npm run test:run` | Pass — 12 files, 54 tests |
 | Headless Chrome smoke test | Temporary unpacked build and KRDict fixtures | Pass — bundled Kiwi, local key settings, exact lookup, pronunciation, cache reuse and clearing |
 | Phase 4 Chrome fixture test | Unpacked extension with fixture captions and KRDict | Pass — explicit save, source metadata, duplicate handling, additional sentences, schema upgrade, cache isolation, status, edits, deletion and JSON export |
 | Phase 5 Chrome fixture test | Unpacked extension with a loopback mock AnkiConnect server | Pass — connection, default settings, explicit sync, creation, duplicate skip, added sentence, and saved note ID |
