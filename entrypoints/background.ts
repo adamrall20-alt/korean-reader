@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser';
+import { handleAnkiMessage, isAnkiMessage } from '@/services/anki/messages';
 import { lookupKoreanWord } from '@/services/dictionary/krdict';
 import { clearDictionaryCache } from '@/services/dictionary/cache';
 import { VOCABULARY_REVISION_KEY, type KnownHeadwordsResponse } from '@/types/vocabulary';
@@ -164,6 +165,13 @@ export default defineBackground(() => {
 
     // Only extension pages can read or change dictionary settings.
     if (!fromExtensionPage) return false;
+
+    if (isAnkiMessage(message)) {
+      void handleAnkiMessage(message).then(sendResponse).catch((error: unknown) => {
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : 'AnkiConnect request failed.' });
+      });
+      return true;
+    }
 
     if (isGetSettingsMessage(message)) {
       void browser.storage.local

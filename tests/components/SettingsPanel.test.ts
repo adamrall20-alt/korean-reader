@@ -1,6 +1,10 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import SettingsPanel from '@/components/SettingsPanel.vue';
+
+vi.mock('wxt/browser', () => ({
+  browser: { runtime: { getURL: () => 'chrome-extension://test/', sendMessage: vi.fn() } },
+}));
 
 describe('SettingsPanel', () => {
   it('renders the settings headings and all planned categories', () => {
@@ -21,7 +25,8 @@ describe('SettingsPanel', () => {
       node.text().includes('placeholder'),
     );
 
-    expect(placeholders).toHaveLength(4);
-    expect(wrapper.findAll('input')).toHaveLength(1);
+    expect(placeholders).toHaveLength(3);
+    expect(wrapper.find('#krdict-api-key').exists()).toBe(true);
+    expect(wrapper.get('#anki').text()).toContain('Connect Anki');
   });
 });

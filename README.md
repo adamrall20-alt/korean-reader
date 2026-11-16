@@ -13,7 +13,7 @@ The long-term workflow is:
 
 ## Current Status
 
-**Phase 4 — Local vocabulary mining and management are implemented.**
+**Phase 5 — AnkiConnect sync is implemented and fixture-tested.**
 
 Implemented:
 
@@ -43,13 +43,12 @@ Implemented:
 - Direct Settings shortcut in the toolbar popup.
 - Component tests, type checking and a production build.
 
-Not implemented yet:
-
-- AnkiConnect integration.
+- AnkiConnect with deck and note type selection, configurable field mapping, and explicit selected-word sync.
 
 The user verified Phases 2–3 on live YouTube. Phase 4 passed in headless Chrome using
 fixture captions and KRDict responses. A KRDict API key in Settings is needed for a
-live lookup.
+live lookup. Phase 5 passed a Chrome loopback test with mock AnkiConnect responses.
+See [Anki setup](docs/anki-integration.md) for connecting to your collection.
 
 ## Project Structure
 
@@ -190,7 +189,7 @@ Current automated result:
 
 | Check | Result |
 |---|---|
-| `npm run test:run` | 11 test files, 48 tests passing |
+| `npm run test:run` | 12 test files, 53 tests passing |
 | `npm run compile` | Passing |
 | `npm run build` | Passing |
 
@@ -204,7 +203,7 @@ After loading `.output/chrome-mv3` in Chrome:
 - The popup should show **Korean Reader**, a Settings button, the connection status, and the vocabulary panel.
 - The status should change to **Connected** with the text “The background service worker is responding.”
 - The footer should show `v0.1.0`.
-- The **Sync to Anki** button should be disabled. This is intentional; Anki sync is Phase 5.
+- **Sync to Anki** becomes available after connecting Anki, mapping the required fields, choosing a deck, and selecting vocabulary.
 
 If the status is **Unavailable**, open `chrome://extensions`, click **Errors** or the background service worker link, and check for a startup error.
 
@@ -289,7 +288,7 @@ Captions must be enabled for extraction to work; the extension does not turn the
 - `PROJECT_STATUS.md` — current status and known issues.
 - `docs/architecture.md` — runtime architecture and data ownership.
 - `docs/dictionary.md` — planned KRDict integration.
-- `docs/anki-integration.md` — planned AnkiConnect integration.
+- `docs/anki-integration.md` — AnkiConnect setup, note mapping, and sync behaviour.
 
 ## Privacy
 

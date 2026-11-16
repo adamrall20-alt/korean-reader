@@ -1,121 +1,41 @@
 # Anki Integration — Korean Reader
 
-## Status
+Phase 5 sends selected vocabulary to Anki Desktop through AnkiConnect. The Chrome extension has been verified against a loopback AnkiConnect fixture. Live verification of the user's note type and card rendering remains pending.
 
-Planned for Phase 5. Nothing in this document is implemented yet.
+## Setup
 
-## Connection
+1. Open Anki Desktop with AnkiConnect installed and enabled.
+2. In the Korean Reader toolbar popup, click **Connect Anki** and approve the request in Anki if prompted.
+3. Choose a deck and the existing **Kimchi Sentence Mining** note type. Expand **Field mapping** to check the discovered fields. Use **Save defaults** to reuse the configuration.
+4. Select one or more vocabulary entries and click **Sync to Anki**. Review the result for each selected word.
 
-Use AnkiConnect.
+The default endpoint is `http://127.0.0.1:8765/`. **Connection settings** supports a different local port and an optional AnkiConnect API key. The background worker makes the requests and stores the defaults in `chrome.storage.local`.
 
-- Documentation: https://foosoft.net/projects/anki-connect/
-- Repository: https://github.com/FooSoft/anki-connect
-- Default endpoint: `http://127.0.0.1:8765`
+If AnkiConnect denies access, use the exact extension origin shown under **Connection settings**. In Anki, open **Tools → Add-ons → AnkiConnect → Config**, add that origin to `webCorsOriginList`, and restart Anki. If AnkiConnect has an API key configured, enter it in Korean Reader. Keep the server bound to loopback.
 
-Anki Desktop and AnkiConnect are external dependencies installed by the user. The extension must detect when AnkiConnect is unavailable and report the problem clearly.
+Reference: [AnkiConnect API documentation](https://github.com/ankiultimate/anki-connect/blob/master/README.md).
 
-## Note Type
+## Kimchi Sentence Mining fields
 
-Integrate with the user's existing note type:
-
-**Kimchi Sentence Mining**
-
-Use `modelNames` and `modelFieldNames` to read the actual field names rather than assuming them.
-
-Expected fields:
-
-1. Focus Word
-2. Sentence
-3. Definition
-4. Pronunciation
-5. Image
-6. Audio
-
-Do not create a replacement note type and do not modify the user's card templates.
-
-## One Card Per Word
-
-- A vocabulary headword may have at most one Anki card.
-- Never create duplicate notes for the same headword.
-- Before creating a note, check Anki for an existing note for that headword.
-- A new sentence for an existing word updates the existing vocabulary record and its Sentence field rather than creating another card.
-
-## Field Mapping
-
-| Anki Field | Data Source |
+| Anki field | Value |
 |---|---|
-| Focus Word | Korean dictionary headword |
-| Sentence | Original subtitle sentence, plus additional saved sentences separated by newlines |
-| Definition | English dictionary definition |
-| Pronunciation | Dictionary pronunciation |
-| Image | Empty until screenshot capture is implemented |
-| Audio | Empty until audio capture is implemented |
+| Focus Word | Dictionary headword |
+| Sentence | Saved subtitle text in order, separated by HTML line breaks |
+| Definition | Edited or dictionary English, then a saved machine translation or the Korean definition if English is unavailable |
+| Pronunciation | Dictionary pronunciation when available |
+| Image | Empty on new notes |
+| Audio | Empty on new notes |
 
-Missing optional media must not prevent note creation.
+Sentence text is HTML-escaped. The original subtitle form and dictionary headword are highlighted in orange when they appear. The extension uses existing note types and templates. Existing cards keep their deck and other fields when a sentence is appended.
 
-## Duplicate Detection
+## Duplicate handling
 
-Planned order of operations:
+- The worker searches across decks by the mapped focus field, the default focus field, and the saved field and note ID when available. Created notes also carry a stable headword tag so retrying after a connection error or local deletion can find the original note.
+- Search candidates are checked for the exact headword. If multiple notes match, or an existing match cannot be updated using the selected note type and sentence field, the word is reported as a conflict.
+- A matching note receives only missing sentences. Identical saved sentences are skipped, and the worker checks the updated field after writing.
+- New notes are preflighted with `canAddNotes`. AnkiConnect's duplicate protection stays enabled for creation. Bulk results are reported per word, including partial failures.
+- After success, IndexedDB records the note ID and last sync time. Retrying a word searches Anki again even if the local marker is missing.
 
-1. Build the candidate note from the vocabulary record.
-2. Query AnkiConnect for an existing note for the headword.
-3. If a note exists, do not create another one. When the user adds another example sentence, update the existing note's Sentence field with `updateNoteFields` rather than creating a second card.
-4. If no note exists, create it.
-5. Store the returned Anki note ID on the vocabulary record.
+## Live verification
 
-The exact `findNotes` query must be verified against the user's collection during Phase 5.
-
-## Required AnkiConnect Operations
-
-- `version`
-- `deckNames`
-- `modelNames`
-- `modelFieldNames`
-- `findNotes`
-- `canAddNotes`
-- `addNote`
-- `addNotes`
-- `updateNoteFields`
-
-## Settings
-
-- AnkiConnect endpoint.
-- Connection status.
-- Default deck.
-- Note type.
-- Field mapping.
-- Optional tags, if added later.
-
-## Browser Origin and CORS
-
-AnkiConnect may reject requests from the extension's origin depending on its `webCorsOriginList` configuration.
-
-Phase 5 must verify:
-
-- whether the background service worker can call `http://127.0.0.1:8765` with the manifest's host permissions;
-- whether AnkiConnect needs the extension origin added to its configuration;
-- how to document the required setup without telling the user to disable browser security.
-
-Do not work around a rejected origin by exposing credentials or moving the request into the YouTube page.
-
-## Error Handling
-
-Display clear results for:
-
-- AnkiConnect not running;
-- connection refused;
-- invalid deck or note type;
-- missing fields;
-- duplicate notes;
-- `canAddNotes` rejection;
-- partial success during bulk synchronisation;
-- invalid or missing media.
-
-Report both successful and unsuccessful synchronisation attempts. Never silently synchronise vocabulary.
-
-## Out of Scope
-
-- Creating a custom Anki add-on.
-- Review scheduling.
-- Replacing Anki's flashcard review interface.
-- Screenshot and audio capture until those features are implemented.
+Sync one word to the intended deck and inspect its card in Anki. Check the orange focus word on the front and the definition, headword, and pronunciation on the back. Close the note in Anki's browser before syncing an additional sentence, because AnkiConnect can decline updates to the currently open note.

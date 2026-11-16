@@ -50,7 +50,7 @@ describe('MiningPanel', () => {
     expect(wrapper.get('[data-testid="connection-status"]').text()).toContain('Unavailable');
   });
 
-  it('keeps Anki sync disabled until the feature is implemented', () => {
+  it('keeps Anki sync disabled before connection and selection', () => {
     const wrapper = mount(MiningPanel);
     const syncButton = wrapper.findAll('button').find((button) => button.text() === 'Sync to Anki');
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AnkiPanel from '@/components/AnkiPanel.vue';
 import { computed, onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import type { PingResponse } from '@/types/messages';
@@ -26,6 +27,7 @@ const connectionClass = computed(() => {
 });
 
 const entries = ref<VocabularyEntry[]>([]);
+const selected = ref<string[]>([]);
 const query = ref('');
 const filter = ref('all');
 const newestFirst = ref(true);
@@ -57,6 +59,8 @@ async function updateVocabulary(message: VocabularyMessage): Promise<boolean> {
       throw new Error(response?.error ?? 'Could not access saved vocabulary.');
     }
     entries.value = response.entries ?? [];
+    const available = new Set(entries.value.map((entry) => entry.headword));
+    selected.value = selected.value.filter((headword) => available.has(headword));
     return true;
   } catch (error) {
     vocabularyError.value = error instanceof Error ? error.message : 'Could not access saved vocabulary.';
@@ -210,9 +214,20 @@ onMounted(async () => {
         <p v-if="!visibleEntries.length && !vocabularyError" class="py-4 text-sm text-muted" role="status">
           {{ busy ? 'Loading vocabulary…' : entries.length ? 'No matching words.' : 'Mine a word from a YouTube subtitle to save it here.' }}
         </p>
-        <ul v-else-if="visibleEntries.length" class="space-y-2">
+        <div v-if="visibleEntries.length" class="flex items-center justify-between text-xs text-muted">
+          <button type="button" class="underline" @click="selected = [...new Set([...selected, ...visibleEntries.map((entry) => entry.headword)])]">Select visible</button>
+          <button v-if="selected.length" type="button" class="underline" @click="selected = []">Clear {{ selected.length }} selected</button>
+        </div>
+        <ul v-if="visibleEntries.length" class="space-y-2">
           <li v-for="entry in visibleEntries" :key="entry.headword" class="space-y-2 rounded-xl border border-white/10 bg-ink-soft p-3">
             <div class="flex items-center gap-2">
+              <input
+                v-model="selected"
+                type="checkbox"
+                :value="entry.headword"
+                :aria-label="`Select ${entry.headword} for Anki`"
+                class="accent-accent"
+              />
               <h3 lang="ko" class="min-w-0 flex-1 break-words font-semibold">{{ entry.headword }}</h3>
               <button
                 type="button"
@@ -257,6 +272,7 @@ onMounted(async () => {
             </details>
             <div class="flex items-center gap-3 border-t border-white/10 pt-2 text-xs">
               <time :datetime="entry.createdAt" class="mr-auto text-muted">{{ new Date(entry.createdAt).toLocaleDateString() }}</time>
+              <span v-if="entry.ankiSyncedAt" class="text-muted" :title="`Last Anki sync ${new Date(entry.ankiSyncedAt).toLocaleString()}`">In Anki</span>
               <template v-if="pendingDeletion === entry.headword">
                 <button type="button" :disabled="busy" class="text-red-300" @click="deleteWord(entry.headword)">Delete word</button>
                 <button type="button" :disabled="busy" class="text-muted" @click="pendingDeletion = undefined">Cancel</button>
@@ -268,12 +284,7 @@ onMounted(async () => {
             </div>
           </li>
         </ul>
-        <button
-          type="button"
-          class="w-full cursor-not-allowed rounded-xl bg-white/5 px-3 py-2.5 text-sm font-medium text-muted"
-          disabled
-          title="Anki synchronisation is added in Phase 5"
-        >Sync to Anki</button>
+        <AnkiPanel :headwords="selected" class="border-t border-white/10 pt-3" @synced="updateVocabulary({ type: 'list-vocabulary' })" />
       </section>
     </section>
 

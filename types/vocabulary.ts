@@ -21,6 +21,9 @@ export interface VocabularyContext {
 export interface VocabularyEntry extends DictionaryEntry {
   contexts: Array<VocabularyContext & { minedAt: string }>;
   machineDefinitions?: string[];
+  ankiNoteId?: number;
+  ankiSyncedAt?: string;
+  ankiFocusField?: string;
   status: VocabularyStatus;
   createdAt: string;
   updatedAt: string;

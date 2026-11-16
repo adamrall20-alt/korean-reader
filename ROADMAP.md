@@ -146,32 +146,32 @@ Words can be explicitly mined and retrieved from persistent local storage. The C
 
 Tasks:
 
-- [ ] Implement AnkiConnect service.
-- [ ] Detect whether AnkiConnect is available.
-- [ ] Implement connection status.
-- [ ] Retrieve Anki decks.
-- [ ] Retrieve note types.
-- [ ] Retrieve note fields.
-- [ ] Implement deck selection.
-- [ ] Implement note type selection.
-- [ ] Implement field mapping.
-- [ ] Implement duplicate detection by dictionary headword.
-- [ ] Enforce a maximum of one Anki card per headword.
-- [ ] Implement single-note creation.
-- [ ] Implement bulk-note creation.
-- [ ] Join additional example sentences in the Sentence field with newlines.
-- [ ] Update an existing note's Sentence field when new example sentences are added.
-- [ ] Display synchronisation results.
-- [ ] Handle connection failures.
-- [ ] Retrieve and verify Kimchi Sentence Mining note type fields.
-- [ ] Implement Kimchi Sentence Mining field mapping.
-- [ ] Populate required fields; leave Image and Audio empty until capture is implemented.
-- [ ] Verify compatibility with existing card templates.
+- [x] Implement AnkiConnect service.
+- [x] Detect whether AnkiConnect is available.
+- [x] Implement connection status.
+- [x] Retrieve Anki decks.
+- [x] Retrieve note types.
+- [x] Retrieve note fields.
+- [x] Implement deck selection.
+- [x] Implement note type selection.
+- [x] Implement field mapping.
+- [x] Implement duplicate detection by dictionary headword.
+- [x] Enforce a maximum of one Anki card per headword.
+- [x] Implement single-note creation.
+- [x] Implement bulk-note creation.
+- [x] Join additional example sentences in the Sentence field with newlines.
+- [x] Update an existing note's Sentence field when new example sentences are added.
+- [x] Display synchronisation results.
+- [x] Handle connection failures.
+- [x] Retrieve and verify Kimchi Sentence Mining note type fields.
+- [x] Implement Kimchi Sentence Mining field mapping.
+- [x] Populate required fields; leave Image and Audio empty until capture is implemented.
+- [ ] Verify compatibility with the user’s existing card templates in Anki.
 - [ ] Test front and back card rendering in Anki.
 
 Completion criteria:
 
-Selected vocabulary can be reliably synchronised into the user's chosen Anki deck.
+Selected vocabulary can be synchronised into a chosen deck in the Chrome fixture. Acceptance against the user’s Anki collection is pending.
 
 ## Phase 6 — Reliability and Testing
 

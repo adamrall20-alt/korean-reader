@@ -93,3 +93,14 @@ export function changeVocabulary(message: Extract<VocabularyMessage, { headword:
     store.put({ ...existing, ...changes, updatedAt: new Date().toISOString() });
   });
 }
+
+export function recordAnkiSync(headword: string, noteId: number, focusField: string) {
+  return updateVocabulary(normalizeHeadword(headword), (store, existing) => {
+    if (existing) store.put({
+      ...existing,
+      ankiNoteId: noteId,
+      ankiFocusField: focusField,
+      ankiSyncedAt: new Date().toISOString(),
+    });
+  });
+}

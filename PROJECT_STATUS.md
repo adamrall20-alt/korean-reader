@@ -2,8 +2,8 @@
 
 ## Current Project State
 
-**Status:** Phase 4 implemented and verified in Chrome with fixture captions and KRDict responses
-**Current Phase:** Phase 4 — Vocabulary Mining
+**Status:** Phase 5 implemented and verified in Chrome with a loopback AnkiConnect fixture
+**Current Phase:** Phase 5 — AnkiConnect Integration
 **Last Updated:** 16 November 2026
 
 ## Completed
@@ -67,17 +67,15 @@
 - [x] Save subtitle context, original form, video source, playback timestamp, and mining date.
 - [x] Vocabulary panel with search, date sorting, status filtering, definition editing, deletion, and JSON export.
 
+- [x] AnkiConnect connection and field mapping, explicit single and bulk sync, duplicate detection, incremental sentence updates and per-word results.
+
 The user confirmed the Phase 2–3 workflow on a live YouTube video, including on-device definition translation.
 
 ## In Progress
 
-- [ ] User acceptance of the Phase 4 mining workflow on live YouTube.
+- [ ] Verify Phase 5 against the user’s AnkiConnect configuration, collection and existing card templates.
 
 ## Not Started
-
-### Phase 5 — AnkiConnect Integration
-
-Not started.
 
 ### Phase 6 — Reliability and Testing
 
@@ -152,9 +150,10 @@ Last run: 16 November 2026
 
 | Check | Command | Result |
 |---|---|---|
-| Unit/component tests | `npm run test:run` | Pass — 11 files, 48 tests |
+| Unit/component tests | `npm run test:run` | Pass — 12 files, 53 tests |
 | Headless Chrome smoke test | Temporary unpacked build and KRDict fixtures | Pass — bundled Kiwi, local key settings, exact lookup, pronunciation, cache reuse and clearing |
 | Phase 4 Chrome fixture test | Unpacked extension with fixture captions and KRDict | Pass — explicit save, source metadata, duplicate handling, additional sentences, schema upgrade, cache isolation, status, edits, deletion and JSON export |
+| Phase 5 Chrome fixture test | Unpacked extension with a loopback mock AnkiConnect server | Pass — connection, default settings, explicit sync, creation, duplicate skip, added sentence, and saved note ID |
 | Type checking | `npm run compile` | Pass |
 | Production build | `npm run build` | Pass — `.output/chrome-mv3`, approximately 114.9 MB |
 | Packaging | `npm run zip` | Pass — `.output/korean-reader-0.1.0-chrome.zip`, approximately 89.2 MB |
@@ -192,7 +191,7 @@ Last run: 16 November 2026
 - Captions must be enabled in YouTube's player for extraction to work. The extension does not force captions on.
 - KRDict homonyms sharing the same headword are resolved in dictionary order.
 - Phase 3 requires the user's KRDict API key before definitions can be retrieved.
-- AnkiConnect browser-origin/CORS behaviour has not been verified.
+- Chrome loopback access passed against a fixture. AnkiConnect permissions and the existing card templates still need a live check.
 
 ## Pending Investigation
 
@@ -208,4 +207,4 @@ Phase 1 is complete and verified in Chrome. Korean captions are replaced by the 
 
 The production build is at `.output/chrome-mv3`. See `README.md` for setup, testing and manual verification instructions.
 
-Phase 5 is the next milestone and requires user approval.
+Phase 6 is the next milestone and requires user approval.

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AnkiPanel from '@/components/AnkiPanel.vue';
 import { onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import type { SettingsResponse } from '@/types/messages';
@@ -205,6 +206,7 @@ const sections = [
                 {{ clearingCache ? 'Clearing…' : 'Clear dictionary cache' }}
               </button>
             </div>
+            <AnkiPanel v-else-if="section.id === 'anki'" class="mt-4 border-t border-white/10 pt-4" />
             <p v-else class="mt-4 border-t border-white/10 pt-4 text-xs text-muted">
               This section is a placeholder and does not save any settings yet.
             </p>

@@ -7,7 +7,7 @@ export default defineConfig({
     name: 'Korean Reader',
     description: 'Personal Korean vocabulary mining for YouTube.',
     permissions: ['storage'],
-    host_permissions: ['https://krdict.korean.go.kr/*'],
+    host_permissions: ['https://krdict.korean.go.kr/*', 'http://127.0.0.1/*'],
     action: {
       default_title: 'Korean Reader',
     },

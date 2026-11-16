@@ -4,7 +4,7 @@
 
 Korean Reader is a personal Chrome Manifest V3 extension for learning Korean from YouTube. This document records the runtime structure and the decisions that must remain consistent as features are added.
 
-Phase 0 implements the foundation. Phase 1 implements YouTube caption extraction and the custom subtitle overlay. Phases 2 and 3 implement interactive words, dictionary lookup and local dictionary caching. Phase 4 adds local vocabulary mining and management.
+Phase 0 implements the foundation. Phase 1 implements YouTube caption extraction and the custom subtitle overlay. Phases 2 and 3 implement interactive words, dictionary lookup and local dictionary caching. Phase 4 adds local vocabulary mining and management. Phase 5 adds selected-word sync through a loopback AnkiConnect endpoint.
 
 ## 2. Runtime Components
 
@@ -84,7 +84,7 @@ The stored record extends the dictionary entry with its known status, creation a
 - Repeating the same subtitle text from the same video leaves the stored record as it was. A different context can be saved explicitly using **Save Sentence**.
 - Mining marks the word as known. The toolbar popup can toggle known status and edit English definitions.
 - Subtitle tabs read known headwords from the background and refresh when the vocabulary revision changes. Exact text, Kiwi predicate forms, and nouns with particles can match a known headword. Unmatched words are underlined in red.
-- JSON export includes the complete vocabulary collection. Phase 5 will use the stored contexts for Anki synchronisation.
+- JSON export includes the complete vocabulary collection. Anki sync uses the stored contexts and saves the returned note ID and sync time.
 
 ## 7. Subtitle Overlay
 
@@ -159,9 +159,7 @@ Implemented:
 - Local vocabulary persistence, mining controls, a toolbar management panel and JSON export.
 - Unit, component and service tests plus a successful production build.
 
-Not implemented:
-
-- AnkiConnect integration.
+- AnkiConnect discovery, mapping, single and bulk sync, and existing-note sentence updates. See `docs/anki-integration.md`.
 
 Key Phase 1 modules:
 
