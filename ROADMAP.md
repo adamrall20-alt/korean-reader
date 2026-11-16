@@ -67,20 +67,23 @@ Phase 1 is implemented and was verified in Chrome on 16 November 2026. Caption e
 
 Tasks:
 
-- [ ] Complete the bundled Kiwi WebAssembly feasibility spike.
-- [ ] Implement Korean tokenisation.
-- [ ] Integrate Kiwi or a suitable browser-compatible alternative.
-- [ ] Identify individual Korean words.
-- [ ] Identify dictionary forms.
-- [ ] Preserve original subtitle forms.
-- [ ] Display individual words as clickable elements.
-- [ ] Implement click-to-select behaviour.
-- [ ] Implement selected-word state.
-- [ ] Ensure hovering does not trigger dictionary lookups.
+- [x] Complete the bundled Kiwi WebAssembly feasibility spike.
+- [x] Implement Korean tokenisation.
+- [x] Integrate Kiwi as the browser-compatible analyser.
+- [x] Identify individual Korean words.
+- [x] Identify dictionary forms for dictionary lookup.
+- [x] Preserve original subtitle forms.
+- [x] Display individual words as clickable elements.
+- [x] Implement click-to-select behaviour.
+- [x] Implement selected-word state.
+- [x] Pause YouTube playback when a word is selected.
+- [x] Ensure hovering does not trigger dictionary lookups.
 
 Completion criteria:
 
 Individual Korean words can be selected accurately without disrupting subtitle playback.
+
+Phase 2 is complete and verified through the Phase 3 dictionary flow.
 
 ## Phase 3 — Dictionary Integration
 
@@ -88,24 +91,26 @@ Individual Korean words can be selected accurately without disrupting subtitle p
 
 Tasks:
 
-- [ ] Investigate KRDict API.
-- [ ] Obtain API credentials.
-- [ ] Implement dictionary service.
-- [ ] Retrieve dictionary definitions.
-- [ ] Match conjugated words to dictionary forms.
-- [ ] Support multiple definitions.
-- [ ] Display parts of speech.
-- [ ] Display grammatical information where available.
-- [ ] Implement dictionary popup.
-- [ ] Open the popup directly above the selected word.
-- [ ] Keep the popup inside the viewport and close it on an outside click.
-- [ ] Cache dictionary results locally.
-- [ ] Store the KRDict API key locally through the Settings page.
-- [ ] Handle missing dictionary entries.
+- [x] Investigate KRDict API.
+- [x] Obtain API credentials.
+- [x] Implement dictionary service.
+- [x] Retrieve dictionary definitions.
+- [x] Match conjugated forms through Kiwi lexical morphemes and dictionary-form candidates.
+- [x] Support multiple definitions.
+- [x] Display parts of speech.
+- [x] Display pronunciation where available.
+- [x] Implement dictionary popup.
+- [x] Open the popup directly above the selected word.
+- [x] Keep the popup inside the viewport and close it on an outside click.
+- [x] Cache dictionary results locally in IndexedDB.
+- [x] Provide a Settings action to clear the dictionary cache.
+- [x] Limit popup definitions to the top three results per language.
+- [x] Store the KRDict API key locally through the Settings page.
+- [x] Handle missing dictionary entries.
 
 Completion criteria:
 
-Clicking a Korean subtitle word displays its correct dictionary information in a compact popup.
+Clicking a Korean subtitle word displays its dictionary information in an English/Korean popup.
 
 ## Phase 4 — Vocabulary Mining
 

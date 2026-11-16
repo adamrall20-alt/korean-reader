@@ -5,6 +5,23 @@ import {
   SUBTITLE_OVERLAY_HOST_ID,
 } from '@/services/youtube/overlay';
 import type { CaptionSnapshot } from '@/types/youtube';
+import type { TokenizedSubtitleLine } from '@/types/messages';
+
+const tokenizedLines: TokenizedSubtitleLine[] = [
+  {
+    text: '안녕하세요',
+    tokens: [
+      {
+        id: '0:0',
+        text: '안녕하세요',
+        start: 0,
+        length: 5,
+        clickable: true,
+        morphemes: [],
+      },
+    ],
+  },
+];
 
 function makeSnapshot(overrides: Partial<CaptionSnapshot> = {}): CaptionSnapshot {
   return {
@@ -34,7 +51,7 @@ describe('subtitle overlay', () => {
     const overlay = createSubtitleOverlay(document);
 
     try {
-      overlay.update(makeSnapshot(), player);
+      overlay.update(makeSnapshot(), player, tokenizedLines);
       await nextTick();
 
       const host = player.querySelector<HTMLElement>(`#${SUBTITLE_OVERLAY_HOST_ID}`);

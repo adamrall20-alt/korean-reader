@@ -3,6 +3,23 @@ import { NATIVE_CAPTION_HIDDEN_CLASS } from '@/services/youtube/native-captions'
 import { createSubtitlePresenter } from '@/services/youtube/presenter';
 import type { SubtitleOverlay } from '@/services/youtube/overlay';
 import type { CaptionSnapshot } from '@/types/youtube';
+import type { TokenizedSubtitleLine } from '@/types/messages';
+
+const tokenizedLines: TokenizedSubtitleLine[] = [
+  {
+    text: '안녕하세요',
+    tokens: [
+      {
+        id: '0:0',
+        text: '안녕하세요',
+        start: 0,
+        length: 5,
+        clickable: true,
+        morphemes: [],
+      },
+    ],
+  },
+];
 
 function makeSnapshot(overrides: Partial<CaptionSnapshot> = {}): CaptionSnapshot {
   return {
@@ -50,9 +67,9 @@ describe('subtitle presenter', () => {
     const presenter = createSubtitlePresenter({ document, overlay });
     const snapshot = makeSnapshot();
 
-    presenter.update(snapshot);
+    presenter.update(snapshot, tokenizedLines);
 
-    expect(overlay.update).toHaveBeenCalledWith(snapshot, player);
+    expect(overlay.update).toHaveBeenCalledWith(snapshot, player, tokenizedLines);
     expect(player.classList.contains(NATIVE_CAPTION_HIDDEN_CLASS)).toBe(true);
     expect(overlay.hide).not.toHaveBeenCalled();
 
@@ -69,7 +86,7 @@ describe('subtitle presenter', () => {
     const overlay = makeOverlay();
     const presenter = createSubtitlePresenter({ document, overlay });
 
-    presenter.update(makeSnapshot());
+    presenter.update(makeSnapshot(), tokenizedLines);
 
     expect(player.classList.contains(NATIVE_CAPTION_HIDDEN_CLASS)).toBe(true);
     expect(miniplayer.classList.contains(NATIVE_CAPTION_HIDDEN_CLASS)).toBe(false);
@@ -87,7 +104,7 @@ describe('subtitle presenter', () => {
     const overlay = makeOverlay();
     const presenter = createSubtitlePresenter({ document, overlay });
 
-    presenter.update(makeSnapshot());
+    presenter.update(makeSnapshot(), tokenizedLines);
     presenter.update(makeSnapshot({ lines: [], text: '', isKorean: false, hasNativeCaptions: false }));
 
     expect(player.classList.contains(NATIVE_CAPTION_HIDDEN_CLASS)).toBe(true);
@@ -107,10 +124,10 @@ describe('subtitle presenter', () => {
     const overlay = makeOverlay();
     const presenter = createSubtitlePresenter({ document, overlay });
 
-    presenter.update(makeSnapshot());
+    presenter.update(makeSnapshot(), tokenizedLines);
     presenter.update(makeSnapshot({ lines: [], text: '', isKorean: false }));
     vi.advanceTimersByTime(400);
-    presenter.update(makeSnapshot());
+    presenter.update(makeSnapshot(), tokenizedLines);
 
     vi.advanceTimersByTime(1000);
 
@@ -125,7 +142,7 @@ describe('subtitle presenter', () => {
     const overlay = makeOverlay();
     const presenter = createSubtitlePresenter({ document, overlay });
 
-    presenter.update(makeSnapshot());
+    presenter.update(makeSnapshot(), tokenizedLines);
     presenter.update(makeSnapshot({ videoId: 'def456', lines: [], text: '', isKorean: false }));
 
     expect(player.classList.contains(NATIVE_CAPTION_HIDDEN_CLASS)).toBe(false);

@@ -52,9 +52,9 @@ describe('MiningPanel', () => {
 
   it('keeps Anki sync disabled until the feature is implemented', () => {
     const wrapper = mount(MiningPanel);
-    const syncButton = wrapper.get('button');
+    const syncButton = wrapper.findAll('button').find((button) => button.text() === 'Sync to Anki');
 
-    expect(syncButton.text()).toBe('Sync to Anki');
-    expect(syncButton.attributes('disabled')).toBeDefined();
+    expect(syncButton?.text()).toBe('Sync to Anki');
+    expect(syncButton?.attributes('disabled')).toBeDefined();
   });
 });

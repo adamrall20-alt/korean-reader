@@ -21,7 +21,7 @@ describe('SettingsPanel', () => {
       node.text().includes('placeholder'),
     );
 
-    expect(placeholders).toHaveLength(5);
-    expect(wrapper.findAll('input')).toHaveLength(0);
+    expect(placeholders).toHaveLength(4);
+    expect(wrapper.findAll('input')).toHaveLength(1);
   });
 });

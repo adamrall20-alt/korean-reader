@@ -1,0 +1,5 @@
+Quantization is not supported for ArchType::none. Fall back to non-quantized model.
+Context
+background.js
+Stack Trace
+background.js:2 (anonymous function)

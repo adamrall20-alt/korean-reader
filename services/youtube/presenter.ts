@@ -1,10 +1,11 @@
 import { findPlayer } from '@/services/youtube/captions';
 import { setNativeCaptionsHidden } from '@/services/youtube/native-captions';
 import type { SubtitleOverlay } from '@/services/youtube/overlay';
+import type { TokenizedSubtitleLine } from '@/types/messages';
 import type { CaptionSnapshot } from '@/types/youtube';
 
 export interface SubtitlePresenter {
-  update(snapshot: CaptionSnapshot): void;
+  update(snapshot: CaptionSnapshot, lines?: TokenizedSubtitleLine[] | null): void;
   destroy(): void;
 }
 
@@ -51,7 +52,7 @@ export function createSubtitlePresenter({
     setNativeHidden(false);
   }
 
-  function update(snapshot: CaptionSnapshot): void {
+  function update(snapshot: CaptionSnapshot, lines: TokenizedSubtitleLine[] | null = null): void {
     if (snapshot.videoId !== lastVideoId) {
       lastVideoId = snapshot.videoId;
       hideNow();
@@ -64,11 +65,11 @@ export function createSubtitlePresenter({
       return;
     }
 
-    const canShow = snapshot.isKorean && snapshot.lines.length > 0;
+    const canShow = snapshot.isKorean && snapshot.lines.length > 0 && lines !== null;
 
     if (canShow) {
       clearHideTimer();
-      overlay.update(snapshot, player);
+      overlay.update(snapshot, player, lines);
       showing = true;
       setNativeHidden(true, player);
       return;

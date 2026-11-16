@@ -1,18 +1,23 @@
 import { createApp, h, reactive, type App } from 'vue';
 import subtitleOverlayStyles from '@/assets/subtitle-overlay.css?inline';
 import SubtitleReader from '@/components/SubtitleReader.vue';
+import type { TokenizedSubtitleLine } from '@/types/messages';
 import type { CaptionSnapshot } from '@/types/youtube';
 
 export const SUBTITLE_OVERLAY_HOST_ID = 'korean-reader-subtitle-overlay';
 
 export interface SubtitleOverlay {
-  update(snapshot: CaptionSnapshot, player: HTMLElement | null): void;
+  update(
+    snapshot: CaptionSnapshot,
+    player: HTMLElement | null,
+    lines?: TokenizedSubtitleLine[] | null,
+  ): void;
   hide(): void;
   destroy(): void;
 }
 
 export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay {
-  const state = reactive<{ lines: string[]; visible: boolean }>({
+  const state = reactive<{ lines: TokenizedSubtitleLine[]; visible: boolean }>({
     lines: [],
     visible: false,
   });
@@ -79,7 +84,11 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
     }
   }
 
-  function update(snapshot: CaptionSnapshot, player: HTMLElement | null): void {
+  function update(
+    snapshot: CaptionSnapshot,
+    player: HTMLElement | null,
+    lines: TokenizedSubtitleLine[] | null = null,
+  ): void {
     if (!player) {
       hide();
       return;
@@ -87,8 +96,8 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
 
     ensureMounted(player);
 
-    state.lines = snapshot.lines;
-    state.visible = snapshot.isKorean && snapshot.lines.length > 0;
+    state.lines = lines ?? [];
+    state.visible = snapshot.isKorean && state.lines.length > 0;
 
     if (host) {
       host.dataset.timestamp = snapshot.timestamp === null ? '' : snapshot.timestamp.toFixed(3);

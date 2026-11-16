@@ -7,8 +7,12 @@ export default defineConfig({
     name: 'Korean Reader',
     description: 'Personal Korean vocabulary mining for YouTube.',
     permissions: ['storage'],
+    host_permissions: ['https://krdict.korean.go.kr/*'],
     action: {
       default_title: 'Korean Reader',
+    },
+    content_security_policy: {
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
     },
   },
   vite: () => ({

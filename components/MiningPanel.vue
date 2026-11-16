@@ -8,6 +8,10 @@ type ConnectionState = 'checking' | 'connected' | 'unavailable';
 const connection = ref<ConnectionState>('checking');
 const version = ref('');
 
+const openSettings = () => {
+  void browser.runtime.openOptionsPage();
+};
+
 const connectionLabel = computed(() => {
   if (connection.value === 'connected') return 'Connected';
   if (connection.value === 'checking') return 'Checking…';
@@ -56,8 +60,17 @@ onMounted(async () => {
         <span
           class="ml-auto rounded-full border border-white/10 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted"
         >
-          Phase 1
+          Phases 2–3 complete
         </span>
+        <button
+          type="button"
+          class="grid size-8 shrink-0 place-items-center rounded-lg border border-white/10 text-muted transition-colors hover:bg-white/10 hover:text-paper"
+          aria-label="Open settings"
+          title="Open settings"
+          @click="openSettings"
+        >
+          <span aria-hidden="true">⚙</span>
+        </button>
       </div>
     </header>
 
@@ -107,14 +120,15 @@ onMounted(async () => {
       <div class="rounded-2xl border border-white/10 bg-ink-soft p-4">
         <h2 class="text-sm font-medium">Next up</h2>
         <p class="mt-2 text-xs leading-5 text-muted">
-          Phase 2 adds individually clickable words to the subtitle overlay.
+          Phases 2–3 complete: click subtitle words for cached KRDict definitions. Vocabulary
+          mining is the next Phase 4 milestone.
         </p>
       </div>
     </section>
 
     <footer class="mt-auto border-t border-white/10 px-5 py-3">
       <p class="text-[11px] text-muted">
-        v{{ version || '0.1.0' }} · Phase 1 subtitles
+        v{{ version || '0.1.0' }} · Phases 2–3 complete
       </p>
     </footer>
   </main>

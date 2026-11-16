@@ -13,9 +13,7 @@ The long-term workflow is:
 
 ## Current Status
 
-**Phase 0 — Project Foundation is complete and verified in Chrome.**
-
-**Phase 1 — YouTube Integration is complete and verified in Chrome.**
+**Phases 2 and 3 — Interactive Words and Dictionary Integration are implemented.**
 
 Implemented:
 
@@ -30,16 +28,25 @@ Implemented:
 - Shadow DOM subtitle overlay with the placeholder soft-font stack.
 - Native caption hiding limited to the active player.
 - Automatic fallback to native captions when Korean captions stop.
+- Kiwi WASM tokenization with locally bundled model assets.
+- Background tokenization messaging to keep analysis out of the YouTube page.
+- Individual clickable Korean word spans with selected-word state.
+- KRDict lookup popup with definitions, pronunciation and part of speech.
+- Local KRDict API-key settings.
+- IndexedDB dictionary-result caching with a Settings clear-cache action.
+- Enlarged dictionary popup with a maximum of three definitions per language.
+- YouTube playback pauses when a subtitle word is selected.
+- Direct Settings shortcut in the toolbar popup.
 - Component tests, type checking and a production build.
 
 Not implemented yet:
 
-- Korean tokenisation or Kiwi integration.
-- Dictionary lookup or KRDict key entry.
 - Vocabulary storage or mining.
 - AnkiConnect integration.
 
-Phase 1 was verified in Chrome on 16 November 2026. Phase 2 requires user approval.
+Phase 1 was verified in Chrome on 16 November 2026. Final Chrome verification of the
+Phase 2/3 cache, dictionary-form behavior and pause-on-selection behavior remains. Enter
+a KRDict API key in Settings before testing definitions.
 
 ## Project Structure
 
@@ -113,7 +120,8 @@ korean-reader/
 - npm.
 - Google Chrome desktop.
 
-Anki Desktop and AnkiConnect will be needed for Phase 5. A KRDict API key will be needed for Phase 3 and is stored locally when that feature is implemented.
+Anki Desktop and AnkiConnect will be needed for Phase 5. A KRDict API key is needed for
+Phase 3 and is stored locally in the extension settings.
 
 ## Install
 
@@ -175,11 +183,11 @@ Run the production build:
 npm run build
 ```
 
-Current Phase 1 result:
+Current automated result:
 
 | Check | Result |
 |---|---|
-| `npm run test:run` | 8 test files, 30 tests passing |
+| `npm run test:run` | 10 test files, 36 tests passing |
 | `npm run compile` | Passing |
 | `npm run build` | Passing |
 
@@ -190,16 +198,18 @@ After loading `.output/chrome-mv3` in Chrome:
 ### 1. Popup
 
 - Click the Korean Reader toolbar icon.
-- The popup should show **Korean Reader**, a **Phase 1** badge and an **Extension status** card.
+- The popup should show **Korean Reader**, a **Phases 2–3 complete** badge, a Settings button
+  and an **Extension status** card.
 - The status should change to **Connected** with the text “The background service worker is responding.”
-- The footer should show `v0.1.0 · Phase 1 subtitles`.
+- The footer should show `v0.1.0 · Phases 2–3 complete`.
 - The **Sync to Anki** button should be disabled. This is intentional; Anki sync is Phase 5.
 
 If the status is **Unavailable**, open `chrome://extensions`, click **Errors** or the background service worker link, and check for a startup error.
 
 ### 2. Settings page
 
-- Right-click the Korean Reader toolbar icon and choose **Options**. Alternatively, open the extension details in `chrome://extensions` and select **Extension options**.
+- Click the Settings gear in the top-right of the Korean Reader popup. The extension options
+  page should open directly. The Options entry in `chrome://extensions` remains available.
 - A full-page Settings interface should open.
 - It should list **General**, **Dictionary**, **Anki**, **Appearance** and **Storage**.
 - Each section should say it is a placeholder and does not save settings yet.
@@ -259,7 +269,7 @@ Use a Korean video with captions available. Turn the video volume down or mute i
 
 Captions must be enabled for extraction to work; the extension does not turn them on automatically. If the overlay never appears while Korean captions are visible, include the video URL, caption type (manual or auto-generated) and any `[Korean Reader]` console messages in the report.
 
-Report any result that differs from the checklist before Phase 2 begins.
+Report any result that differs from the checklist before Phase 4 begins.
 
 ## Project Documentation
 

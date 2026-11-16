@@ -26,6 +26,7 @@
   line-height: 1.45;
   text-align: center;
   text-wrap: balance;
+  pointer-events: auto;
 }
 
 .kr-subtitle-line {
@@ -36,6 +37,110 @@
   box-shadow: 0 2px 14px rgba(0, 0, 0, 0.28);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(3px);
+}
+
+.kr-word-token {
+  margin: 0;
+  border: 0;
+  padding: 0 0.12em;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.kr-word-token:hover,
+.kr-word-token-selected {
+  border-radius: 0.18em;
+  color: #b7f7c7;
+  background: rgba(22, 163, 74, 0.28);
+}
+
+.kr-dictionary-popup {
+  position: fixed;
+  z-index: 70;
+  width: min(44rem, calc(100vw - 1rem));
+  height: auto;
+  max-height: min(40rem, calc(100vh - 1rem));
+  overflow: auto;
+  transform: translate(-50%, -100%);
+  padding: 1.5rem 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.85rem;
+  color: #ffffff;
+  background: rgba(17, 17, 17, 0.96);
+  box-shadow: 0 0.7rem 2rem rgba(0, 0, 0, 0.35);
+  font-family: system-ui, sans-serif;
+  font-size: 2.3rem;
+  line-height: 1.6;
+  pointer-events: auto;
+  text-align: left;
+}
+
+.kr-dictionary-close {
+  float: right;
+  border: 0;
+  color: #aaaaaa;
+  background: transparent;
+  font-size: 2.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.kr-dictionary-original {
+  margin: 0 2rem 0.6rem 0;
+  color: #b7f7c7;
+  font-size: 2rem;
+}
+
+.kr-dictionary-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.kr-dictionary-heading h2 {
+  margin: 0;
+  font-size: 3.4rem;
+}
+
+.kr-dictionary-heading span,
+.kr-dictionary-pronunciation,
+.kr-dictionary-message {
+  color: #aaaaaa;
+}
+
+.kr-dictionary-pronunciation {
+  margin: 0.2rem 0 0;
+}
+
+.kr-dictionary-definitions {
+  margin: 0.7rem 0 0;
+  padding-left: 1.6rem;
+}
+
+.kr-dictionary-section {
+  margin-top: 1.1rem;
+}
+
+.kr-dictionary-section h3 {
+  margin: 0;
+  color: #b7f7c7;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.kr-dictionary-examples {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cccccc;
+  font-size: 2rem;
+}
+
+.kr-dictionary-examples p {
+  margin: 0.25rem 0;
 }
 
 @media (max-width: 640px) {

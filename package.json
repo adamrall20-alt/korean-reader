@@ -17,6 +17,7 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "kiwi-nlp": "^0.24.1",
     "vue": "^3.5.45"
   },
   "devDependencies": {

@@ -2,7 +2,8 @@
 
 ## Status
 
-Planned for Phase 3. Nothing in this document is implemented yet.
+Phase 3 lookup, popup functionality, dictionary-form matching and caching are implemented.
+Vocabulary persistence is planned for Phase 4.
 
 ## Source
 
@@ -25,18 +26,20 @@ The user has obtained a KRDict API key.
 
 ## Lookup Flow
 
-1. The content script sends the selected Korean word and its sentence context to the background.
-2. The background checks the IndexedDB dictionary cache.
-3. If there is no cached result, the background performs morphological analysis to identify candidate dictionary forms.
-4. The background calls KRDict with the candidate form.
-5. The result is normalised, cached and returned to the content script.
-6. The dictionary popup displays the result.
+1. The content script sends the selected Korean word and Kiwi morphemes to the background.
+2. The background reads the locally stored KRDict API key.
+3. The background tries the surface form, followed by Kiwi-built dictionary-form candidates.
+4. The background calls the official KRDict search endpoint.
+5. The XML response is normalized with a worker-safe parser, cached in IndexedDB and returned
+   to the content script.
+6. The dictionary popup displays the result or a useful error.
 
 ## What the Popup Displays
 
 - Korean dictionary headword.
 - Original subtitle form.
 - English definitions.
+- At most three definitions per language.
 - Part of speech.
 - Conjugation information where available.
 - Pronunciation.
@@ -61,7 +64,7 @@ The analyser is responsible for:
 - Store the original response metadata needed to render definitions and examples.
 - Avoid repeated API requests for the same lookup.
 - Provide a way to clear the cache from Settings.
-- The exact expiry policy remains to be decided. The initial plan is to keep cached entries until the user clears them, with schema versioning for future changes.
+- Cached entries remain until the user clears them, with schema versioning for future changes.
 
 ## Error Handling
 

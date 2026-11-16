@@ -1,11 +1,23 @@
 <script setup lang="ts">
 defineProps<{
   word: string;
+  tokenId: string;
+  selected?: boolean;
+}>();
+
+defineEmits<{
+  select: [];
 }>();
 </script>
 
 <template>
-  <span class="rounded px-0.5 transition-colors hover:bg-accent/15 hover:text-accent">
+  <button
+    type="button"
+    class="kr-word-token"
+    :class="{ 'kr-word-token-selected': selected }"
+    :data-token-id="tokenId"
+    @click="$emit('select')"
+  >
     {{ word }}
-  </span>
+  </button>
 </template>

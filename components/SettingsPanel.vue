@@ -1,4 +1,68 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue';
+import { browser } from 'wxt/browser';
+import type { SettingsResponse } from '@/types/messages';
+
+const krDictApiKey = ref('');
+const settingsMessage = ref('');
+const savingSettings = ref(false);
+const clearingCache = ref(false);
+
+onMounted(async () => {
+  try {
+    const response = (await browser.runtime.sendMessage({
+      type: 'get-settings',
+    })) as SettingsResponse | undefined;
+
+    if (response?.ok) {
+      krDictApiKey.value = response.krDictApiKey ?? '';
+    }
+  } catch (error: unknown) {
+    settingsMessage.value =
+      error instanceof Error ? error.message : 'Could not load dictionary settings.';
+  }
+});
+
+const saveKrDictApiKey = async () => {
+  savingSettings.value = true;
+  settingsMessage.value = '';
+
+  try {
+    const response = (await browser.runtime.sendMessage({
+      type: 'set-krdict-api-key',
+      apiKey: krDictApiKey.value,
+    })) as SettingsResponse | undefined;
+
+    settingsMessage.value = response?.ok
+      ? 'KRDict API key saved locally.'
+      : (response?.error ?? 'Could not save the KRDict API key.');
+  } catch (error: unknown) {
+    settingsMessage.value =
+      error instanceof Error ? error.message : 'Could not save the KRDict API key.';
+  } finally {
+    savingSettings.value = false;
+  }
+};
+
+const clearDictionaryCache = async () => {
+  clearingCache.value = true;
+  settingsMessage.value = '';
+
+  try {
+    const response = (await browser.runtime.sendMessage({
+      type: 'clear-dictionary-cache',
+    })) as SettingsResponse | undefined;
+    settingsMessage.value = response?.ok
+      ? 'Dictionary cache cleared.'
+      : (response?.error ?? 'Could not clear the dictionary cache.');
+  } catch (error: unknown) {
+    settingsMessage.value =
+      error instanceof Error ? error.message : 'Could not clear the dictionary cache.';
+  } finally {
+    clearingCache.value = false;
+  }
+};
+
 const sections = [
   {
     id: 'general',
@@ -50,7 +114,7 @@ const sections = [
         <span
           class="ml-auto rounded-full border border-white/10 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted"
         >
-          Phase 1
+          Phases 2–3 complete
         </span>
       </div>
     </header>
@@ -101,7 +165,45 @@ const sections = [
                 {{ section.phase }}
               </span>
             </div>
-            <p class="mt-4 border-t border-white/10 pt-4 text-xs text-muted">
+            <div v-if="section.id === 'dictionary'" class="mt-4 border-t border-white/10 pt-4">
+              <label for="krdict-api-key" class="text-xs font-medium text-paper">
+                KRDict API key
+              </label>
+              <p class="mt-1 text-xs leading-5 text-muted">
+                Stored locally and used only by the background service worker for dictionary
+                requests.
+              </p>
+              <div class="mt-3 flex gap-2">
+                <input
+                  id="krdict-api-key"
+                  v-model="krDictApiKey"
+                  type="password"
+                  autocomplete="off"
+                  class="min-w-0 flex-1 rounded-lg border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-accent"
+                  placeholder="Enter your 32-character API key"
+                />
+                <button
+                  type="button"
+                  class="rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="savingSettings"
+                  @click="saveKrDictApiKey"
+                >
+                  {{ savingSettings ? 'Saving…' : 'Save' }}
+                </button>
+              </div>
+              <p v-if="settingsMessage" class="mt-2 text-xs text-muted" role="status">
+                {{ settingsMessage }}
+              </p>
+              <button
+                type="button"
+                class="mt-3 rounded-lg border border-white/15 px-3 py-2 text-xs font-medium text-paper disabled:cursor-not-allowed disabled:opacity-50"
+                :disabled="clearingCache"
+                @click="clearDictionaryCache"
+              >
+                {{ clearingCache ? 'Clearing…' : 'Clear dictionary cache' }}
+              </button>
+            </div>
+            <p v-else class="mt-4 border-t border-white/10 pt-4 text-xs text-muted">
               This section is a placeholder and does not save any settings yet.
             </p>
           </section>
