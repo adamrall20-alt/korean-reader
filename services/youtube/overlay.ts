@@ -1,3 +1,6 @@
+import {
+  DEFAULT_SUBTITLE_APPEARANCE, subtitleStyle, type InterfaceTheme, type SubtitleAppearance,
+} from '@/types/preferences';
 import { createApp, h, reactive, type App } from 'vue';
 import subtitleOverlayStyles from '@/assets/subtitle-overlay.css?inline';
 import SubtitleReader from '@/components/SubtitleReader.vue';
@@ -16,6 +19,8 @@ export interface SubtitleOverlay {
     lines?: TokenizedSubtitleLine[] | null,
   ): void;
   setKnownHeadwords(headwords: string[]): void;
+  setTheme(theme: InterfaceTheme): void;
+  setAppearance(appearance: SubtitleAppearance): void;
   hide(): void;
   destroy(): void;
 }
@@ -24,6 +29,8 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
   const state = reactive<{
     lines: TokenizedSubtitleLine[];
     visible: boolean;
+    appearance: SubtitleAppearance;
+    theme: InterfaceTheme;
     knownHeadwords: Set<string>;
     snapshot?: CaptionSnapshot;
     source?: Omit<VocabularyContext, 'originalForm'>;
@@ -31,6 +38,8 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
     lines: [],
     knownHeadwords: new Set(),
     visible: false,
+    appearance: DEFAULT_SUBTITLE_APPEARANCE,
+    theme: 'dark',
   });
 
   let host: HTMLDivElement | null = null;
@@ -85,6 +94,9 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
           source: state.source,
           prepareAudio,
           knownHeadwords: state.knownHeadwords,
+          appearance: state.appearance,
+          'data-theme': state.theme,
+          style: subtitleStyle(state.appearance),
         });
       },
     });
@@ -166,6 +178,12 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
     update,
     setKnownHeadwords(headwords) {
       state.knownHeadwords = new Set(headwords);
+    },
+    setTheme(theme) {
+      state.theme = theme;
+    },
+    setAppearance(appearance) {
+      state.appearance = appearance;
     },
     hide,
     destroy,

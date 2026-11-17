@@ -162,6 +162,10 @@ Organise settings into logical categories:
 
 Avoid overwhelming the user with unnecessary configuration options.
 
+On wider screens the category navigation stays visible as the page scrolls. On narrower screens it appears above the sections. General provides a dark or light theme for Settings, the toolbar popup and the dictionary popup. Dark remains the default.
+
+Appearance provides a preview and controls for subtitle size, text colour, unknown word underline colour and font. The default size is 100% of the existing responsive size. Font presets use local fonts with fallback stacks. Saving applies the chosen styles to open YouTube tabs. Restore defaults resets the preview and can be saved to apply it.
+
 ## 7. Component Design
 
 Use reusable interface components.

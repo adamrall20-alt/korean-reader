@@ -89,7 +89,7 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
         <div class="flex items-center justify-between gap-2">
           <button
             type="button"
-            class="rounded-lg border border-white/15 px-2.5 py-1.5 text-xs disabled:opacity-50"
+            class="rounded-lg border border-interface/15 px-2.5 py-1.5 text-xs disabled:opacity-50"
             :disabled="busy || !entries.length"
             @click="exportVocabulary"
           >Export JSON</button>
@@ -99,7 +99,7 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
           type="search"
           aria-label="Search vocabulary"
           placeholder="Search words or sentences"
-          class="w-full rounded-lg border border-white/15 bg-ink-soft px-3 py-2 text-sm"
+          class="w-full rounded-lg border border-interface/15 bg-ink-soft px-3 py-2 text-sm"
         />
         <div class="flex gap-2">
           <select v-model="filter" aria-label="Filter by status" class="flex-1 rounded-lg bg-ink-soft p-2 text-xs">
@@ -111,7 +111,7 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
             {{ newestFirst ? 'Newest first' : 'Oldest first' }}
           </button>
         </div>
-        <div v-if="vocabularyError" class="flex items-start gap-2 text-xs text-red-300">
+        <div v-if="vocabularyError" class="flex items-start gap-2 text-xs text-danger">
           <p role="alert">{{ vocabularyError }}</p>
           <button type="button" class="ml-auto underline" @click="updateVocabulary({ type: 'list-vocabulary' })">Reload</button>
         </div>
@@ -119,7 +119,7 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
           {{ busy ? 'Loading vocabulary…' : entries.length ? 'No matching words.' : 'Mine a word from a YouTube subtitle to save it here.' }}
         </p>
         <ul v-if="visibleEntries.length" class="space-y-2">
-          <li v-for="entry in visibleEntries" :key="entry.headword" class="space-y-2 rounded-xl border border-white/10 bg-ink-soft p-3">
+          <li v-for="entry in visibleEntries" :key="entry.headword" class="space-y-2 rounded-xl border border-interface/10 bg-ink-soft p-3">
             <div class="flex items-center gap-2">
               <h3 lang="ko" class="min-w-0 flex-1 break-words font-semibold">{{ entry.headword }}</h3>
               <button
@@ -128,7 +128,7 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
                 :aria-checked="entry.status === 'known'"
                 :aria-label="`Known status for ${entry.headword}`"
                 :disabled="busy"
-                class="rounded-full border border-white/15 px-2.5 py-1 text-xs"
+                class="rounded-full border border-interface/15 px-2.5 py-1 text-xs"
                 :class="entry.status === 'known' ? 'text-accent' : 'text-muted'"
                 @click="updateVocabulary({ type: 'set-vocabulary-status', headword: entry.headword, status: entry.status === 'known' ? 'unknown' : 'known' })"
               >{{ entry.status === 'known' ? 'Known' : 'Unknown' }}</button>
@@ -137,7 +137,7 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
             <form v-if="editing === entry.headword" class="space-y-2" @submit.prevent="saveDefinitions(entry.headword)">
               <label class="block text-xs">
                 English definitions, one per line
-                <textarea v-model="draftDefinitions" rows="3" class="mt-1 w-full rounded-lg border border-white/15 bg-ink px-2 py-1 text-sm" />
+                <textarea v-model="draftDefinitions" rows="3" class="mt-1 w-full rounded-lg border border-interface/15 bg-ink px-2 py-1 text-sm" />
               </label>
               <button type="submit" :disabled="busy" class="mr-3 text-xs text-accent">Save definitions</button>
               <button type="button" :disabled="busy" class="text-xs text-muted" @click="editing = undefined">Cancel</button>
@@ -164,11 +164,11 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
                 </li>
               </ul>
             </details>
-            <div class="flex items-center gap-3 border-t border-white/10 pt-2 text-xs">
+            <div class="flex items-center gap-3 border-t border-interface/10 pt-2 text-xs">
               <time :datetime="entry.createdAt" class="mr-auto text-muted">{{ new Date(entry.createdAt).toLocaleDateString() }}</time>
               <span v-if="entry.ankiSyncedAt" class="text-muted" :title="`Last Anki sync ${new Date(entry.ankiSyncedAt).toLocaleString()}`">In Anki</span>
               <template v-if="pendingDeletion === entry.headword">
-                <button type="button" :disabled="busy" class="text-red-300" @click="deleteWord(entry.headword)">Delete word</button>
+                <button type="button" :disabled="busy" class="text-danger" @click="deleteWord(entry.headword)">Delete word</button>
                 <button type="button" :disabled="busy" class="text-muted" @click="pendingDeletion = undefined">Cancel</button>
               </template>
               <template v-else>

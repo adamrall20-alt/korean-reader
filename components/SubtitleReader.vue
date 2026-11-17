@@ -13,6 +13,7 @@ import type {
 
 import { isKnownSubtitleWord } from '@/services/korean/dictionary-forms';
 import { captureVideoFrame } from '@/services/youtube/capture';
+import type { SubtitleAppearance } from '@/types/preferences';
 import type { VocabularyContext } from '@/types/vocabulary';
 
 const recordAudio = ref<() => Promise<string | undefined>>();
@@ -108,6 +109,7 @@ const selectToken = async (token: SubtitleToken) => {
 const props = defineProps<{
   lines: TokenizedSubtitleLine[];
   visible: boolean;
+  appearance?: SubtitleAppearance;
   knownHeadwords?: ReadonlySet<string>;
   prepareAudio?: (video: HTMLVideoElement, selectedAt: number) => (() => Promise<string | undefined>) | undefined;
   source?: Omit<VocabularyContext, 'originalForm'>;
@@ -123,7 +125,7 @@ const closePopup = () => {
 };
 
 watch([() => props.lines, () => props.visible], closePopup);
-watch([selectedToken, lookupLoading, dictionaryEntry, lookupError], repositionPopup, {
+watch([selectedToken, lookupLoading, dictionaryEntry, lookupError, () => props.appearance], repositionPopup, {
   flush: 'post',
 });
 

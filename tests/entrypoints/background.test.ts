@@ -1,3 +1,4 @@
+import { DEFAULT_SUBTITLE_APPEARANCE } from '@/types/preferences';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const { listeners, getVocabulary, markHeadwordsKnown, setStorage } = vi.hoisted(() => ({
@@ -77,6 +78,30 @@ describe('background entrypoint', () => {
     await expect(new Promise((resolve) => messageListener(message, sender, resolve)))
       .resolves.toEqual({ ok: false, error: 'Storage unavailable' });
     expect(setStorage).not.toHaveBeenCalled();
+  });
+
+  it('returns public defaults, rejects invalid settings and handles a failed write', async () => {
+    const listener = listeners.message[0]!;
+    const youtube = { url: 'https://www.youtube.com/watch?v=abcdefghijk' };
+    const options = { url: 'chrome-extension://test/options.html' };
+    const request = (message: object, sender = options) =>
+      new Promise((resolve) => listener(message, sender, resolve));
+
+    await expect(request({ type: 'get-preferences' }, youtube)).resolves.toEqual({
+      ok: true, theme: 'dark', appearance: DEFAULT_SUBTITLE_APPEARANCE,
+    });
+    const update = { type: 'set-interface-theme', theme: 'light' };
+    expect(listener(update, youtube, vi.fn())).toBe(false);
+    await expect(request({
+      type: 'set-subtitle-appearance',
+      appearance: { ...DEFAULT_SUBTITLE_APPEARANCE, size: 500, font: 'constructor' },
+    })).resolves.toEqual({ ok: false });
+    expect(setStorage).not.toHaveBeenCalled();
+
+    setStorage.mockRejectedValueOnce(new Error('Storage unavailable'));
+    await expect(request(update)).resolves.toEqual({ ok: false });
+    await expect(request(update)).resolves.toMatchObject({ ok: true, theme: 'light' });
+    expect(setStorage).toHaveBeenLastCalledWith({ interfaceTheme: 'light' });
   });
 
   it('registers the install and message listeners', () => {

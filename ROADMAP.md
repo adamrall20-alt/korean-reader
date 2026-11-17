@@ -243,10 +243,10 @@ These features are outside the initial development scope.
 - [ ] Sentence-level grammar analysis.
 - [ ] Additional dictionary sources.
 - [ ] CSV export and vocabulary import.
-- [ ] Advanced subtitle customisation.
+- [x] Subtitle size, text colour, unknown word underline colour and font.
 - [ ] Stats and long term learning progress tracking.
 - [ ] Web server and accounts?
-- [ ] Make the settings navigation UI move down with the page as the user scrolls.
+- [x] Keep the Settings navigation visible while scrolling on wider screens.
 - [ ] Word frequency information in the dictionary popup.
 
 Future enhancements should only be considered after the minimum viable product is complete.

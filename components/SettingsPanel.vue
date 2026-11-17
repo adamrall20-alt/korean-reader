@@ -6,6 +6,55 @@ import { browser } from 'wxt/browser';
 import type { SettingsResponse } from '@/types/messages';
 import stars from '@/assets/stars.png';
 import logo from '@/assets/penguin.png';
+import { requestPreferences } from '@/services/storage/preferences';
+import {
+  DEFAULT_SUBTITLE_APPEARANCE, MAX_SUBTITLE_SIZE, MIN_SUBTITLE_SIZE, SUBTITLE_FONTS,
+  subtitleStyle, type InterfaceTheme, type PreferenceMessage,
+} from '@/types/preferences';
+
+const theme = ref<InterfaceTheme>('dark');
+const appearance = ref({ ...DEFAULT_SUBTITLE_APPEARANCE });
+const preferencesReady = ref(false);
+const preferencesError = ref('');
+const savingPreference = ref<'theme' | 'subtitles'>();
+const themeMessage = ref('');
+const appearanceMessage = ref('');
+
+async function loadPreferences() {
+  preferencesError.value = '';
+  try {
+    const result = await requestPreferences({ type: 'get-preferences' });
+    if (!result.ok) throw new Error();
+    theme.value = result.theme;
+    appearance.value = result.appearance;
+    preferencesReady.value = true;
+  } catch {
+    preferencesError.value = 'Could not load preferences.';
+  }
+}
+
+async function savePreference(
+  message: Exclude<PreferenceMessage, { type: 'get-preferences' }>,
+) {
+  if (!preferencesReady.value || savingPreference.value) return;
+  const isTheme = message.type === 'set-interface-theme';
+  const status = isTheme ? themeMessage : appearanceMessage;
+  savingPreference.value = isTheme ? 'theme' : 'subtitles';
+  status.value = '';
+  try {
+    const result = await requestPreferences(message);
+    if (!result.ok) throw new Error();
+    if (isTheme) theme.value = result.theme;
+    else appearance.value = result.appearance;
+    status.value = isTheme ? 'Theme saved.' : 'Subtitle appearance saved.';
+  } catch {
+    status.value = isTheme ? 'Could not save theme. Try again.' : 'Could not save subtitles. Try again.';
+  } finally {
+    savingPreference.value = undefined;
+  }
+}
+
+onMounted(loadPreferences);
 
 const krDictApiKey = ref('');
 const settingsMessage = ref('');
@@ -74,7 +123,7 @@ const sections = [
   {
     id: 'general',
     title: 'General',
-    description: 'Extension behaviour, startup preferences and interface language.',
+    description: 'Choose a theme for Korean Reader.',
   },
   {
     id: 'dictionary',
@@ -89,7 +138,7 @@ const sections = [
   {
     id: 'appearance',
     title: 'Appearance',
-    description: 'Subtitle font size, overlay position and light or dark appearance.',
+    description: 'Customise the interactive subtitles on YouTube.',
   },
   {
     id: 'storage',
@@ -100,8 +149,8 @@ const sections = [
 </script>
 
 <template>
-  <div class="min-h-screen bg-cover bg-center bg-fixed text-paper" :style="{ backgroundImage: `linear-gradient(rgba(17,17,17,.58), rgba(17,17,17,.58)), url(${stars})` }">
-    <header class="relative z-10 border-b border-white/10 bg-ink">
+  <div class="min-h-screen bg-cover bg-center bg-fixed text-paper" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
+    <header class="relative z-10 border-b border-interface/10 bg-ink">
       <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-4">
         <img :src="logo" alt="" class="size-9 rounded-xl object-cover" />
         <div>
@@ -112,7 +161,7 @@ const sections = [
     </header>
 
     <main class="mx-auto grid max-w-5xl gap-6 px-6 py-8 md:grid-cols-[190px_1fr]">
-      <nav aria-label="Settings sections">
+      <nav aria-label="Settings sections" class="md:sticky md:top-6 md:self-start md:max-h-[calc(100dvh-3rem)] md:overflow-y-auto">
         <p class="mb-3 px-3 text-[11px] font-medium uppercase tracking-wider text-muted">
           Categories
         </p>
@@ -120,7 +169,7 @@ const sections = [
           <li v-for="section in sections" :key="section.id">
             <a
               :href="`#${section.id}`"
-              class="block rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-white/5 hover:text-paper"
+              class="block rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-interface/5 hover:text-paper"
             >
               {{ section.title }}
             </a>
@@ -132,7 +181,7 @@ const sections = [
         <div class="mb-6">
           <h1 class="text-2xl font-semibold tracking-tight">Settings</h1>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            Manage dictionary, Anki and locally saved vocabulary settings.
+            Manage subtitles, dictionary, Anki and locally saved vocabulary.
           </p>
         </div>
 
@@ -141,7 +190,7 @@ const sections = [
             v-for="section in sections"
             :id="section.id"
             :key="section.id"
-            class="scroll-mt-6 rounded-2xl border border-white/10 bg-ink-soft p-5"
+            class="scroll-mt-6 rounded-2xl border border-interface/10 bg-ink-soft p-5"
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -151,7 +200,67 @@ const sections = [
                 </p>
               </div>
             </div>
-            <div v-if="section.id === 'dictionary'" class="mt-4 border-t border-white/10 pt-4">
+            <form v-if="section.id === 'general'" class="mt-4 border-t border-interface/10 pt-4" @submit.prevent="savePreference({ type: 'set-interface-theme', theme })">
+              <fieldset :disabled="!preferencesReady || !!savingPreference" class="flex flex-wrap gap-2">
+                <legend class="mb-2 text-xs font-medium">Interface theme</legend>
+                <label v-for="mode in (['dark', 'light'] as const)" :key="mode" class="flex items-center gap-2 rounded-lg border border-interface/15 px-3 py-2 text-sm capitalize">
+                  <input
+                    type="radio"
+                    name="interface-theme"
+                    :value="mode"
+                    v-model="theme"
+                    class="accent-accent"
+                    @change="themeMessage = ''"
+                  />
+                  {{ mode }}
+                </label>
+              </fieldset>
+              <button type="submit" :disabled="!preferencesReady || !!savingPreference" class="mt-3 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white disabled:opacity-50">
+                {{ savingPreference === 'theme' ? 'Saving…' : 'Save theme' }}
+              </button>
+              <p v-if="themeMessage" role="status" class="mt-2 text-xs text-muted">{{ themeMessage }}</p>
+              <div v-if="preferencesError" role="alert" class="mt-2 text-xs text-danger">
+                {{ preferencesError }} <button type="button" class="underline" @click="loadPreferences">Retry</button>
+              </div>
+            </form>
+            <form v-else-if="section.id === 'appearance'" class="mt-4 border-t border-interface/10 pt-4" @submit.prevent="savePreference({ type: 'set-subtitle-appearance', appearance: { ...appearance } })">
+              <fieldset :disabled="!preferencesReady || !!savingPreference" class="grid gap-4 sm:grid-cols-2" @input="appearanceMessage = ''">
+                <label class="grid gap-1 text-sm">
+                  Text size ({{ appearance.size }}%)
+                  <input v-model.number="appearance.size" type="range" :min="MIN_SUBTITLE_SIZE" :max="MAX_SUBTITLE_SIZE" step="5" class="accent-accent" />
+                </label>
+                <label class="grid gap-1 text-sm">
+                  Font
+                  <select v-model="appearance.font" class="rounded-lg border border-interface/15 bg-ink px-2 py-1">
+                    <option v-for="(font, id) in SUBTITLE_FONTS" :key="id" :value="id">{{ font.label }}</option>
+                  </select>
+                </label>
+                <label class="flex items-center justify-between gap-2 text-sm">
+                  Text colour
+                  <input v-model="appearance.textColor" type="color" class="h-8 w-12 cursor-pointer" />
+                </label>
+                <label class="flex items-center justify-between gap-2 text-sm">
+                  Unknown word underline colour
+                  <input v-model="appearance.underlineColor" type="color" class="h-8 w-12 cursor-pointer" />
+                </label>
+              </fieldset>
+              <div class="mt-4 rounded-lg bg-[#101010] px-3 py-4 text-center">
+                <p class="mb-2 text-xs text-[#bdbdbd]">Subtitle preview</p>
+                <p lang="ko" class="subtitle-preview" :style="subtitleStyle(appearance)">
+                  오늘은 <span>한국어를</span> 공부해요.
+                </p>
+              </div>
+              <div class="mt-4 flex flex-wrap items-center gap-3">
+                <button type="submit" :disabled="!preferencesReady || !!savingPreference" class="rounded-lg bg-accent px-3 py-2 text-xs font-medium text-white disabled:opacity-50">
+                  {{ savingPreference === 'subtitles' ? 'Saving…' : 'Save subtitle appearance' }}
+                </button>
+                <button type="button" :disabled="!preferencesReady || !!savingPreference" class="rounded-lg border border-interface/15 px-3 py-2 text-xs disabled:opacity-50" @click="appearance = { ...DEFAULT_SUBTITLE_APPEARANCE }; appearanceMessage = ''">
+                  Restore defaults
+                </button>
+              </div>
+              <p v-if="appearanceMessage" role="status" class="mt-2 text-xs text-muted">{{ appearanceMessage }}</p>
+            </form>
+            <div v-else-if="section.id === 'dictionary'" class="mt-4 border-t border-interface/10 pt-4">
               <label for="krdict-api-key" class="text-xs font-medium text-paper">
                 KRDict API key
               </label>
@@ -165,7 +274,7 @@ const sections = [
                   v-model="krDictApiKey"
                   type="password"
                   autocomplete="off"
-                  class="min-w-0 flex-1 rounded-lg border border-white/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-accent"
+                  class="min-w-0 flex-1 rounded-lg border border-interface/15 bg-ink px-3 py-2 text-sm text-paper outline-none focus:border-accent"
                   placeholder="Enter your 32-character API key"
                 />
                 <button
@@ -182,21 +291,33 @@ const sections = [
               </p>
               <button
                 type="button"
-                class="mt-3 rounded-lg border border-white/15 px-3 py-2 text-xs font-medium text-paper disabled:cursor-not-allowed disabled:opacity-50"
+                class="mt-3 rounded-lg border border-interface/15 px-3 py-2 text-xs font-medium text-paper disabled:cursor-not-allowed disabled:opacity-50"
                 :disabled="clearingCache"
                 @click="clearDictionaryCache"
               >
                 {{ clearingCache ? 'Clearing…' : 'Clear dictionary cache' }}
               </button>
             </div>
-            <AnkiPanel v-else-if="section.id === 'anki'" class="mt-4 border-t border-white/10 pt-4" @imported="vocabularyRevision += 1" />
-            <details v-else-if="section.id === 'storage'" class="mt-4 border-t border-white/10 pt-4"><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary><VocabularyManager :key="vocabularyRevision" /></details>
-            <p v-else class="mt-4 border-t border-white/10 pt-4 text-xs text-muted">
-              This section is a placeholder and does not save any settings yet.
-            </p>
+            <AnkiPanel v-else-if="section.id === 'anki'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
+            <details v-else-if="section.id === 'storage'" class="mt-4 border-t border-interface/10 pt-4"><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary><VocabularyManager :key="vocabularyRevision" /></details>
           </section>
         </div>
       </div>
     </main>
   </div>
 </template>
+
+<style scoped>
+.subtitle-preview {
+  color: var(--kr-subtitle-color);
+  font-family: var(--kr-subtitle-font);
+  font-size: calc(1.5rem * var(--kr-subtitle-scale));
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.subtitle-preview span {
+  text-decoration: underline var(--kr-subtitle-underline) 0.08em;
+  text-underline-offset: 0.18em;
+}
+</style>

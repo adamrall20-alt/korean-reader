@@ -4,6 +4,7 @@ import {
   createSubtitleOverlay,
   SUBTITLE_OVERLAY_HOST_ID,
 } from '@/services/youtube/overlay';
+import { DEFAULT_SUBTITLE_APPEARANCE } from '@/types/preferences';
 import type { CaptionSnapshot } from '@/types/youtube';
 import type { TokenizedSubtitleLine } from '@/types/messages';
 
@@ -59,6 +60,15 @@ describe('subtitle overlay', () => {
       expect(host?.shadowRoot?.textContent).toContain('안녕하세요');
       expect(host?.dataset.timestamp).toBe('12.500');
       expect(host?.dataset.videoId).toBe('abc123');
+
+      overlay.setTheme('light');
+      overlay.setAppearance({ ...DEFAULT_SUBTITLE_APPEARANCE, font: 'serif', size: 125, underlineColor: '#99eeff' });
+      await nextTick();
+      const reader = host?.shadowRoot?.querySelector<HTMLElement>('.kr-subtitles');
+      expect(reader?.dataset.theme).toBe('light');
+      expect(reader?.style.getPropertyValue('--kr-subtitle-scale')).toBe('1.25');
+      expect(reader?.style.getPropertyValue('--kr-subtitle-underline')).toBe('#99eeff');
+      expect(reader?.style.getPropertyValue('--kr-subtitle-font')).toContain('Batang');
 
       overlay.hide();
       await nextTick();

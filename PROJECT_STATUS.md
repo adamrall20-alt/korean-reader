@@ -80,6 +80,12 @@ The user confirmed the Phase 2–3 workflow on a live YouTube video, including o
 - Live verification of selectable definition mining.
 - Interface refinement while preserving the established design; visual verification of the latest refinements is pending.
 
+## Settings and subtitle appearance — 18 November 2026
+
+General now saves the light or dark interface theme. Appearance saves subtitle size, text colour, unknown word underline colour and a local font preset, with a preview and a restore defaults control. Open YouTube tabs receive saved changes immediately. The Settings navigation stays visible while scrolling on wider screens.
+
+Verification: 82 tests passed, type checking passed, and the Chrome production build succeeded. An isolated Chrome check with sample captions verified sticky desktop navigation, the narrow screen layout, theme changes, styling updates in an open video tab, and persistence after Settings reload.
+
 ## Phase 8 known word import — 17 November 2026
 
 Settings → Anki → Import known words reads a selected deck and its subdecks through AnkiConnect. The preview reports unique Korean focus words, words already known, and notes without a usable focus word. Confirming the preview updates the local vocabulary and refreshes subtitle underlines. Existing definitions and mined sentences are preserved. Imported words with no mined sentences are excluded from Anki sync.

@@ -16,11 +16,9 @@
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
-  color: #ffffff;
-  font-family:
-    "Pretendard Variable", "Pretendard", ui-rounded, "Apple SD Gothic Neo", "Noto Sans KR",
-    "Malgun Gothic", system-ui, sans-serif;
-  font-size: clamp(1.65rem, 3.3vw, 2.85rem);
+  color: var(--kr-subtitle-color, #fff);
+  font-family: var(--kr-subtitle-font, system-ui, sans-serif);
+  font-size: calc(clamp(1.65rem, 3.3vw, 2.85rem) * var(--kr-subtitle-scale, 1));
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1.45;
@@ -53,7 +51,7 @@
 
 .kr-word-token-unknown {
   text-decoration-line: underline;
-  text-decoration-color: #f87171;
+  text-decoration-color: var(--kr-subtitle-underline, #f87171);
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.18em;
 }
@@ -175,7 +173,7 @@
 
   .kr-subtitles {
     max-width: 96%;
-    font-size: clamp(1.5rem, 6.6vw, 2.18rem);
+    font-size: calc(clamp(1.5rem, 6.6vw, 2.18rem) * var(--kr-subtitle-scale, 1));
   }
 }
 
@@ -224,3 +222,23 @@
 .kr-definition-button:hover { background: #444; }
 .kr-definition-button[aria-pressed="true"] { background: #666; }
 .kr-definition-button:focus-visible { outline: 2px solid #b7f7c7; }
+
+.kr-subtitles[data-theme="light"] .kr-dictionary-popup {
+  color-scheme: light;
+  color: #171717;
+  background: #fafafa;
+  border-color: #d4d4d4;
+}
+
+.kr-subtitles[data-theme="light"] :is(.kr-dictionary-close, .kr-dictionary-heading span, .kr-dictionary-pronunciation, .kr-dictionary-message, .kr-dictionary-examples) {
+  color: #545454;
+}
+
+.kr-subtitles[data-theme="light"] :is(.kr-dictionary-original, .kr-dictionary-section h3, .kr-translate-button) {
+  color: #166534;
+}
+
+.kr-subtitles[data-theme="light"] .kr-dictionary-examples { border-color: #d4d4d4; }
+.kr-subtitles[data-theme="light"] .kr-definition-button:hover { background: #eee; }
+.kr-subtitles[data-theme="light"] .kr-definition-button[aria-pressed="true"] { background: #ddd; }
+.kr-subtitles[data-theme="light"] .kr-definition-button:focus-visible { outline-color: #15803d; }

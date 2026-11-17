@@ -50,6 +50,8 @@ function makeOverlay(): SubtitleOverlay {
   return {
     update: vi.fn(),
     setKnownHeadwords: vi.fn(),
+    setTheme: vi.fn(),
+    setAppearance: vi.fn(),
     hide: vi.fn(),
     destroy: vi.fn(),
   };

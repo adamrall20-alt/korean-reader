@@ -256,7 +256,7 @@ onMounted(() => {
       <span class="text-xs" :class="connected ? 'text-accent' : 'text-muted'" role="status">
         {{ connected ? 'Anki connected' : busy ? 'Connecting…' : 'Anki disconnected' }}
       </span>
-      <button type="button" :disabled="busy" class="rounded-lg border border-white/15 px-2 py-1 text-xs disabled:opacity-50" @click="run(() => loadConnection(true))">
+      <button type="button" :disabled="busy" class="rounded-lg border border-interface/15 px-2 py-1 text-xs disabled:opacity-50" @click="run(() => loadConnection(true))">
         {{ connected ? 'Refresh Anki' : 'Connect Anki' }}
       </button>
     </div>
@@ -266,11 +266,11 @@ onMounted(() => {
       <fieldset :disabled="busy" class="mt-2 grid gap-2">
         <label class="grid gap-1 text-xs">
           Local port
-          <input v-model.number="settings.port" type="number" min="1" max="65535" class="rounded-lg border border-white/15 bg-ink px-2 py-1" @input="connected = false" />
+          <input v-model.number="settings.port" type="number" min="1" max="65535" class="rounded-lg border border-interface/15 bg-ink px-2 py-1" @input="connected = false" />
         </label>
         <label class="grid gap-1 text-xs">
           AnkiConnect API key (optional)
-          <input v-model.trim="settings.apiKey" type="password" autocomplete="off" class="rounded-lg border border-white/15 bg-ink px-2 py-1" @input="connected = false" />
+          <input v-model.trim="settings.apiKey" type="password" autocomplete="off" class="rounded-lg border border-interface/15 bg-ink px-2 py-1" @input="connected = false" />
         </label>
         <p v-if="origin" class="break-all text-xs text-muted">Extension origin {{ origin }}</p>
       </fieldset>
@@ -283,14 +283,14 @@ onMounted(() => {
     <fieldset :disabled="busy" class="mt-2 grid gap-2">
       <label class="grid gap-1 text-xs">
         Deck
-        <select v-model="settings.deckName" class="min-w-0 rounded-lg border border-white/15 bg-ink px-2 py-1">
+        <select v-model="settings.deckName" class="min-w-0 rounded-lg border border-interface/15 bg-ink px-2 py-1">
           <option value="">Choose deck</option>
           <option v-for="deck in decks" :key="deck">{{ deck }}</option>
         </select>
       </label>
       <label class="grid gap-1 text-xs">
         Note type
-        <select v-model="settings.modelName" class="min-w-0 rounded-lg border border-white/15 bg-ink px-2 py-1" @change="changeModel">
+        <select v-model="settings.modelName" class="min-w-0 rounded-lg border border-interface/15 bg-ink px-2 py-1" @change="changeModel">
           <option value="">Choose note type</option>
           <option v-for="model in models" :key="model">{{ model }}</option>
         </select>
@@ -300,21 +300,21 @@ onMounted(() => {
         <div class="mt-2 grid gap-2">
           <label v-for="role in ANKI_FIELD_ROLES" :key="role" class="grid grid-cols-2 items-center gap-2 text-xs">
             {{ ANKI_DEFAULT_FIELDS[role] }}
-            <select v-model="settings.fields[role]" class="min-w-0 rounded-lg border border-white/15 bg-ink px-2 py-1">
+            <select v-model="settings.fields[role]" class="min-w-0 rounded-lg border border-interface/15 bg-ink px-2 py-1">
               <option value="">{{ requiredFields.has(role) ? 'Choose field' : 'Optional' }}</option>
               <option v-for="field in fields" :key="field">{{ field }}</option>
             </select>
           </label>
         </div>
       </details>
-      <button type="button" :disabled="!configured" class="justify-self-start rounded-lg border border-white/15 px-2 py-1 text-xs disabled:opacity-50" @click="saveDefaults">
+      <button type="button" :disabled="!configured" class="justify-self-start rounded-lg border border-interface/15 px-2 py-1 text-xs disabled:opacity-50" @click="saveDefaults">
         Save defaults
       </button>
     </fieldset>
 
     </details>
 
-    <section v-if="vocabulary === undefined" aria-labelledby="anki-import-heading" class="space-y-2 border-t border-white/10 pt-3">
+    <section v-if="vocabulary === undefined" aria-labelledby="anki-import-heading" class="space-y-2 border-t border-interface/10 pt-3">
       <h3 id="anki-import-heading" class="text-sm font-medium">Import known words</h3>
       <p v-if="!connected" class="text-xs text-muted">Open Anki Desktop and connect above to choose a deck.</p>
       <template v-else>
@@ -322,12 +322,12 @@ onMounted(() => {
         <fieldset :disabled="busy" class="flex flex-wrap items-end gap-2">
           <label class="grid min-w-0 flex-1 gap-1 text-xs">
             Import from deck
-            <select v-model="importDeck" class="rounded-lg border border-white/15 bg-ink px-2 py-1" @change="importPreview = undefined; notice = ''">
+            <select v-model="importDeck" class="rounded-lg border border-interface/15 bg-ink px-2 py-1" @change="importPreview = undefined; notice = ''">
               <option value="">Choose deck</option>
               <option v-for="deck in decks" :key="deck">{{ deck }}</option>
             </select>
           </label>
-          <button type="button" :disabled="!importDeck || busy" class="rounded-lg border border-white/15 px-2 py-1 text-xs disabled:opacity-50" @click="previewImport">
+          <button type="button" :disabled="!importDeck || busy" class="rounded-lg border border-interface/15 px-2 py-1 text-xs disabled:opacity-50" @click="previewImport">
             Preview import
           </button>
         </fieldset>
@@ -347,7 +347,7 @@ onMounted(() => {
       </template>
     </section>
 
-    <section v-if="vocabulary === undefined" class="space-y-2 border-t border-white/10 pt-3">
+    <section v-if="vocabulary === undefined" class="space-y-2 border-t border-interface/10 pt-3">
       <h3 class="text-sm font-medium">Import from Kimchi Reader</h3>
       <p class="text-xs text-muted">Choose a word status CSV export. Words with status 2 are marked known.</p>
       <input type="file" accept=".csv,text/csv" aria-label="Kimchi Reader CSV file" class="block text-xs text-muted" @change="readKimchiFile" />
@@ -361,7 +361,7 @@ onMounted(() => {
         <div><p class="text-xs text-muted">New words</p><p class="text-2xl font-semibold tabular-nums">{{ unsynced ?? '—' }}</p></div>
       </div>
       <p v-if="!configured" class="mt-1 text-xs text-muted">Connect Anki and configure a deck in Settings to check.</p>
-      <p v-else-if="countError" class="mt-1 text-xs text-red-300">Could not check Anki. Refresh the connection to retry.</p>
+      <p v-else-if="countError" class="mt-1 text-xs text-danger">Could not check Anki. Refresh the connection to retry.</p>
       <button
         type="button"
         :disabled="busy || !configured || !vocabulary.length"
@@ -370,7 +370,7 @@ onMounted(() => {
       >{{ translating ? 'Translating definitions…' : busy && connected ? 'Syncing…' : 'Sync to Anki' }}</button>
     </div>
 
-    <p v-if="error" role="alert" class="text-xs text-red-300">{{ error }}</p>
+    <p v-if="error" role="alert" class="text-xs text-danger">{{ error }}</p>
     <p v-if="notice" role="status" class="text-xs text-accent">{{ notice }}</p>
     <p v-if="summary" role="status" class="text-xs">{{ summary }}</p>
     <p v-if="translationWarning" class="text-xs text-muted">

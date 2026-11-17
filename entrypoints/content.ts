@@ -1,3 +1,4 @@
+import { observePreferences } from '@/services/storage/preferences';
 import { createCaptionMonitor } from '@/services/youtube/captions';
 import { createSubtitleOverlay } from '@/services/youtube/overlay';
 import { createSubtitlePresenter } from '@/services/youtube/presenter';
@@ -14,6 +15,7 @@ export default defineContentScript({
     document.documentElement.dataset.koreanReader = 'ready';
 
     const overlay = createSubtitleOverlay(document);
+    const stopPreferences = observePreferences(overlay.setTheme, overlay.setAppearance);
     const presenter = createSubtitlePresenter({ document, overlay });
     let vocabularyGeneration = 0;
     const refreshKnownWords = async () => {
@@ -91,6 +93,7 @@ export default defineContentScript({
       document.removeEventListener('yt-page-data-updated', refresh);
       document.removeEventListener('visibilitychange', refresh);
       browser.storage.onChanged.removeListener(onStorageChanged);
+      stopPreferences();
       vocabularyGeneration += 1;
       pending = undefined;
       generation += 1;

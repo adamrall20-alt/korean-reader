@@ -1,3 +1,7 @@
+import {
+  DEFAULT_SUBTITLE_APPEARANCE, isSubtitleAppearance, SUBTITLE_APPEARANCE_KEY, THEME_KEY,
+  type InterfaceTheme, type PreferencesResponse,
+} from '@/types/preferences';
 import { browser } from 'wxt/browser';
 import { handleAnkiMessage, isAnkiMessage } from '@/services/anki/messages';
 import { lookupKoreanWord } from '@/services/dictionary/krdict';
@@ -175,6 +179,35 @@ export default defineBackground(() => {
         });
       });
       return true;
+    }
+
+    if (message && typeof message === 'object' && 'type' in message) {
+      const { type } = message;
+      if (type === 'get-preferences' || type === 'set-interface-theme' || type === 'set-subtitle-appearance') {
+        if (!fromExtensionPage && (type !== 'get-preferences' || !fromYouTube)) return false;
+
+        const saveAndRead = async (): Promise<PreferencesResponse> => {
+          const stored = await browser.storage.local.get([THEME_KEY, SUBTITLE_APPEARANCE_KEY]);
+          let theme: InterfaceTheme = stored[THEME_KEY] === 'light' ? 'light' : 'dark';
+          const storedAppearance = stored[SUBTITLE_APPEARANCE_KEY];
+          let appearance = isSubtitleAppearance(storedAppearance) ? storedAppearance : DEFAULT_SUBTITLE_APPEARANCE;
+          if (type === 'set-interface-theme') {
+            const requestedTheme = 'theme' in message ? message.theme : undefined;
+            if (requestedTheme !== 'light' && requestedTheme !== 'dark') return { ok: false };
+            theme = requestedTheme;
+            await browser.storage.local.set({ [THEME_KEY]: theme });
+          } else if (type === 'set-subtitle-appearance') {
+            const requestedAppearance = 'appearance' in message ? message.appearance : undefined;
+            if (!isSubtitleAppearance(requestedAppearance)) return { ok: false };
+            const { size, textColor, underlineColor, font } = requestedAppearance;
+            appearance = { size, textColor, underlineColor, font };
+            await browser.storage.local.set({ [SUBTITLE_APPEARANCE_KEY]: appearance });
+          }
+          return { ok: true, theme, appearance };
+        };
+        void saveAndRead().then(sendResponse, () => sendResponse({ ok: false }));
+        return true;
+      }
     }
 
     // Only extension pages can read or change dictionary settings.

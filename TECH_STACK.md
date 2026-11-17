@@ -76,6 +76,8 @@ The content script must never read the KRDict key, open extension-origin Indexed
 
 The popup and options pages also request data through the background rather than maintaining their own copies of application state. This avoids multiple competing sources of truth.
 
+The background validates and stores the interface theme and subtitle appearance as separate preferences in `chrome.storage.local`. YouTube content scripts can request the public display preferences. Storage change notifications apply saved settings to open extension pages and subtitle overlays.
+
 ### Content Scripts
 
 Responsible for:
