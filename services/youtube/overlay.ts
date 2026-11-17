@@ -8,7 +8,7 @@ import type { TokenizedSubtitleLine } from '@/types/messages';
 import type { VocabularyContext } from '@/types/vocabulary';
 import { captureSubtitleAudio } from '@/services/youtube/audio';
 import { getYouTubeVideoId } from '@/services/youtube/captions';
-import type { CaptionSnapshot } from '@/types/youtube';
+import type { CaptionAudioTiming, CaptionSnapshot } from '@/types/youtube';
 
 export const SUBTITLE_OVERLAY_HOST_ID = 'korean-reader-subtitle-overlay';
 
@@ -25,7 +25,9 @@ export interface SubtitleOverlay {
   destroy(): void;
 }
 
-export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay {
+export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay & {
+  prepareCueAudio(video: HTMLVideoElement, videoId: string, timing: CaptionAudioTiming, selectedAt: number): () => Promise<string | undefined>;
+} {
   const state = reactive<{
     lines: TokenizedSubtitleLine[];
     visible: boolean;
@@ -51,7 +53,10 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
 
   function prepareAudio(video: HTMLVideoElement, selectedAt: number) {
     const { audioTiming, videoId } = state.snapshot ?? {};
-    if (!audioTiming || !videoId) return undefined;
+    if (audioTiming && videoId) return prepareCueAudio(video, videoId, audioTiming, selectedAt);
+  }
+
+  function prepareCueAudio(video: HTMLVideoElement, videoId: string, audioTiming: CaptionAudioTiming, selectedAt: number) {
     return async () => {
       if (recording) return undefined;
       const controller = new AbortController();
@@ -176,6 +181,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
 
   return {
     update,
+    prepareCueAudio,
     setKnownHeadwords(headwords) {
       state.knownHeadwords = new Set(headwords);
     },

@@ -90,6 +90,12 @@ Responsible for:
 - Rendering the dictionary popup in an isolated Shadow DOM so YouTube styles do not leak into it.
 - Sending dictionary lookup, mining and mark-known requests to the background.
 
+### Transcript sidebar
+
+Full transcripts use loaded Korean browser text tracks where available, then YouTube's same origin timed text or transcript response for the current watch page. A small page script reads YouTube's player metadata and returns only timed cue text to the isolated content script. No new extension permissions are needed. If YouTube's response is missing or fails, the sidebar uses the existing rendered caption monitor. Collected lines are kept for the current video in the tab. Timing can be estimated when YouTube exposes only rendered text.
+
+The sidebar shares the background Kiwi tokenizer and the existing dictionary and vocabulary actions. It analyses rows near the viewport rather than submitting the full transcript to Kiwi at once. Mining seeks to the cue start before using the existing frame and audio capture.
+
 ### Background Service Worker
 
 Responsible for:

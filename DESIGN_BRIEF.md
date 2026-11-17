@@ -61,7 +61,9 @@ The initial implementation should prioritise reliable extraction of currently di
 
 If custom subtitle extraction fails, the extension should fall back to leaving YouTube's native subtitles visible.
 
-Full transcript retrieval and dedicated transcript reading modes are future enhancements.
+### 3.1.1 Interactive Transcript Sidebar
+
+On YouTube watch pages, the toolbar popup opens a separate transcript beside the video. The sidebar tries to load the full Korean transcript. When unavailable, it explains the fallback and collects rendered Korean captions during playback. Users can search, follow the active line, or revisit earlier lines with the seek button. Words use the shared dictionary and Known action. Mine Word seeks to the selected line before capturing media.
 
 ### 3.2 Interactive Korean Words
 

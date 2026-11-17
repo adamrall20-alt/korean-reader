@@ -69,6 +69,12 @@ Use subtle visual feedback to indicate that words are clickable.
 
 Avoid excessive underlining or distracting highlighting.
 
+### Transcript sidebar
+
+The toolbar's **Open Sidebar** button appears below the Anki controls. The panel starts closed. On standard desktop watch pages it sits above YouTube recommendations, and its left edge can be dragged or resized with the arrow keys. It uses an overlay in theatre or narrow layouts and hides during fullscreen. The rounded search field, timestamp buttons and scrollable list follow YouTube's transcript layout. Korean Reader's green accent marks the current line and interactive controls in both themes.
+
+The seek button combines an arrow and timestamp. Clicking a Korean word opens the existing dictionary popup. Auto-scroll starts enabled and pauses while searching or reviewing a definition.
+
 ## 4. Dictionary Popup
 
 The dictionary popup is one of the primary interface components.

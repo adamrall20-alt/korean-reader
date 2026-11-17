@@ -12,6 +12,7 @@ const props = defineProps<{
   error: string | null;
   style: CSSProperties;
   miningContext?: VocabularyContext;
+  prepareMine?: () => Promise<Partial<Pick<VocabularyContext, 'image'>>>;
   recordAudio?: () => Promise<string | undefined>;
   savedContexts?: VocabularyContext[];
   isKnown?: boolean;
@@ -155,6 +156,8 @@ async function saveWord() {
   const machineDefinitions = entry.definitions.length ? [] : translatedDefinitions.value.filter((_, index) => indices.includes(index));
   audioUnavailable.value = false;
   try {
+    const media = await props.prepareMine?.();
+    if (props.miningContext !== miningContext) return;
     let audio: string | undefined;
     if (props.recordAudio) {
       recording.value = true;
@@ -172,7 +175,7 @@ async function saveWord() {
     const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({
       type: 'mine-word',
       entry: selectedEntry,
-      context: audio ? { ...miningContext, audio } : miningContext,
+      context: { ...miningContext, ...media, ...(audio ? { audio } : {}) },
       machineDefinitions,
     } satisfies VocabularyMessage);
     if (props.miningContext === miningContext) {

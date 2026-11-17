@@ -5,14 +5,17 @@ import { VOCABULARY_REVISION_KEY } from '@/types/vocabulary';
 import MiningPanel from '@/components/MiningPanel.vue';
 import VocabularyManager from '@/components/VocabularyManager.vue';
 
-const { sendMessage, addStorageListener, removeStorageListener } = vi.hoisted(() => ({
+const { sendMessage, addStorageListener, removeStorageListener, queryTabs, sendToTab } = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   addStorageListener: vi.fn(),
   removeStorageListener: vi.fn(),
+  queryTabs: vi.fn(),
+  sendToTab: vi.fn(),
 }));
 
 vi.mock('wxt/browser', () => ({
   browser: {
+    tabs: { query: queryTabs, sendMessage: sendToTab },
     storage: { onChanged: { addListener: addStorageListener, removeListener: removeStorageListener } },
     runtime: {
       sendMessage,
@@ -34,6 +37,27 @@ describe('MiningPanel', () => {
     expect(wrapper.text()).toContain('New words');
     expect(wrapper.text()).not.toContain('Manage vocabulary');
     expect(wrapper.text()).not.toContain('Connection settings');
+  });
+
+  it('opens the transcript in the active tab and reports an unsupported page', async () => {
+    queryTabs.mockResolvedValue([{ id: 42 }]);
+    sendToTab.mockResolvedValueOnce({ ok: false }).mockResolvedValueOnce({ ok: true });
+    const close = vi.spyOn(window, 'close').mockImplementation(() => {});
+    try {
+      const wrapper = mount(MiningPanel);
+      const button = wrapper.findAll('button').find((item) => item.text() === 'Open Sidebar')!;
+      await button.trigger('click');
+      await flushPromises();
+      expect(wrapper.text()).toContain('Open or refresh a YouTube video');
+      expect(close).not.toHaveBeenCalled();
+      await button.trigger('click');
+      await flushPromises();
+      expect(queryTabs).toHaveBeenCalledWith({ active: true, currentWindow: true });
+      expect(sendToTab).toHaveBeenCalledWith(42, { type: 'open-transcript' });
+      expect(close).toHaveBeenCalledOnce();
+    } finally {
+      close.mockRestore();
+    }
   });
 
   it('uses the Anki count and sends saved translations on explicit sync', async () => {

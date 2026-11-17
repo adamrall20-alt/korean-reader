@@ -16,6 +16,18 @@ import { captureVideoFrame } from '@/services/youtube/capture';
 import type { SubtitleAppearance } from '@/types/preferences';
 import type { VocabularyContext } from '@/types/vocabulary';
 
+export interface WordSelection {
+  source: Omit<VocabularyContext, 'originalForm'>;
+  prepareMine: (signal: AbortSignal) => Promise<Partial<Pick<VocabularyContext, 'image'>>>;
+  recordAudio?: () => Promise<string | undefined>;
+}
+
+const emit = defineEmits<{ popupChange: [boolean] }>();
+
+const prepareMine = ref<() => Promise<Partial<Pick<VocabularyContext, 'image'>>>>();
+let selection: AbortController | undefined;
+let anchor: HTMLElement | undefined;
+
 const recordAudio = ref<() => Promise<string | undefined>>();
 const miningContext = ref<VocabularyContext>();
 const savedContexts = ref<VocabularyContext[]>([]);
@@ -54,29 +66,35 @@ const positionPopup = (tokenElement: HTMLElement) => {
 let lookupGeneration = 0;
 
 const repositionPopup = () => {
-  const tokenElement = Array.from(
+  const tokenElement = anchor ?? Array.from(
     readerElement.value?.querySelectorAll<HTMLElement>('[data-token-id]') ?? [],
   ).find((element) => element.dataset.tokenId === selectedTokenId.value);
 
   if (tokenElement) positionPopup(tokenElement);
 };
 
-const selectToken = async (token: SubtitleToken) => {
+const selectToken = async (token: SubtitleToken, element?: HTMLElement, transcript?: WordSelection) => {
+  selection?.abort();
+  const { signal } = selection = new AbortController();
+  anchor = element;
   const generation = ++lookupGeneration;
-  const video = findVideo(document);
-  video?.pause();
-  const image = captureVideoFrame(video);
-  const timestamp = readVideoTimestamp(video) ?? props.source?.timestamp;
-  recordAudio.value = video && timestamp !== undefined ? props.prepareAudio?.(video, timestamp) : undefined;
-  miningContext.value = props.source ? {
-    ...props.source,
-    originalForm: token.text,
-    image,
-    timestamp,
-  } : undefined;
+  if (transcript) {
+    miningContext.value = { ...transcript.source, originalForm: token.text };
+    prepareMine.value = () => transcript.prepareMine(signal);
+    recordAudio.value = transcript.recordAudio;
+  } else {
+    const video = findVideo(document);
+    video?.pause();
+    const image = captureVideoFrame(video);
+    const timestamp = readVideoTimestamp(video) ?? props.source?.timestamp;
+    prepareMine.value = undefined;
+    recordAudio.value = video && timestamp !== undefined ? props.prepareAudio?.(video, timestamp) : undefined;
+    miningContext.value = props.source ? { ...props.source, originalForm: token.text, image, timestamp } : undefined;
+  }
   savedContexts.value = [];
   selectedTokenId.value = token.id;
   selectedToken.value = token;
+  emit('popupChange', true);
   dictionaryEntry.value = null;
   lookupError.value = null;
   lookupLoading.value = true;
@@ -116,8 +134,11 @@ const props = defineProps<{
 }>();
 
 const closePopup = () => {
+  selection?.abort();
+  anchor = undefined;
   lookupGeneration += 1;
   selectedTokenId.value = null;
+  if (selectedToken.value) emit('popupChange', false);
   selectedToken.value = null;
   dictionaryEntry.value = null;
   lookupError.value = null;
@@ -141,7 +162,7 @@ onMounted(() => {
   window.addEventListener('scroll', repositionPopup, true);
 });
 onBeforeUnmount(() => {
-  lookupGeneration += 1;
+  closePopup();
   document.removeEventListener('click', handleDocumentClick, true);
   window.removeEventListener('resize', repositionPopup);
   window.removeEventListener('scroll', repositionPopup, true);
@@ -150,13 +171,14 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    v-if="visible && lines.length > 0"
+    v-if="visible && (lines.length > 0 || $slots.default)"
     ref="readerElement"
     class="kr-subtitles"
-    lang="ko"
+    :lang="$slots.default ? undefined : 'ko'"
     role="region"
-    aria-label="Korean subtitles"
+    :aria-label="$slots.default ? 'Korean transcript' : 'Korean subtitles'"
   >
+    <slot :select-token="selectToken" :close-popup="closePopup" />
     <p v-for="(line, index) in lines" :key="`${index}-${line.text}`" class="kr-subtitle-line">
       <template v-for="token in line.tokens" :key="token.id">
         <WordToken
@@ -179,6 +201,7 @@ onBeforeUnmount(() => {
       :style="popupStyle"
       :mining-context="miningContext"
       :record-audio="recordAudio"
+      :prepare-mine="prepareMine"
       :saved-contexts="savedContexts"
       :is-known="!!dictionaryEntry && knownHeadwords?.has(dictionaryEntry.headword.trim().normalize('NFC'))"
       @close="closePopup"

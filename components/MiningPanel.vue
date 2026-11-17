@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AnkiPanel from '@/components/AnkiPanel.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { OPEN_TRANSCRIPT } from '@/services/youtube/transcript';
 import { browser } from 'wxt/browser';
 import { VOCABULARY_REVISION_KEY, type VocabularyEntry, type VocabularyResponse } from '@/types/vocabulary';
 import logo from '@/assets/penguin.png';
@@ -10,6 +11,19 @@ const entries = ref<VocabularyEntry[]>();
 const minedEntries = computed(() => entries.value?.filter((entry) => entry.contexts.length) ?? []);
 const knownCount = computed(() => entries.value?.filter((entry) => entry.status === 'known').length);
 const error = ref('');
+const sidebarError = ref('');
+async function openSidebar() {
+  sidebarError.value = '';
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) throw new Error();
+    const response = await browser.tabs.sendMessage(tab.id, { type: OPEN_TRANSCRIPT });
+    if (!response?.ok) throw new Error();
+    window.close();
+  } catch {
+    sidebarError.value = 'Open or refresh a YouTube video, then try again.';
+  }
+}
 const version = browser.runtime.getManifest().version;
 let loadGeneration = 0;
 async function loadVocabulary() {
@@ -48,6 +62,8 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
     </header>
     <section class="flex-1 space-y-3 bg-cover bg-center px-5 py-5" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
       <AnkiPanel :vocabulary="minedEntries" :known-count="knownCount" @synced="loadVocabulary" />
+      <button type="button" class="w-full rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10" @click="openSidebar">Open Sidebar</button>
+      <p v-if="sidebarError" class="text-xs text-danger" role="alert">{{ sidebarError }}</p>
       <div v-if="error" class="text-xs text-danger" role="alert">{{ error }} <button class="underline" @click="loadVocabulary">Reload</button></div>
       <p class="text-xs text-muted">Version {{ version }}</p>
     </section>

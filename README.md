@@ -11,6 +11,12 @@ The long-term workflow is:
 5. Review saved vocabulary.
 6. Synchronise newly mined words to Anki through AnkiConnect.
 
+## YouTube transcript sidebar
+
+On a YouTube watch page, choose **Open Sidebar** in the Korean Reader toolbar popup. Drag its left edge to resize, search for a word or phrase, or turn off **Auto-scroll** to browse independently. The arrow and timestamp next to a line seek to its start. Click a Korean word to open the dictionary, then choose **Mine Word** to jump to that line and save it.
+
+When YouTube does not provide the full Korean transcript, enable Korean captions and play the video to collect lines. Collected lines remain available if you close and reopen the sidebar on the same video in that tab. The panel overlays theatre or narrow layouts and hides while fullscreen is active.
+
 ## Current Status
 
 **Current phase: Phase 8 — Additional Features.** Core subtitle reading, dictionary lookup, vocabulary mining, Anki sync, known-word imports, screenshot/audio capture, and selectable definitions are implemented. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verification details and remaining checks.

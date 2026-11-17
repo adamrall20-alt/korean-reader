@@ -1,4 +1,6 @@
 import { observePreferences } from '@/services/storage/preferences';
+import { createTranscriptSidebar } from '@/services/youtube/sidebar';
+import { OPEN_TRANSCRIPT } from '@/services/youtube/transcript';
 import { createCaptionMonitor } from '@/services/youtube/captions';
 import { createSubtitleOverlay } from '@/services/youtube/overlay';
 import { createSubtitlePresenter } from '@/services/youtube/presenter';
@@ -15,7 +17,18 @@ export default defineContentScript({
     document.documentElement.dataset.koreanReader = 'ready';
 
     const overlay = createSubtitleOverlay(document);
-    const stopPreferences = observePreferences(overlay.setTheme, overlay.setAppearance);
+    const sidebar = createTranscriptSidebar(overlay.prepareCueAudio);
+    const stopPreferences = observePreferences((theme) => {
+      overlay.setTheme(theme);
+      sidebar.setTheme(theme);
+    }, (appearance) => {
+      overlay.setAppearance(appearance);
+      sidebar.setAppearance(appearance);
+    });
+    const onMessage: Parameters<typeof browser.runtime.onMessage.addListener>[0] = (message, _sender, respond) => {
+      if (message?.type === OPEN_TRANSCRIPT) respond({ ok: sidebar.open() });
+    };
+    browser.runtime.onMessage.addListener(onMessage);
     const presenter = createSubtitlePresenter({ document, overlay });
     let vocabularyGeneration = 0;
     const refreshKnownWords = async () => {
@@ -26,6 +39,7 @@ export default defineContentScript({
         } satisfies KnownHeadwordsMessage);
         if (generation === vocabularyGeneration && response?.ok) {
           overlay.setKnownHeadwords(response.headwords);
+          sidebar.setKnownHeadwords(response.headwords);
         }
       } catch {
         // Captions remain usable if the background is temporarily unavailable.
@@ -73,6 +87,7 @@ export default defineContentScript({
     const monitor = createCaptionMonitor({
       document,
       onUpdate: (snapshot) => {
+        sidebar.update(snapshot);
         const valid = snapshot.videoId && snapshot.hasVideo && snapshot.isKorean && snapshot.lines.length;
         if (!valid || videoId !== snapshot.videoId) {
           videoId = snapshot.videoId;
@@ -86,13 +101,18 @@ export default defineContentScript({
       },
     });
 
-    const refresh = () => monitor.refresh();
+    const refresh = () => {
+      sidebar.refresh();
+      monitor.refresh();
+    };
 
     const handlePageHide = () => {
       document.removeEventListener('yt-navigate-finish', refresh);
       document.removeEventListener('yt-page-data-updated', refresh);
       document.removeEventListener('visibilitychange', refresh);
       browser.storage.onChanged.removeListener(onStorageChanged);
+      browser.runtime.onMessage.removeListener(onMessage);
+      sidebar.destroy();
       stopPreferences();
       vocabularyGeneration += 1;
       pending = undefined;

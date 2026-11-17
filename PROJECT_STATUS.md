@@ -2,9 +2,19 @@
 
 ## Current Project State
 
-**Status:** Phase 8 implemented; live verification remains for several additions
-**Current Phase:** Phase 8 — Additional Features
-**Last Updated:** 17 November 2026
+**Status:** Phase 9 implemented and verified with automated tests, a Chrome fixture and one live YouTube video. Live sidebar mining into Anki remains unverified.
+
+**Current Phase:** Phase 9 — Interactive Transcript Sidebar
+
+**Last Updated:** 18 November 2026
+
+## Phase 9 transcript sidebar
+
+The toolbar's **Open Sidebar** button opens a searchable, resizable transcript on YouTube watch pages. It sits above recommendations in standard desktop layout, overlays theatre and narrow layouts, and hides during fullscreen. The active line follows playback, with an Auto-scroll toggle. If the full Korean transcript cannot load, the panel collects rendered captions for the current video while playback progresses. Reopening the panel on the same video retains the collected lines. Navigating to a different video clears them.
+
+The sidebar shares Korean Reader's word analysis, dictionary, Known status and mining flow. A word lookup leaves playback alone. Choosing Mine Word seeks to the selected line and pauses before taking the frame and attempting audio capture. The existing explicit Anki sync remains the way to send mined vocabulary to Anki.
+
+Verification: 91 tests passed, type checking passed, and the production build succeeded. An isolated Chrome fixture verified the full caption track, drag resizing, highlighting, seek, dictionary opening, search, theatre/fullscreen behavior, navigation, fallback and reopen. The sidebar loaded all 214 lines returned by YouTube's current transcript panel for the live Korean video `KTIByn_rIWM`. That check did not save anything to live Anki. Transcript availability depends on what YouTube returns, and some sources expose only approximate timing.
 
 ## Completed
 

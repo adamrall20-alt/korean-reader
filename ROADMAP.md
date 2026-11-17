@@ -217,7 +217,7 @@ Completion criteria:
 
 The interface feels consistent, polished and comfortable to use.
 
-## Phase 8 — Additional Features (current)
+## Phase 8 — Additional Features
 **Goal:** Extend the established workflow with richer Anki cards and imports.
 
 Tasks:
@@ -233,19 +233,46 @@ Tasks:
 
 Phase 8 is in progress. The remaining items are live verification of captured audio on YouTube and in the user's Anki card template, live verification of the Kimchi Reader CSV import, and live verification of definition selection. See PROJECT_STATUS.md for current details.
 
+## Phase 9 — Interactive Transcript Sidebar (current)
+
+**Goal:** Add a resizable YouTube transcript sidebar that allows users to browse subtitles, navigate video timestamps, and interact with vocabulary using existing Korean Reader functionality.
+
+Tasks:
+
+- [x] Add an **Open Sidebar** button to the extension's main toolbar popup UI, positioned directly below the Connect and Sync to Anki controls.
+- [x] The sidebar must remain closed by default and only open when the user clicks Open Sidebar.
+- [x] Add a collapsible, resizable sidebar beside the YouTube video, with a draggable edge to adjust its width.
+- [x] Load the full Korean transcript when available, with timestamps for each line. If unavailable, explain the fallback and collect rendered Korean captions as playback progresses.
+- [x] Clicking the arrow and timestamp button beside a line jumps to its start.
+- [x] Automatically highlight the currently playing subtitle line.
+- [x] Add automatic scrolling to follow the current subtitle, with an option to disable auto-scroll.
+- [x] Add a search bar to find words or phrases within the transcript.
+- [x] Make individual Korean words clickable, reusing the existing dictionary popup, Known button, and Mine Word functionality. Clicking a word opens its definition. Selecting Mine Word seeks to the cue start before capturing media and saving.
+- [x] Reuse existing subtitle extraction and processing logic rather than creating a separate system.
+- [x] Handle video navigation, unavailable subtitles, fullscreen, and theatre mode without breaking the layout.
+- [x] Ensure the sidebar can be closed and reopened without losing functionality.
+
+**Implementation requirements:**
+
+- Preserve the existing Korean Reader colour scheme, styling, and UI elements.
+- Avoid duplicating dictionary, vocabulary, or Anki functionality.
+- Ensure existing clickable YouTube subtitles continue working normally.
+- Keep the sidebar responsive and avoid unnecessary processing during playback.
+- Inspect the existing codebase before implementation and verify functionality after changes.
+
+Implementation and fixture verification are complete. See PROJECT_STATUS.md for live verification status.
+
 ## Future Enhancements
 
 These features are outside the initial development scope.
 
-- [ ] Full transcript reader and dedicated reading panel.
-- [ ] Click a subtitle line to jump to its timestamp.
 - [ ] Vocabulary frequency information.
 - [ ] Sentence-level grammar analysis.
 - [ ] Additional dictionary sources.
 - [x] Subtitle size, text colour, unknown word underline colour and font.
 - [ ] Stats and long term learning progress tracking.
 - [x] Keep the Settings navigation visible while scrolling on wider screens.
-- [ ] Word frequency information in the dictionary popup.
+- [x] Word frequency information in the dictionary popup.
 
 - [ ] Web server and accounts?
 
