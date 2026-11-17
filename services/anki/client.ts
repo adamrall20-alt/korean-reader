@@ -28,6 +28,7 @@ interface Actions {
   canAddNotes: [{ notes: AnkiNote[] }, boolean[]];
   addNote: [{ note: AnkiNote }, number];
   addNotes: [{ notes: AnkiNote[] }, Array<number | null>];
+  storeMediaFile: [{ filename: string; data: string }, string];
   updateNoteFields: [{ note: { id: number; fields: Record<string, string> } }, null];
 }
 

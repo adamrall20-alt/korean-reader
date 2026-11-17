@@ -139,6 +139,41 @@ function importWords() {
   });
 }
 
+const kimchiWords = ref<string[]>([]);
+const kimchiMessage = ref('');
+async function readKimchiFile(event: Event) {
+  kimchiWords.value = [];
+  kimchiMessage.value = '';
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const text = (await file.text()).replace(/^\uFEFF/, '');
+    const words = new Set<string>();
+    for (const line of text.split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      const match = line.match(/^\s*(?:"((?:[^"]|"")*)"|([^,]*)),\s*([0-3])\s*$/);
+      if (!match) throw new Error('This file does not match the Kimchi word status CSV format.');
+      const word = (match[1]?.replace(/""/g, '"') ?? match[2] ?? '').trim().normalize('NFC');
+      if (!word || !/\p{Script=Hangul}/u.test(word)) throw new Error('The file contains an invalid Korean word.');
+      if (match[3] === '2') words.add(word);
+    }
+    kimchiWords.value = [...words];
+    kimchiMessage.value = `${words.size.toLocaleString()} known words found.`;
+  } catch (error) {
+    kimchiMessage.value = error instanceof Error ? error.message : 'Could not read the file.';
+  } finally { input.value = ''; }
+}
+function importKimchi() {
+  if (!kimchiWords.value.length) return;
+  void run(async () => {
+    const result = await request({ type: 'import-anki-words', headwords: [...kimchiWords.value] });
+    kimchiWords.value = [];
+    kimchiMessage.value = `${(result.markedKnown ?? 0).toLocaleString()} words marked known.`;
+    emit('imported');
+  });
+}
+
 function changeModel() {
   settings.value.fields = { ...ANKI_DEFAULT_FIELDS };
   void run(readFields);
@@ -310,6 +345,14 @@ onMounted(() => {
           </button>
         </div>
       </template>
+    </section>
+
+    <section v-if="vocabulary === undefined" class="space-y-2 border-t border-white/10 pt-3">
+      <h3 class="text-sm font-medium">Import from Kimchi Reader</h3>
+      <p class="text-xs text-muted">Choose a word status CSV export. Words with status 2 are marked known.</p>
+      <input type="file" accept=".csv,text/csv" aria-label="Kimchi Reader CSV file" class="block text-xs text-muted" @change="readKimchiFile" />
+      <p v-if="kimchiMessage" role="status" class="text-xs text-muted">{{ kimchiMessage }}</p>
+      <button v-if="kimchiWords.length" type="button" :disabled="busy" class="rounded-lg bg-accent px-3 py-1.5 text-xs text-white disabled:opacity-50" @click="importKimchi">Import known words</button>
     </section>
 
     <div v-if="vocabulary" class="rounded-xl bg-ink-soft p-3">

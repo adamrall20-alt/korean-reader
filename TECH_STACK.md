@@ -238,7 +238,7 @@ Implement configurable field mapping if necessary.
 | Sentence | Original YouTube subtitle sentence, plus additional saved sentences separated by newlines |
 | Definition | English dictionary definition |
 | Pronunciation | Dictionary pronunciation |
-| Image | Empty until screenshot capture is implemented |
+| Image | Video frame saved locally when mining; uploaded to Anki when synchronising |
 | Audio | Empty until audio capture is implemented |
 
 #### Duplicate Detection

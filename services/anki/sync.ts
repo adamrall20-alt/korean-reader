@@ -107,6 +107,14 @@ async function findExisting(
   return matches[0];
 }
 
+async function uploadImage(client: AnkiClient, entry: VocabularyEntry): Promise<string> {
+  const image = entry.contexts.find((context) => context.image)?.image;
+  if (!image) return '';
+  const filename = `korean-reader-${crypto.randomUUID()}.jpg`;
+  const stored = await client.request('storeMediaFile', { filename, data: image.slice('data:image/jpeg;base64,'.length) });
+  return `<img src="${escapeHtml(stored)}">`;
+}
+
 async function updateExistingNote(
   client: AnkiClient,
   existing: AnkiNoteInfo,
@@ -137,6 +145,11 @@ async function updateExistingNote(
   if (hasEnglish && currentDefinition !== undefined &&
     (!existingLines.length || existingLines.every((line, index) => line === koreanLines[index]))) {
     changes[definition] = definitionField(entry);
+  }
+  const imageField = settings.fields.image;
+  if (imageField && existing.fields[imageField] && !existing.fields[imageField].value.trim()) {
+    const image = await uploadImage(client, entry);
+    if (image) changes[imageField] = image;
   }
   if (!Object.keys(changes).length) return false;
   await client.request('updateNoteFields', { note: { id: existing.noteId, fields: changes } });
@@ -197,7 +210,9 @@ export async function syncVocabulary(settings: AnkiSettings, headwords: string[]
           const updated = await updateExistingNote(client, existing, entry, settings);
           results.push(await saveResult(headword, updated ? 'updated' : 'existing', existing.noteId, settings.fields.word));
         } else {
-          candidates.push({ headword, note: buildNote(entry, settings) });
+          const note = buildNote(entry, settings);
+          if (settings.fields.image) note.fields[settings.fields.image] = await uploadImage(client, entry);
+          candidates.push({ headword, note });
         }
       } catch (error) {
         results.push({ headword, status: 'failed', message: errorMessage(error) });

@@ -192,6 +192,7 @@ watch(() => props.miningContext, () => {
         <p v-for="example in entry.examples.slice(0, 2)" :key="example">{{ example }}</p>
       </section>
       <div v-if="miningContext" class="kr-mining-actions">
+        <p v-if="!miningContext.image" class="kr-dictionary-message" role="status">Video image unavailable; the word can still be saved.</p>
         <p v-if="miningOutcome?.ok || contextAlreadySaved" role="status">
           {{ miningOutcome?.ok && miningOutcome.outcome === 'mined' ? '✓ Mined'
             : miningOutcome?.ok && miningOutcome.outcome === 'added' ? '✓ Sentence saved'

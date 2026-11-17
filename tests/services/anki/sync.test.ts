@@ -75,6 +75,23 @@ describe('Anki sync', () => {
     expect(recordAnkiSync).toHaveBeenCalledExactlyOnceWith('먹다', 17, 'Focus Word');
   });
 
+  it('uploads a captured frame and includes it in the new note', async () => {
+    getVocabulary.mockResolvedValue({ ...word, contexts: [{ ...word.contexts[0], image: 'data:image/jpeg;base64,YWJj' }] });
+    const calls = vi.fn((action: string, params: Record<string, any>) => {
+      switch (action) {
+        case 'findNotes': return [];
+        case 'storeMediaFile': return params.filename;
+        case 'canAddNotes': return [true];
+        case 'addNote': return 17;
+        default: throw new Error(action);
+      }
+    });
+    fakeAnki(calls);
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'created' }]);
+    expect(calls).toHaveBeenCalledWith('storeMediaFile', { filename: expect.stringMatching(/^korean-reader-.*\.jpg$/), data: 'YWJj' });
+    expect(calls).toHaveBeenCalledWith('addNote', { note: expect.objectContaining({ fields: expect.objectContaining({ Image: expect.stringMatching(/^<img src="korean-reader-.*\.jpg">$/) }) }) });
+  });
+
   it('appends a missing sentence to an existing note and skips a repeated sync', async () => {
     let sentence = '<b>기존 문장.</b>';
     const calls = vi.fn((action: string, params) => {

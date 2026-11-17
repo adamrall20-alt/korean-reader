@@ -12,6 +12,7 @@ import type {
 } from '@/types/messages';
 
 import { isKnownSubtitleWord } from '@/services/korean/dictionary-forms';
+import { captureVideoFrame } from '@/services/youtube/capture';
 import type { VocabularyContext } from '@/types/vocabulary';
 
 const miningContext = ref<VocabularyContext>();
@@ -62,9 +63,11 @@ const selectToken = async (token: SubtitleToken) => {
   const generation = ++lookupGeneration;
   const video = findVideo(document);
   video?.pause();
+  const image = captureVideoFrame(video);
   miningContext.value = props.source ? {
     ...props.source,
     originalForm: token.text,
+    image,
     timestamp: readVideoTimestamp(video) ?? props.source.timestamp,
   } : undefined;
   savedContexts.value = [];

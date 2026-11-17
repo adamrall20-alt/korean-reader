@@ -16,6 +16,7 @@ export interface VocabularyContext {
   sourceUrl: string;
   sourceTitle: string;
   timestamp?: number;
+  image?: string;
 }
 
 export interface VocabularyEntry extends DictionaryEntry {

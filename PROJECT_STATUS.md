@@ -80,7 +80,7 @@ The user confirmed the Phase 2–3 workflow on a live YouTube video, including o
 
 ### Remaining Phase 8 features
 
-Screenshot capture and audio capture are pending.
+Screenshot capture is implemented; live YouTube and Anki verification is pending. Audio capture remains pending.
 
 ## Phase 8 known word import — 17 November 2026
 
@@ -240,3 +240,13 @@ Automated verification: 58 tests passed, type checking passed, and the productio
 ## Phase 7 — 17 November 2026
 
 The user confirmed the wireframes and Figma mockups, local vocabulary storage and JSON export, and remaining Phase 6 checks are complete. Interface refinement is in progress. The initial polish removes outdated development-phase badges from Settings and adds a consistent keyboard-focus indicator while preserving the existing visual design. All 58 automated tests, type checking and the production build passed; visual verification in Chrome remains pending.
+
+## Phase 8 image capture — 17 November 2026
+
+Selecting a subtitle word pauses the video and snapshots its video pixels. Mining saves that image with the sentence locally. Anki sync uploads the first captured image for the word and fills the mapped Image field on new notes, or an empty Image field on an existing note. Existing images are preserved. If the browser blocks pixel access, the popup reports that the image is unavailable and the word can still be saved. Protected or cross-origin video, and live YouTube/Anki behavior, require user verification.
+
+Automated verification: 71 tests passed, type checking passed, and the Chrome production build succeeded.
+
+## Kimchi Reader import — 17 November 2026
+
+Settings now accepts Kimchi Reader word status CSV exports and marks status 2 words known, preserving existing vocabulary details. The Storage vocabulary section is collapsed by default. The supplied CSV contains 13,220 status 2 rows; live import remains to be verified. Automated suite (71 tests), type checking and production build passed.

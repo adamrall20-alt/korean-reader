@@ -30,7 +30,7 @@ Click **Mark words known** to save the previewed words locally. Existing vocabul
 | Sentence | Saved subtitle text in order, separated by HTML line breaks |
 | Definition | Edited or dictionary English or a saved machine translation, followed by the Korean definition when available |
 | Pronunciation | Dictionary pronunciation when available |
-| Image | Empty on new notes |
+| Image | First captured video frame, if available; existing non-empty images are preserved |
 | Audio | Empty on new notes |
 
 Sentence text is HTML-escaped. The original subtitle form and dictionary headword are highlighted in orange when they appear. The extension uses existing note types and templates. Existing cards keep their deck and other fields when a sentence is appended.
