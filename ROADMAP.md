@@ -223,7 +223,7 @@ Create complete flashcards with audio and images, and allow users to capture scr
 
 Tasks:
 
-- [ ] Move Anki deck configuration and field mapping to the Settings page.
+- [x] Move Anki deck configuration and field mapping to the Settings page.
 - [ ] Screenshot capture for Anki cards.
 - [ ] Audio capture.
 - [x] Import known words from an Anki deck through AnkiConnect in Settings.
