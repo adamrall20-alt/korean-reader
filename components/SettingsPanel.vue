@@ -4,6 +4,7 @@ import AnkiPanel from '@/components/AnkiPanel.vue';
 import { onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import type { SettingsResponse } from '@/types/messages';
+import stars from '@/assets/stars.png';
 
 const krDictApiKey = ref('');
 const settingsMessage = ref('');
@@ -102,8 +103,8 @@ const sections = [
 </script>
 
 <template>
-  <div class="min-h-screen bg-ink text-paper">
-    <header class="border-b border-white/10">
+  <div class="min-h-screen bg-cover bg-center bg-fixed text-paper" :style="{ backgroundImage: `linear-gradient(rgba(17,17,17,.58), rgba(17,17,17,.58)), url(${stars})` }">
+    <header class="relative z-10 border-b border-white/10 bg-ink">
       <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-4">
         <div
           class="grid size-9 place-items-center rounded-xl bg-accent text-sm font-bold tracking-tight text-white"
