@@ -97,7 +97,7 @@ Display:
 
 The dictionary headword should be visually prominent.
 
-Definitions should be easy to scan.
+Definitions should be easy to scan. When multiple definitions are available, let the user select one or more; selected definitions have a lighter grey background. A single definition is selected by default. Only the selected definitions are saved when mining a new word.
 
 ### Mining Button
 

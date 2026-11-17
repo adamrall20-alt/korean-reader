@@ -89,6 +89,45 @@ describe('DictionaryPopup mining', () => {
     expect(wrapper.find('.kr-mine-button').exists()).toBe(false);
   });
 
+  it('mines only selected definitions and resets selection for another entry', async () => {
+    sendMessage.mockReset().mockResolvedValue({ ok: true, outcome: 'mined' });
+    const multi = { ...entry, definitions: ['first', 'second', 'third'], koreanDefinitions: ['unrelated'] };
+    const wrapper = mount(DictionaryPopup, { props: { ...props, entry: multi, miningContext } });
+    expect(wrapper.get('.kr-mine-button').attributes('disabled')).toBeDefined();
+    const choices = wrapper.findAll('.kr-definition-button');
+    await choices[0]!.trigger('click');
+    await choices[1]!.trigger('click');
+    await choices[0]!.trigger('click');
+    expect(choices[0]!.attributes('aria-pressed')).toBe('false');
+    expect(choices[1]!.attributes('aria-pressed')).toBe('true');
+    await wrapper.get('.kr-mine-button').trigger('click');
+    await flushPromises();
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      entry: expect.objectContaining({ definitions: ['second'], koreanDefinitions: [] }),
+    }));
+    await wrapper.setProps({ entry: { ...multi, headword: '다른', definitions: ['one', 'two'] }, miningContext: { ...miningContext } });
+    expect(wrapper.get('.kr-mine-button').attributes('disabled')).toBeDefined();
+  });
+
+  it('keeps selected Korean definitions paired with their translations', async () => {
+    vi.stubGlobal('Translator', { create: vi.fn().mockResolvedValue({
+      translate: vi.fn().mockResolvedValueOnce('first translation').mockResolvedValueOnce('second translation'),
+      destroy: vi.fn(),
+    }) });
+    sendMessage.mockReset().mockResolvedValue({ ok: true, outcome: 'mined' });
+    const wrapper = mount(DictionaryPopup, { props: { ...props, entry: { ...entry, koreanDefinitions: ['첫째', '둘째'] }, miningContext } });
+    await wrapper.get('.kr-translate-button').trigger('click');
+    await flushPromises();
+    await wrapper.findAll('.kr-definition-button')[3]!.trigger('click');
+    await wrapper.get('.kr-mine-button').trigger('click');
+    await flushPromises();
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      entry: expect.objectContaining({ koreanDefinitions: ['둘째'] }),
+      machineDefinitions: ['second translation'],
+    }));
+    vi.unstubAllGlobals();
+  });
+
   it('records on the mine click and saves the audio with the selected sentence', async () => {
     const audio = 'data:audio/webm;base64,YWJj';
     const recordAudio = vi.fn().mockResolvedValue(audio);

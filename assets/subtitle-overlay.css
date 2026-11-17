@@ -202,3 +202,19 @@
   opacity: 0.65;
   cursor: wait;
 }
+
+.kr-definition-button {
+  width: 100%;
+  padding: 0.25em 0.4em;
+  border: 0;
+  border-radius: 0.3em;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kr-definition-button:hover { background: #444; }
+.kr-definition-button[aria-pressed="true"] { background: #666; }
+.kr-definition-button:focus-visible { outline: 2px solid #b7f7c7; }

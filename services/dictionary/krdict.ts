@@ -63,14 +63,15 @@ function englishDefinitions(senses: string[]): string[] {
 
 function parseResponse(xmlText: string, candidate: string, originalForm: string) {
   validateResponse(xmlText);
-  const item = readBlocks(xmlText, 'item').find(
+  const items = readBlocks(xmlText, 'item').filter(
     (result) => readTag(result, 'word')?.normalize('NFC') === candidate,
   );
+  const item = items[0];
   if (!item) {
     return null;
   }
 
-  const senses = readBlocks(item, 'sense');
+  const senses = items.flatMap((result) => readBlocks(result, 'sense'));
   const koreanDefinitions = senses.flatMap((sense) => {
     const definition = readTag(sense, 'definition');
     return definition ? [definition] : [];
@@ -150,7 +151,7 @@ export async function lookupKoreanWord(
   known?: ReadonlySet<string>,
 ): Promise<DictionaryEntry> {
   const candidates = dictionaryCandidates(word, morphemes, known);
-  const cacheKey = JSON.stringify(['exact-v3', ...candidates]);
+  const cacheKey = JSON.stringify(['exact-v4', ...candidates]);
 
   try {
     const cachedEntry = await getCachedDictionaryEntry(cacheKey);

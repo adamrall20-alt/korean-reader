@@ -41,6 +41,17 @@ describe('KRDict lookup', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('key=test-key');
   });
 
+  it('includes definitions from matching homonyms and excludes other headwords', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`
+      <channel>
+        <item><word>배</word><sense><translation><trans_dfn>pear</trans_dfn></translation></sense></item>
+        <item><word>다른</word><sense><translation><trans_dfn>other</trans_dfn></translation></sense></item>
+        <item><word>배</word><sense><translation><trans_dfn>boat</trans_dfn></translation></sense></item>
+      </channel>
+    `));
+    await expect(lookupKoreanWord('배', [], 'test-key')).resolves.toMatchObject({ definitions: ['pear', 'boat'] });
+  });
+
   it('rejects a mismatched headword and falls back to the surface form', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response('<channel><item><word>다른 말</word></item></channel>'))

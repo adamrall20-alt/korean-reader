@@ -47,11 +47,22 @@ function resetTranslation() {
   translating.value = false;
 }
 
-watch(() => props.entry, resetTranslation);
+const selectedDefinitions = ref<number[]>([]);
+watch(() => props.entry, (entry) => {
+  resetTranslation();
+  const definitions = entry?.definitions.length ? entry.definitions : entry?.koreanDefinitions ?? [];
+  selectedDefinitions.value = definitions.length === 1 ? [0] : [];
+}, { immediate: true });
+
+function toggleDefinition(index: number) {
+  selectedDefinitions.value = selectedDefinitions.value.includes(index)
+    ? selectedDefinitions.value.filter((selected) => selected !== index)
+    : [...selectedDefinitions.value, index];
+}
 onBeforeUnmount(resetTranslation);
 
 async function translateDefinitions() {
-  const definitions = props.entry?.koreanDefinitions.slice(0, 3);
+  const definitions = props.entry?.koreanDefinitions;
   if (!translatorApi || !definitions?.length || translating.value) return;
 
   const request = new AbortController();
@@ -96,11 +107,17 @@ const contextAlreadySaved = computed(() => !!savedContext.value && !canAddAudio.
 
 async function saveWord() {
   const { entry, miningContext } = props;
-  if (!entry || !miningContext || mining.value || miningOutcome.value?.ok || contextAlreadySaved.value) return;
+  if (!entry || !miningContext || mining.value || miningOutcome.value?.ok || contextAlreadySaved.value || (!props.savedContexts?.length && !selectedDefinitions.value.length)) return;
 
   mining.value = true;
   miningOutcome.value = undefined;
-  const machineDefinitions = translatedDefinitions.value;
+  const indices = [...selectedDefinitions.value].sort((a, b) => a - b);
+  const selectedEntry = props.savedContexts?.length ? entry : {
+    ...entry,
+    definitions: entry.definitions.filter((_, index) => indices.includes(index)),
+    koreanDefinitions: entry.definitions.length ? [] : entry.koreanDefinitions.filter((_, index) => indices.includes(index)),
+  };
+  const machineDefinitions = entry.definitions.length ? [] : translatedDefinitions.value.filter((_, index) => indices.includes(index));
   audioUnavailable.value = false;
   try {
     let audio: string | undefined;
@@ -119,7 +136,7 @@ async function saveWord() {
     if (savedContext.value && !audio && props.miningContext === miningContext) return;
     const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({
       type: 'mine-word',
-      entry,
+      entry: selectedEntry,
       context: audio ? { ...miningContext, audio } : miningContext,
       machineDefinitions,
     } satisfies VocabularyMessage);
@@ -177,16 +194,16 @@ watch(() => props.miningContext, () => {
       <section v-if="entry.definitions.length > 0" class="kr-dictionary-section">
         <h3>English</h3>
         <ol class="kr-dictionary-definitions">
-          <li lang="en" v-for="definition in entry.definitions.slice(0, 3)" :key="definition">
-            {{ definition }}
+          <li lang="en" v-for="(definition, index) in entry.definitions" :key="index">
+            <button type="button" class="kr-definition-button" :aria-pressed="selectedDefinitions.includes(index)" @click="toggleDefinition(index)">{{ definition }}</button>
           </li>
         </ol>
       </section>
       <section v-else-if="entry.koreanDefinitions.length > 0" class="kr-dictionary-section">
         <h3>Korean definition</h3>
         <ol class="kr-dictionary-definitions" lang="ko">
-          <li v-for="definition in entry.koreanDefinitions.slice(0, 3)" :key="definition">
-            {{ definition }}
+          <li v-for="(definition, index) in entry.koreanDefinitions" :key="index">
+            <button type="button" class="kr-definition-button" :aria-pressed="selectedDefinitions.includes(index)" @click="toggleDefinition(index)">{{ definition }}</button>
           </li>
         </ol>
         <button
@@ -208,7 +225,7 @@ watch(() => props.miningContext, () => {
       <section v-if="translatedDefinitions.length" class="kr-dictionary-section" lang="en">
         <h3>Machine translation</h3>
         <ol class="kr-dictionary-definitions">
-          <li v-for="(definition, index) in translatedDefinitions" :key="index">{{ definition }}</li>
+          <li v-for="(definition, index) in translatedDefinitions" :key="index"><button type="button" class="kr-definition-button" :aria-pressed="selectedDefinitions.includes(index)" @click="toggleDefinition(index)">{{ definition }}</button></li>
         </ol>
       </section>
       <section v-if="entry.examples.length > 0" class="kr-dictionary-section kr-dictionary-examples">
@@ -216,6 +233,7 @@ watch(() => props.miningContext, () => {
         <p v-for="example in entry.examples.slice(0, 2)" :key="example">{{ example }}</p>
       </section>
       <div v-if="miningContext" class="kr-mining-actions">
+        <p v-if="!savedContexts?.length && (entry.definitions.length || entry.koreanDefinitions.length) > 1" class="kr-dictionary-message">Select one or more definitions to mine.</p>
         <p v-if="!miningContext.image" class="kr-dictionary-message" role="status">Video image unavailable; the word can still be saved.</p>
         <p v-if="audioUnavailable" role="status">Subtitle audio unavailable.</p>
         <p v-if="miningOutcome?.ok || contextAlreadySaved" role="status">
@@ -229,7 +247,7 @@ watch(() => props.miningContext, () => {
           <button
             type="button"
             class="kr-mine-button"
-            :disabled="mining || translating"
+            :disabled="mining || translating || (!savedContexts?.length && !selectedDefinitions.length)"
             @click="saveWord"
           >
             {{ recording ? 'Recording audio…' : mining ? 'Saving…' : canAddAudio ? 'Add Audio' : savedContexts?.length ? 'Save Sentence' : 'Mine Word' }}

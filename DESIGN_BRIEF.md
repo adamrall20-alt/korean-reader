@@ -106,7 +106,7 @@ When selected:
 - Save the dictionary entry.
 - Save the original subtitle form.
 - Save the original sentence.
-- Save the English definition.
+- Save the selected English definitions, or selected Korean definitions when English is unavailable.
 - Save the source video URL.
 - Save the video timestamp where available.
 - Record the date mined.

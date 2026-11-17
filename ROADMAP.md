@@ -224,10 +224,11 @@ Create complete flashcards with audio and images, and allow users to capture scr
 Tasks:
 
 - [x] Move Anki deck configuration and field mapping to the Settings page.
-- [ ] Screenshot capture for Anki cards.
-- [ ] Subtitle audio capture and Anki attachment (implemented, live verification pending).
+- [x] Screenshot capture for Anki cards.
+- [x] Subtitle audio capture and Anki attachment (implemented, live verification pending).
 - [x] Import known words from an Anki deck through AnkiConnect in Settings.
-- [ ] Fix word checking against common conjugations, prefering the noun over the verb when both are valid dictionary entries.
+- [x] Fix word checking against common conjugations, prefering the noun over the verb when both are valid dictionary entries.
+- [x] For words with multiple dictionary entries, allow the user to select which definitions to mine and sync to Anki.
 
 ## Future Enhancements
 
@@ -243,5 +244,6 @@ These features are outside the initial development scope.
 - [ ] Stats and long term learning progress tracking.
 - [ ] Web server and accounts?
 - [ ] Make the settings navigation UI move down with the page as the user scrolls.
+- [ ] Word frequency information in the dictionary popup.
 
 Future enhancements should only be considered after the minimum viable product is complete.

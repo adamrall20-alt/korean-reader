@@ -2,7 +2,7 @@
 
 ## Current Project State
 
-**Status:** Phase 8 lookup refinement and direct Anki import implemented
+**Status:** Phase 8 definition selection implemented
 **Current Phase:** Phase 8 — Additional Features
 **Last Updated:** 17 November 2026
 
@@ -200,7 +200,7 @@ Last run: 16 November 2026
 - `npm install` reports engine warnings from two transitive packages (`nopt`, `abbrev`) because the local Node version is v24.14.0 while those packages declare support for v24.15.0 or newer. Installation, tests, type checking and the production build all succeed.
 - YouTube usually leaves `video.textTracks` empty for its custom caption renderer. Korean detection therefore relies mainly on the rendered caption text; track metadata is used when it is present.
 - Captions must be enabled in YouTube's player for extraction to work. The extension does not force captions on.
-- KRDict homonyms sharing the same headword are resolved in dictionary order.
+- KRDict lookup collects matching homonym definitions from its first search page; pronunciation, part of speech and optional details come from the first matching entry.
 - Phase 3 requires the user's KRDict API key before definitions can be retrieved.
 - Chrome loopback access passed against a fixture; the user confirmed the Anki integration and card templates during Phase 5.
 
@@ -257,3 +257,7 @@ Settings now accepts Kimchi Reader word status CSV exports and marks status 2 wo
 Mining replays the selected subtitle, records its original audio and returns the paused video to the selection point. The clip is stored with its sentence. Select **Add Audio** on a saved sentence without audio to capture it again. Explicit Anki sync fills the mapped Audio field on a new note or an existing note whose Audio field is empty. Capture or upload failures still allow the sentence to be saved.
 
 Verification passed in isolated Chrome with local video and a segmented MediaSource fixture. Both exact cue bounds and rendered caption boundaries produced decodable audio, restored the paused position and skipped ads. The automated suite, type check and Chrome build passed. Live YouTube playback, caption boundary accuracy and playback in the user's Anki note template remain to be verified. Rendered and rolling captions use estimated boundaries. Chrome may block capture on protected video or skip ranges that cannot be replayed.
+
+## Phase 8 definition selection — 17 November 2026
+
+The dictionary popup displays available definitions and lets the user select one or more before mining a new word. Selected rows are lighter grey; a sole definition is selected by default. Only selected definitions are stored and sent to Anki. Korean definitions and on-device translations share their selection. Saving another sentence for an existing word preserves its existing definitions. Matching KRDict homonym definitions are included from the first search page. Live verification remains pending.

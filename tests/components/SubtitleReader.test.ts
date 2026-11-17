@@ -110,7 +110,7 @@ describe('SubtitleReader', () => {
     const popup = wrapper.get('[role="dialog"]');
     expect(popup.text()).toContain('반갑다');
     expect(popup.findAll('li').map((item) => item.text())).toEqual([
-      'glad to meet', 'pleased', 'happy',
+      'glad to meet', 'pleased', 'happy', 'fourth definition',
     ]);
     expect(popup.text()).not.toContain('기쁘다');
     expect(popup.text()).not.toContain('Outdated lookup error');
