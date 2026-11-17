@@ -16,6 +16,8 @@ The sidebar shares Korean Reader's word analysis, dictionary, Known status and m
 
 Verification: 91 tests passed, type checking passed, and the production build succeeded. An isolated Chrome fixture verified the full caption track, drag resizing, highlighting, seek, dictionary opening, search, theatre/fullscreen behavior, navigation, fallback and reopen. The sidebar loaded all 214 lines returned by YouTube's current transcript panel for the live Korean video `KTIByn_rIWM`. That check did not save anything to live Anki. Transcript availability depends on what YouTube returns, and some sources expose only approximate timing.
 
+Language fix verification: 95 tests passed, type checking passed, and the production build succeeded. A Chrome fixture confirmed that the sidebar rejects an English transcript containing a Korean name and collects the Korean caption shown in the player. The live reference video still loaded its full 214-line Korean transcript. The video from the original report was not retested directly.
+
 ## Completed
 
 - [x] Initial product concept established.

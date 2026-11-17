@@ -12,6 +12,12 @@ describe('transcript cues', () => {
     expect(finishTranscript([{ start: 0, text: 'English only' }])).toEqual([]);
   });
 
+  it('preserves foreign phrases in a predominantly Korean transcript', () => {
+    const korean = { start: 0, text: '안녕하세요 오늘 날씨가 참 좋네요' };
+    const phrase = { start: 2, text: 'New York' };
+    expect(finishTranscript([phrase, korean])).toEqual([korean, phrase]);
+  });
+
   it('tracks playback across gaps and backward seeks', () => {
     const first = { start: 2, end: 3, text: '안녕' };
     const second = { start: 6, end: 9, text: '반가워요' };

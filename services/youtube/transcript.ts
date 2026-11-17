@@ -1,4 +1,4 @@
-import { hasKorean, normaliseCaptionText } from './captions';
+import { normaliseCaptionText } from './captions';
 
 export const OPEN_TRANSCRIPT = 'open-transcript';
 export const TRANSCRIPT_REQUEST = 'korean-reader-transcript-request';
@@ -22,9 +22,15 @@ export function transcriptCue(start: unknown, end: unknown, raw: string): Transc
 }
 
 export function finishTranscript(cues: TranscriptCue[]): TranscriptCue[] {
-  return cues.some(({ text }) => hasKorean(text))
-    ? cues.sort((a, b) => a.start - b.start)
-    : [];
+  // YouTube's default transcript can be English with occasional Korean names or quotes.
+  // Check the transcript as a whole so short foreign phrases in Korean captions stay intact.
+  let letters = 0;
+  let hangul = 0;
+  for (const { text } of cues) {
+    letters += text.match(/\p{L}/gu)?.length ?? 0;
+    hangul += text.match(/[\p{L}&&\p{Script=Hangul}]/gv)?.length ?? 0;
+  }
+  return hangul * 2 > letters ? cues.sort((a, b) => a.start - b.start) : [];
 }
 
 export function activeTranscriptCue(cues: readonly TranscriptCue[], time: number): TranscriptCue | undefined {

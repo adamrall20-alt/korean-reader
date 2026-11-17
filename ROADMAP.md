@@ -262,6 +262,14 @@ Tasks:
 
 Implementation and fixture verification are complete. See PROJECT_STATUS.md for live verification status.
 
+### Korean transcript language fix
+
+YouTube can serve an English transcript while the video player displays Korean captions. A single Korean name or phrase in the English response was enough for the sidebar to accept the entire transcript.
+
+- [x] Prefer Korean caption tracks and try the next Korean track if the first is unavailable.
+- [x] Request Korean from YouTube's transcript panel and select the Korean track when the transcript exposes a language menu.
+- [x] Check that most letters in the full transcript are Hangul. If that check fails, collect the Korean captions shown during playback.
+
 ## Future Enhancements
 
 These features are outside the initial development scope.

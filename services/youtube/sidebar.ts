@@ -3,7 +3,7 @@ import TranscriptSidebar from '@/components/TranscriptSidebar.vue';
 import sharedStyles from '@/assets/subtitle-overlay.css?inline';
 import sidebarStyles from '@/assets/transcript-sidebar.css?inline';
 import { DEFAULT_SUBTITLE_APPEARANCE, type InterfaceTheme, type SubtitleAppearance } from '@/types/preferences';
-import { findPlayer, findVideo, getYouTubeVideoId, isKoreanTrack } from './captions';
+import { findPlayer, findVideo, getYouTubeVideoId, hasKorean, isKoreanTrack } from './captions';
 import {
   activeTranscriptCue, collectTranscriptCue, finishTranscript, TRANSCRIPT_REQUEST, TRANSCRIPT_RESPONSE,
   transcriptCue, type TranscriptCue,
@@ -212,7 +212,7 @@ export function createTranscriptSidebar(prepareAudio: ReturnType<typeof createSu
     if (!requested || state.status === 'full' || snapshot.videoId !== state.videoId) return;
     if (findPlayer(document)?.classList.contains('ad-showing')) {
       liveCue = undefined;
-    } else if (snapshot.isKorean && snapshot.text && snapshot.timestamp !== null) {
+    } else if (hasKorean(snapshot.text) && snapshot.timestamp !== null) {
       const start = snapshot.audioTiming?.start ?? snapshot.timestamp;
       const cue = { start, end: snapshot.audioTiming?.end, text: snapshot.text, observedAt: snapshot.timestamp };
       const result = collectTranscriptCue(collected, cue);
