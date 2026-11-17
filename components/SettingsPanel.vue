@@ -74,31 +74,26 @@ const sections = [
     id: 'general',
     title: 'General',
     description: 'Extension behaviour, startup preferences and interface language.',
-    phase: 'Phase 7',
   },
   {
     id: 'dictionary',
     title: 'Dictionary',
     description: 'KRDict API key, lookup preferences and local dictionary cache controls.',
-    phase: 'Phase 3',
   },
   {
     id: 'anki',
     title: 'Anki',
     description: 'AnkiConnect connection, default deck and Kimchi Sentence Mining field mapping.',
-    phase: 'Phase 5',
   },
   {
     id: 'appearance',
     title: 'Appearance',
     description: 'Subtitle font size, overlay position and light or dark appearance.',
-    phase: 'Phase 7',
   },
   {
     id: 'storage',
     title: 'Storage',
     description: 'Local vocabulary storage, JSON export and cache management.',
-    phase: 'Phase 4',
   },
 ] as const;
 </script>
@@ -112,11 +107,6 @@ const sections = [
           <p class="text-sm font-semibold tracking-tight">Korean Reader</p>
           <p class="text-xs text-muted">Settings</p>
         </div>
-        <span
-          class="ml-auto rounded-full border border-white/10 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted"
-        >
-          Phases 2–3 complete
-        </span>
       </div>
     </header>
 
@@ -159,11 +149,6 @@ const sections = [
                   {{ section.description }}
                 </p>
               </div>
-              <span
-                class="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-muted"
-              >
-                {{ section.phase }}
-              </span>
             </div>
             <div v-if="section.id === 'dictionary'" class="mt-4 border-t border-white/10 pt-4">
               <label for="krdict-api-key" class="text-xs font-medium text-paper">

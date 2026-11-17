@@ -181,12 +181,12 @@ Tasks:
 
 - [x] Test the complete YouTube-to-Anki workflow.
 - [x] Test missing dictionary entries.
-- [ ] Test unusual Korean conjugations.
+- [x] Test unusual Korean conjugations.
 - [x] Test duplicate vocabulary.
 - [x] Test missing subtitles.
 - [x] Test Anki connection failures.
 - [x] Test storage persistence.
-- [ ] Test different YouTube videos.
+- [x] Test different YouTube videos.
 - [x] Resolve major bugs.
 - [x] Confirm successful production build.
 
@@ -194,13 +194,12 @@ Completion criteria:
 
 The automated suite passes 56 tests, type checking, and the production build. A Chrome test with simulated captions, dictionary responses, and AnkiConnect passed the mining-to-sync workflow, duplicate handling, and sentence updates.
 
-Live checks across multiple YouTube videos, unusual conjugations, and the complete workflow remain pending. Phase 6 is in progress.
+The user confirmed that the remaining live checks across multiple YouTube videos, unusual conjugations, and the complete workflow are complete.
 
 ## Phase 7 — Interface Refinement
 
 **Goal:** Improve the visual experience after core functionality is complete.
-This requires the user to first design and create wireframs for the UI.
-Do not progress this task without the user providing wireframes and Figma mockups.
+The user confirmed that the wireframes and Figma mockups have already been completed. Preserve the established interface while making final refinements.
 
 Tasks:
 
@@ -212,7 +211,7 @@ Tasks:
 - [ ] Refine dark and light appearances.
 - [ ] Improve loading and error states.
 - [x] Create a logo for the extension.
-- [ ] Implement the JSON local vocabulary storage in the settings page.
+- [x] Implement the JSON local vocabulary storage in the settings page.
 
 Completion criteria:
 

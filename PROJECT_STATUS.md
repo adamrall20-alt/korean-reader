@@ -2,8 +2,8 @@
 
 ## Current Project State
 
-**Status:** Phase 5 implemented and verified in Chrome with a loopback AnkiConnect fixture
-**Current Phase:** Phase 6 — Reliability and Testing
+**Status:** Phase 6 complete; interface refinement in progress
+**Current Phase:** Phase 7 — Interface Refinement
 **Last Updated:** 16 November 2026
 
 ## Completed
@@ -74,15 +74,11 @@ The user confirmed the Phase 2–3 workflow on a live YouTube video, including o
 
 ## In Progress
 
-- [ ] Verify Phase 5 against the user’s AnkiConnect configuration, collection and existing card templates.
+- [ ] Refine the existing interface while preserving its established design.
 
 ## Not Started
 
-### Phase 6 — Reliability and Testing
-
-Not started.
-
-### Phase 7 — Interface Refinement
+### Phase 8 — Additional Features
 
 Not started.
 
@@ -192,7 +188,7 @@ Last run: 16 November 2026
 - Captions must be enabled in YouTube's player for extraction to work. The extension does not force captions on.
 - KRDict homonyms sharing the same headword are resolved in dictionary order.
 - Phase 3 requires the user's KRDict API key before definitions can be retrieved.
-- Chrome loopback access passed against a fixture. AnkiConnect permissions and the existing card templates still need a live check.
+- Chrome loopback access passed against a fixture; the user confirmed the Anki integration and card templates during Phase 5.
 
 ## Pending Investigation
 
@@ -208,14 +204,14 @@ Phase 1 is complete and verified in Chrome. Korean captions are replaced by the 
 
 The production build is at `.output/chrome-mv3`. See `README.md` for setup, testing and manual verification instructions.
 
-Phase 6 is the next milestone and requires user approval.
+Phase 6 is complete according to the user. Phase 7 is now in progress; the user confirmed the wireframes and Figma mockups were completed previously.
 
 
 ## Phase 6 verification — 16 November 2026
 
 The user confirmed Phase 5 is complete. The automated suite passed 56 tests, type checking passed, and the production extension built successfully. Additional tests cover a missing dictionary entry and a KRDict HTTP failure. A Chrome test with simulated captions, dictionary responses and AnkiConnect passed mining, sync, duplicate handling, adding a sentence and saving the Anki note ID.
 
-Live testing across multiple YouTube videos, unusual conjugations and the complete workflow remains to be verified. The automated Chrome check uses simulated services and does not establish those live results. No new failures were found in the checks run.
+The automated Chrome check used simulated services. The user subsequently confirmed that live testing across multiple YouTube videos, unusual conjugations and the complete workflow was completed.
 
 A Phase 6 follow-up fixed auto-generated captions that could update faster than word analysis completed. The reader now groups YouTube roll-up fragments into short phrases, keeps the latest phrase waiting for analysis, and hides the native roll-up once the interactive overlay renders. All 58 tests passed. Chrome fixture checks passed for both rolling and predefined captions, including underlines, lookup, mining, and simulated Anki sync. The reported YouTube video (`KTIByn_rIWM`) passed a live retest after reloading the unpacked extension and refreshing the video tab. Around 1:04 the auto-generated caption rendered as a grouped phrase with underlined word buttons, and clicking 보통 returned a KRDict definition.
 
@@ -224,4 +220,9 @@ A Phase 6 follow-up fixed auto-generated captions that could update faster than 
 
 The toolbar popup now shows the supplied penguin logo and star background, Anki connection controls, and known and new word counts. Known counts mined entries found in Anki; new counts mined entries not found in Anki. Both counts require a configured connection and show a dash when unavailable. Vocabulary management and JSON export, along with Anki connection and deck configuration, are available in Settings. Sync remains an explicit action.
 
-Automated verification: 58 tests passed, type checking passed, and the production build succeeded. Visual verification in Chrome remains pending. Phase 6 live reliability checks remain outstanding; this targeted refinement does not mark Phase 7 complete.
+Automated verification: 58 tests passed, type checking passed, and the production build succeeded. Visual verification in Chrome remains pending. The user subsequently confirmed the Phase 6 live reliability checks were completed; this targeted refinement does not mark Phase 7 complete.
+
+
+## Phase 7 — 17 November 2026
+
+The user confirmed the wireframes and Figma mockups, local vocabulary storage and JSON export, and remaining Phase 6 checks are complete. Interface refinement is in progress. The initial polish removes outdated development-phase badges from Settings and adds a consistent keyboard-focus indicator while preserving the existing visual design. All 58 automated tests, type checking and the production build passed; visual verification in Chrome remains pending.
