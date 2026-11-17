@@ -200,3 +200,7 @@ The initial interface should be functional rather than visually elaborate.
 Use the established visual language consistently, but prioritise working interactions and usability.
 
 Visual refinements can be introduced after core functionality is reliable.
+
+## Toolbar popup refinement
+
+The toolbar popup presents Anki connection status, counts of mined words already found in Anki and new mined words not yet found there, and an explicit sync button. Counts are unavailable until Anki is connected and configured. Vocabulary management and JSON export are in Settings, as are Anki connection, deck, note type and field mapping controls. The supplied penguin is the header logo and the supplied star pattern is a subtle popup background.

@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ANKI_DEFAULT_FIELDS, DEFAULT_ANKI_SETTINGS } from '@/types/anki';
 import MiningPanel from '@/components/MiningPanel.vue';
+import VocabularyManager from '@/components/VocabularyManager.vue';
 
 const { sendMessage } = vi.hoisted(() => ({
   sendMessage: vi.fn(),
@@ -11,6 +12,7 @@ vi.mock('wxt/browser', () => ({
   browser: {
     runtime: {
       sendMessage,
+      getManifest: () => ({ version: '0.1.0' }),
     },
   },
 }));
@@ -20,13 +22,12 @@ describe('MiningPanel', () => {
     sendMessage.mockReset();
   });
 
-  it('keeps the vocabulary list collapsed and shows the new-word counter', () => {
+  it('shows counters and keeps management and configuration out of the popup', () => {
     const wrapper = mount(MiningPanel);
-    expect(wrapper.get('summary').text()).toBe('Connection settings');
-    const management = wrapper.findAll('details').find((details) => details.text().includes('Manage vocabulary'))!;
-    expect(management.attributes('open')).toBeUndefined();
-    expect(wrapper.text()).toContain('New unsynced words');
-    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(0);
+    expect(wrapper.text()).toContain('Known words');
+    expect(wrapper.text()).toContain('New words');
+    expect(wrapper.text()).not.toContain('Manage vocabulary');
+    expect(wrapper.text()).not.toContain('Connection settings');
   });
 
   it('uses the Anki count and sends saved translations on explicit sync', async () => {
@@ -62,7 +63,7 @@ describe('MiningPanel', () => {
     try {
       const wrapper = mount(MiningPanel);
       await flushPromises();
-      expect(wrapper.get('.tabular-nums').text()).toBe('1');
+      expect(wrapper.findAll('.tabular-nums').map((item) => item.text())).toEqual(['0', '1']);
       expect(translate).not.toHaveBeenCalled();
       const sync = wrapper.findAll('button').find((button) => button.text() === 'Sync to Anki')!;
       await sync.trigger('click');
@@ -72,7 +73,7 @@ describe('MiningPanel', () => {
         settings,
         translations: [{ headword: '먹다', korean: ['밥을 먹는 행동.'], english: ['The act of eating.'] }],
       });
-      expect(wrapper.get('.tabular-nums').text()).toBe('0');
+      expect(wrapper.findAll('.tabular-nums').map((item) => item.text())).toEqual(['1', '0']);
       expect(wrapper.text()).toContain('1 created');
       expect(dismiss).toHaveBeenCalledOnce();
     } finally {
@@ -107,7 +108,7 @@ describe('MiningPanel', () => {
       return { ok: true, entries: [entry] };
     });
 
-    const wrapper = mount(MiningPanel);
+    const wrapper = mount(VocabularyManager);
     await flushPromises();
     expect(wrapper.text()).toContain('to eat');
 

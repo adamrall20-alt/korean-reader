@@ -199,7 +199,7 @@ onMounted(() => {
       </button>
     </div>
 
-    <details :open="vocabulary === undefined">
+    <details v-if="vocabulary === undefined" open>
       <summary class="cursor-pointer text-xs text-muted">Connection settings</summary>
       <fieldset :disabled="busy" class="mt-2 grid gap-2">
         <label class="grid gap-1 text-xs">
@@ -214,7 +214,7 @@ onMounted(() => {
       </fieldset>
     </details>
 
-    <details v-if="connected" :open="deckSettingsOpen" @toggle="deckSettingsOpen = ($event.target as HTMLDetailsElement).open">
+    <details v-if="connected && vocabulary === undefined" :open="deckSettingsOpen" @toggle="deckSettingsOpen = ($event.target as HTMLDetailsElement).open">
       <summary class="cursor-pointer text-xs text-muted">
         {{ settings.deckName || 'Deck and note type' }}
       </summary>
@@ -253,11 +253,11 @@ onMounted(() => {
     </details>
 
     <div v-if="vocabulary" class="rounded-xl bg-ink-soft p-3">
-      <p class="text-xs text-muted">New unsynced words</p>
-      <p class="text-2xl font-semibold tabular-nums" aria-live="polite">
-        {{ unsynced ?? '—' }}
-      </p>
-      <p v-if="!configured" class="mt-1 text-xs text-muted">Connect Anki and choose a deck to check.</p>
+      <div class="grid grid-cols-2 gap-3" aria-live="polite">
+        <div><p class="text-xs text-muted">Known words</p><p class="text-2xl font-semibold tabular-nums">{{ unsynced === undefined ? '—' : vocabulary.length - unsynced }}</p></div>
+        <div><p class="text-xs text-muted">New words</p><p class="text-2xl font-semibold tabular-nums">{{ unsynced ?? '—' }}</p></div>
+      </div>
+      <p v-if="!configured" class="mt-1 text-xs text-muted">Connect Anki and configure a deck in Settings to check.</p>
       <p v-else-if="countError" class="mt-1 text-xs text-red-300">Could not check Anki. Refresh the connection to retry.</p>
       <button
         type="button"

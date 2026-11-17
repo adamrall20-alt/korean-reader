@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import VocabularyManager from '@/components/VocabularyManager.vue';
 import AnkiPanel from '@/components/AnkiPanel.vue';
 import { onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
@@ -143,8 +144,7 @@ const sections = [
         <div class="mb-6">
           <h1 class="text-2xl font-semibold tracking-tight">Settings</h1>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            The settings shell is in place. Each category will be connected to local storage as
-            its feature is implemented.
+            Manage dictionary, Anki and locally saved vocabulary settings.
           </p>
         </div>
 
@@ -207,6 +207,7 @@ const sections = [
               </button>
             </div>
             <AnkiPanel v-else-if="section.id === 'anki'" class="mt-4 border-t border-white/10 pt-4" />
+            <VocabularyManager v-else-if="section.id === 'storage'" class="mt-4 border-t border-white/10 pt-4" />
             <p v-else class="mt-4 border-t border-white/10 pt-4 text-xs text-muted">
               This section is a placeholder and does not save any settings yet.
             </p>

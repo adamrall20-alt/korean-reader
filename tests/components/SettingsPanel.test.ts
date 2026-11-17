@@ -25,7 +25,7 @@ describe('SettingsPanel', () => {
       node.text().includes('placeholder'),
     );
 
-    expect(placeholders).toHaveLength(3);
+    expect(placeholders).toHaveLength(2);
     expect(wrapper.find('#krdict-api-key').exists()).toBe(true);
     expect(wrapper.get('#anki').text()).toContain('Connect Anki');
   });

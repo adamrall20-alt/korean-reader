@@ -218,3 +218,10 @@ The user confirmed Phase 5 is complete. The automated suite passed 56 tests, typ
 Live testing across multiple YouTube videos, unusual conjugations and the complete workflow remains to be verified. The automated Chrome check uses simulated services and does not establish those live results. No new failures were found in the checks run.
 
 A Phase 6 follow-up fixed auto-generated captions that could update faster than word analysis completed. The reader now groups YouTube roll-up fragments into short phrases, keeps the latest phrase waiting for analysis, and hides the native roll-up once the interactive overlay renders. All 58 tests passed. Chrome fixture checks passed for both rolling and predefined captions, including underlines, lookup, mining, and simulated Anki sync. The reported YouTube video (`KTIByn_rIWM`) passed a live retest after reloading the unpacked extension and refreshing the video tab. Around 1:04 the auto-generated caption rendered as a grouped phrase with underlined word buttons, and clicking 보통 returned a KRDict definition.
+
+
+## Popup refinement — 17 November 2026
+
+The toolbar popup now shows the supplied penguin logo and star background, Anki connection controls, and known and new word counts. Known counts mined entries found in Anki; new counts mined entries not found in Anki. Both counts require a configured connection and show a dash when unavailable. Vocabulary management and JSON export, along with Anki connection and deck configuration, are available in Settings. Sync remains an explicit action.
+
+Automated verification: 58 tests passed, type checking passed, and the production build succeeded. Visual verification in Chrome remains pending. Phase 6 live reliability checks remain outstanding; this targeted refinement does not mark Phase 7 complete.
