@@ -1,6 +1,6 @@
 # Anki Integration — Korean Reader
 
-Phase 5 syncs mined vocabulary to Anki Desktop through AnkiConnect. The Chrome extension has been verified against a loopback AnkiConnect fixture. Live verification of the user's note type and card rendering remains pending.
+The extension syncs mined vocabulary to Anki Desktop through AnkiConnect. Connection, field mapping, duplicate handling, sentence updates, image/audio attachment and known-word import are implemented. The user confirmed the Phase 5 workflow and imported approximately 6,000 known words. Live verification of Phase 8 audio playback in the user's card template remains pending; see [PROJECT_STATUS.md](../PROJECT_STATUS.md).
 
 ## Setup
 

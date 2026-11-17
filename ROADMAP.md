@@ -138,7 +138,7 @@ Tasks:
 
 Completion criteria:
 
-Words can be explicitly mined and retrieved from persistent local storage. The Chrome fixture test passed. Live user acceptance is pending.
+Words can be explicitly mined and retrieved from persistent local storage. The user confirmed live use; see PROJECT_STATUS.md for dated verification.
 
 ## Phase 5 — AnkiConnect Integration
 
@@ -165,13 +165,13 @@ Tasks:
 - [x] Handle connection failures.
 - [x] Retrieve and verify Kimchi Sentence Mining note type fields.
 - [x] Implement Kimchi Sentence Mining field mapping.
-- [x] Populate required fields; leave Image and Audio empty until capture is implemented.
+- [x] Populate mapped fields, including optional captured image and audio when available.
 - [x] Verify compatibility with the user’s existing card templates in Anki.
 - [x] Test front and back card rendering in Anki.
 
 Completion criteria:
 
-The user confirmed Phase 5 is complete.
+The user confirmed Phase 5 is complete. Later Phase 8 work extended the same integration with media, known-word imports and safer duplicate handling.
 
 ## Phase 6 — Reliability and Testing
 
@@ -217,18 +217,19 @@ Completion criteria:
 
 The interface feels consistent, polished and comfortable to use.
 
-## Phase 8 — Additional Features
-**Goal:** Implement additional features that enhance the user experience.
-Create complete flashcards with audio and images, and allow users to capture screenshots and audio from YouTube videos.
+## Phase 8 — Additional Features (current)
+**Goal:** Extend the established workflow with richer Anki cards and imports.
 
 Tasks:
 
 - [x] Move Anki deck configuration and field mapping to the Settings page.
 - [x] Screenshot capture for Anki cards.
-- [x] Subtitle audio capture and Anki attachment (implemented, live verification pending).
+- [x] Subtitle audio capture and Anki attachment (isolated Chrome verification passed; live YouTube and note-template playback verification pending).
 - [x] Import known words from an Anki deck through AnkiConnect in Settings.
 - [x] Fix word checking against common conjugations, prefering the noun over the verb when both are valid dictionary entries.
-- [x] For words with multiple dictionary entries, allow the user to select which definitions to mine and sync to Anki.
+- [x] For words with multiple dictionary definitions, allow the user to select which definitions to mine and sync to Anki (live verification pending).
+
+Phase 8 is in progress. The remaining items are live verification of captured audio on YouTube and in the user's Anki card template, live verification of the Kimchi Reader CSV import, and live verification of definition selection. See PROJECT_STATUS.md for current details.
 
 ## Future Enhancements
 

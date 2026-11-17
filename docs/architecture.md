@@ -1,10 +1,32 @@
 # Architecture — Korean Reader
 
+## Plain-English overview
+
+Korean Reader is a Chrome extension that turns Korean YouTube subtitles into a vocabulary workflow. The extension reads the caption text YouTube is already showing, analyzes the Korean locally, and places an interactive subtitle layer over the video. Clicking a word asks the dictionary service for an entry; choosing **Mine Word** saves the selected meaning, sentence, video details, and available media. The user can later review the local vocabulary and explicitly send it to Anki.
+
+The extension is split into three parts. The YouTube page part watches captions and displays the subtitle and dictionary interfaces. The background part coordinates work, runs Korean analysis, accesses local storage, and makes external requests. The popup and Settings pages let the user manage vocabulary, keys, imports, and Anki settings. They communicate through typed extension messages so each part has a clear job.
+
+| System | What it does | Why it is used |
+|---|---|---|
+| Chrome Manifest V3 + WXT | Packages the extension, its page scripts, background worker and settings pages. | WXT provides a structured build workflow while Manifest V3 is Chrome's extension platform. |
+| Vue 3 + TypeScript | Builds the interactive subtitle, popup and Settings interfaces. | Vue handles changing UI state; TypeScript makes message and data shapes clearer and safer to maintain. |
+| Tailwind CSS | Styles the extension interfaces. | Shared utility styling keeps the compact interfaces consistent without a separate styling framework. |
+| Kiwi WebAssembly + bundled model | Splits Korean text into words and identifies dictionary forms locally in the background worker. | Korean grammar needs morphological analysis; bundling the runtime and model avoids sending subtitle text to a processing service and complies with MV3's no-remote-code rule. |
+| KRDict API | Supplies Korean dictionary entries and details. | It provides the project's selected Korean-English dictionary. The user supplies the key, stored locally; only lookup terms are sent. |
+| IndexedDB | Stores vocabulary, dictionary cache, sentences, screenshots and audio clips. | It supports larger structured local records and keeps the user's collection on their device. |
+| `chrome.storage.local` | Stores settings such as the KRDict key and Anki configuration. | It is the browser's built-in local store for extension settings. |
+| AnkiConnect | Sends notes and media to Anki Desktop and imports known words from a selected deck. | It reuses the user's existing Anki note type and local collection; review scheduling stays in Anki. |
+| Vitest + Vue Test Utils + jsdom | Tests services and UI components. | They provide fast automated checks without requiring a browser for every change. Chrome fixture checks cover extension flows where browser behavior matters. |
+
+The background service worker is the single owner of the extension's stored data and network calls. It can stop when idle under Manifest V3, so operations are message-driven and the worker wakes when needed. Dictionary lookups contact KRDict; AnkiConnect calls go to the local Anki Desktop endpoint. There is no Korean Reader cloud account or backend.
+
+Current status is Phase 8. Screenshot/audio capture, Anki known-word imports and definition selection are implemented; their remaining live checks are listed in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
+
 ## 1. Purpose
 
 Korean Reader is a personal Chrome Manifest V3 extension for learning Korean from YouTube. This document records the runtime structure and the decisions that must remain consistent as features are added.
 
-Phase 0 implements the foundation. Phase 1 implements YouTube caption extraction and the custom subtitle overlay. Phases 2 and 3 implement interactive words, dictionary lookup and local dictionary caching. Phase 4 adds local vocabulary mining and management. Phase 5 adds selected-word sync through a loopback AnkiConnect endpoint.
+The project has completed Phases 0–7 and is working through Phase 8 additions. The extension now covers YouTube caption extraction, interactive words, dictionary lookup, local vocabulary management and Anki sync, with screenshot/audio capture, import tools and selectable definitions added in Phase 8. Remaining live checks are tracked in PROJECT_STATUS.md.
 
 ## 2. Runtime Components
 

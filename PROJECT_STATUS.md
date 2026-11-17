@@ -2,7 +2,7 @@
 
 ## Current Project State
 
-**Status:** Phase 8 definition selection implemented
+**Status:** Phase 8 implemented; live verification remains for several additions
 **Current Phase:** Phase 8 — Additional Features
 **Last Updated:** 17 November 2026
 
@@ -72,15 +72,12 @@
 
 The user confirmed the Phase 2–3 workflow on a live YouTube video, including on-device definition translation.
 
-## In Progress
+## In Progress / Verification Remaining
 
-- [ ] Refine the existing interface while preserving its established design.
-
-## Not Started
-
-### Remaining Phase 8 features
-
-Screenshot and subtitle audio capture are implemented. Live verification of audio playback on the Kimchi Sentence Mining note type is pending.
+- Live verification of subtitle audio capture and playback in the user's Kimchi Sentence Mining Anki note type.
+- Live verification of the Kimchi Reader status CSV import.
+- Live verification of selectable definition mining.
+- Interface refinement while preserving the established design; visual verification of the latest refinements is pending.
 
 ## Phase 8 known word import — 17 November 2026
 
@@ -157,11 +154,11 @@ Verified by the user in Chrome on 16 November 2026:
 
 ## Automated Verification
 
-Last run: 16 November 2026
+Latest dated automated verification recorded: 17 November 2026. Counts below are historical checkpoints, not a single combined run; see the dated Phase 8 entries for the latest feature-specific results.
 
 | Check | Command | Result |
 |---|---|---|
-| Unit/component tests | `npm run test:run` | Pass — 12 files, 56 tests |
+| Unit/component tests | `npm run test:run` | Pass — latest recorded feature verification: 71 tests; earlier checkpoints are listed in dated entries |
 | Headless Chrome smoke test | Temporary unpacked build and KRDict fixtures | Pass — bundled Kiwi, local key settings, exact lookup, pronunciation, cache reuse and clearing |
 | Phase 4 Chrome fixture test | Unpacked extension with fixture captions and KRDict | Pass — explicit save, source metadata, duplicate handling, additional sentences, schema upgrade, cache isolation, status, edits, deletion and JSON export |
 | Phase 5 Chrome fixture test | Unpacked extension with a loopback mock AnkiConnect server | Pass — connection, default settings, explicit sync, creation, duplicate skip, added sentence, and saved note ID |
@@ -201,8 +198,9 @@ Last run: 16 November 2026
 - YouTube usually leaves `video.textTracks` empty for its custom caption renderer. Korean detection therefore relies mainly on the rendered caption text; track metadata is used when it is present.
 - Captions must be enabled in YouTube's player for extraction to work. The extension does not force captions on.
 - KRDict lookup collects matching homonym definitions from its first search page; pronunciation, part of speech and optional details come from the first matching entry.
-- Phase 3 requires the user's KRDict API key before definitions can be retrieved.
-- Chrome loopback access passed against a fixture; the user confirmed the Anki integration and card templates during Phase 5.
+- A KRDict API key is required before live dictionary definitions can be retrieved.
+- Audio capture uses estimated boundaries for rendered and rolling captions; live YouTube timing and playback in the user's Anki template remain to be verified.
+- Live verification of Kimchi Reader CSV import and definition selection remains pending.
 
 ## Pending Investigation
 
@@ -218,7 +216,7 @@ Phase 1 is complete and verified in Chrome. Korean captions are replaced by the 
 
 The production build is at `.output/chrome-mv3`. See `README.md` for setup, testing and manual verification instructions.
 
-Phase 6 is complete according to the user. Phase 7 is now in progress; the user confirmed the wireframes and Figma mockups were completed previously.
+Phase 6 is complete according to the user. Phase 7 interface refinement and Phase 8 additional features have been implemented; the remaining live checks are listed at the top of this document.
 
 
 ## Phase 6 verification — 16 November 2026

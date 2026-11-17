@@ -2,9 +2,9 @@
 
 ## 1. Architecture Overview
 
-Korean Reader will be a locally operated Google Chrome extension.
+Korean Reader is a locally operated Google Chrome extension.
 
-The application should avoid requiring a remote backend or cloud database.
+It has no remote backend or cloud database. It uses KRDict for dictionary data and connects to the user's local Anki Desktop through AnkiConnect.
 
 Its main responsibilities are:
 
@@ -129,7 +129,7 @@ Consider WebAssembly or a lightweight local processing service.
 
 Do not assume the native Kiwi library can execute directly inside a Chrome extension.
 
-Chrome Manifest V3 forbids loading remote code, so any Kiwi build must be bundled with the extension. A short feasibility spike is required before Phase 2 to determine whether bundled Kiwi WebAssembly is practical, what CSP changes it needs, and how large it makes the extension. If it is not practical, present the alternatives and trade-offs before changing the stack.
+Chrome Manifest V3 forbids loading remote code, so Kiwi 0.24.1 is bundled as WebAssembly with local model assets and runs in the background worker. Feasibility was verified in Chrome. This keeps analysis local but makes the production bundle large (about 115 MB before zip compression).
 
 ## 5. Dictionary Integration
 
@@ -239,7 +239,7 @@ Implement configurable field mapping if necessary.
 | Definition | English dictionary definition |
 | Pronunciation | Dictionary pronunciation |
 | Image | Video frame saved locally when mining; uploaded to Anki when synchronising |
-| Audio | Empty until audio capture is implemented |
+| Audio | Captured subtitle audio where available; existing non-empty fields are preserved |
 
 #### Duplicate Detection
 

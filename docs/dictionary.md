@@ -2,8 +2,7 @@
 
 ## Status
 
-Phase 3 lookup, popup functionality, dictionary-form matching and caching are implemented.
-Phase 4 adds the explicit mining action. Dictionary metadata and any completed machine translation can be saved with the selected subtitle context.
+Dictionary lookup, popup functionality, dictionary-form matching and caching are implemented. Vocabulary mining saves selected definition(s) with the subtitle context. Definition selection was added in Phase 8; its live verification remains pending.
 
 ## Source
 

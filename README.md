@@ -13,7 +13,7 @@ The long-term workflow is:
 
 ## Current Status
 
-**Phase 5 — AnkiConnect sync is implemented and fixture-tested.**
+**Current phase: Phase 8 — Additional Features.** Core subtitle reading, dictionary lookup, vocabulary mining, Anki sync, known-word imports, screenshot/audio capture, and selectable definitions are implemented. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verification details and remaining checks.
 
 Implemented:
 
@@ -41,14 +41,15 @@ Implemented:
 - Explicit **Mine Word** and **Save Sentence** actions in the dictionary popup.
 - Local vocabulary management with search, date sorting, known status, definition edits, deletion, and JSON export.
 - Direct Settings shortcut in the toolbar popup.
-- Component tests, type checking and a production build.
+- Screenshot capture for Anki notes, where browser video access permits.
+- Subtitle audio capture and Anki media attachment, with live YouTube and card playback checks still pending.
+- Import of known words from Anki decks and Kimchi Reader status CSV files.
+- Selectable dictionary definitions when mining.
+- Component tests, type checking and production builds (see the dated verification log in PROJECT_STATUS.md).
 
 - AnkiConnect with deck and note type selection, configurable field mapping, and one-click sync for newly mined words, with a live unsynced count.
 
-The user verified Phases 2–3 on live YouTube. Phase 4 passed in headless Chrome using
-fixture captions and KRDict responses. A KRDict API key in Settings is needed for a
-live lookup. Phase 5 passed a Chrome loopback test with mock AnkiConnect responses.
-See [Anki setup](docs/anki-integration.md) for connecting to your collection.
+Live user checks have confirmed key workflows, including live lookup, mining and a large Anki known-word import. Some Phase 8 media and CSV-import checks remain pending. A KRDict API key is needed for live dictionary lookups. See [Anki setup](docs/anki-integration.md) for connecting to your collection and [plain-English architecture](docs/architecture.md) for how the system works.
 
 ## Project Structure
 
@@ -122,8 +123,7 @@ korean-reader/
 - npm.
 - Google Chrome desktop.
 
-Anki Desktop and AnkiConnect will be needed for Phase 5. A KRDict API key is needed for
-Phase 3 and is stored locally in the extension settings.
+Anki Desktop with AnkiConnect is needed for synchronisation and Anki imports. A KRDict API key is needed for dictionary lookups and is stored locally in extension settings.
 
 ## Install
 
@@ -191,9 +191,9 @@ Current automated result:
 
 | Check | Result |
 |---|---|
-| `npm run test:run` | 12 test files, 54 tests passing |
-| `npm run compile` | Passing |
-| `npm run build` | Passing |
+| `npm run test:run` | See the latest dated entry in PROJECT_STATUS.md |
+| `npm run compile` | See the latest dated entry in PROJECT_STATUS.md |
+| `npm run build` | See the latest dated entry in PROJECT_STATUS.md |
 
 ## Manual Verification Checklist
 
@@ -289,8 +289,9 @@ Captions must be enabled for extraction to work; the extension does not turn the
 - `ROADMAP.md` — implementation order and task tracking.
 - `PROJECT_STATUS.md` — current status and known issues.
 - `docs/architecture.md` — runtime architecture and data ownership.
-- `docs/dictionary.md` — planned KRDict integration.
+- `docs/dictionary.md` — KRDict lookup and caching behaviour.
 - `docs/anki-integration.md` — AnkiConnect setup, note mapping, and sync behaviour.
+- `docs/interview-questions.md` — interview-style questions about the product and its engineering.
 
 ## Privacy
 
