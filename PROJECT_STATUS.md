@@ -78,9 +78,15 @@ The user confirmed the Phase 2–3 workflow on a live YouTube video, including o
 
 ## Not Started
 
-### Phase 8 — Additional Features
+### Remaining Phase 8 features
 
-Not started.
+Screenshot capture, audio capture, and known-word import are pending.
+
+## Phase 8 lookup refinement — 17 November 2026
+
+When Kiwi identifies a noun plus 이다, clicking the subtitle word looks up the noun first if 이다 is already known and the noun is still unknown. For example, 학생이에요 opens 학생 and keeps 학생이에요 as the original form. The subtitle remains underlined until both headwords are known.
+
+Verified with the bundled Kiwi model for 학생이에요, 의사예요 and 학생입니다. Automated tests, type checking and the Chrome production build passed. Live YouTube verification is pending.
 
 ## Phase 0 Checklist
 

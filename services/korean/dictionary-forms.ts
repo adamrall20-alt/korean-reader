@@ -1,6 +1,32 @@
 import type { KoreanMorpheme, SubtitleToken } from '@/types/messages';
 
-export function dictionaryCandidates(word: string, morphemes: KoreanMorpheme[]): string[] {
+export function nominalCopulaHeadwords(morphemes: KoreanMorpheme[]) {
+  const lexicalMorphemes = morphemes.filter(({ tag }) => !tag.startsWith('E'));
+  const copula = lexicalMorphemes.at(-1);
+  const nominal = lexicalMorphemes.slice(0, -1);
+  if (copula?.tag !== 'VCP' || !nominal.length ||
+    !nominal.every(({ tag }) => /^(NN|NP|NR)/u.test(tag))) return undefined;
+
+  return {
+    nominal: nominal.map(({ text }) => text).join('').normalize('NFC'),
+    copula: `${copula.text}다`.normalize('NFC'),
+  };
+}
+
+export function dictionaryCandidates(
+  word: string,
+  morphemes: KoreanMorpheme[],
+  known: ReadonlySet<string> = new Set(),
+): string[] {
+  const headwords = nominalCopulaHeadwords(morphemes);
+  if (headwords) {
+    const { copula, nominal } = headwords;
+    const ordered = known.has(copula) && !known.has(nominal)
+      ? [nominal, copula]
+      : [copula, nominal];
+    return [...new Set([...ordered, word.trim().normalize('NFC')])];
+  }
+
   const lexicalMorphemes = morphemes.filter((morpheme) =>
     /^(NN|NP|NR|VV|VA|VX|VCP|VCN|XR|XSV|XSA)/u.test(morpheme.tag),
   );
@@ -25,6 +51,9 @@ export function dictionaryCandidates(word: string, morphemes: KoreanMorpheme[]):
 
 export function isKnownSubtitleWord(token: SubtitleToken, known: ReadonlySet<string>): boolean {
   if (!known.size) return false;
+
+  const headwords = nominalCopulaHeadwords(token.morphemes);
+  if (headwords) return known.has(headwords.nominal) && known.has(headwords.copula);
 
   const surface = token.text.normalize('NFC');
   const [preferredForm] = dictionaryCandidates(surface, token.morphemes);

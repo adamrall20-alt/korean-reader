@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tokenizeSubtitleLine } from '@/services/korean/tokenizer';
+import { dictionaryCandidates } from '@/services/korean/dictionary-forms';
 import type { TokenInfo } from 'kiwi-nlp';
 
 function morpheme(
@@ -47,6 +48,19 @@ describe('Korean subtitle tokenization', () => {
       ['있어요', true],
       ['.', false],
     ]);
+  });
+
+  it('preserves the implicit copula in 의사예요 for dictionary lookup', () => {
+    const { tokens } = tokenizeSubtitleLine('의사예요', [
+      morpheme('의사', 0, 2, 'NNG'),
+      morpheme('이', 2, 0, 'VCP'),
+      morpheme('예요', 2, 2, 'EF'),
+    ], 0);
+
+    expect(tokens).toHaveLength(1);
+    const token = tokens[0]!;
+    expect(dictionaryCandidates(token.text, token.morphemes, new Set(['이다'])))
+      .toEqual(['의사', '이다', '의사예요']);
   });
 
   it('keeps punctuation and non-Korean text non-clickable', () => {

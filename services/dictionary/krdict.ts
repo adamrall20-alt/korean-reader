@@ -147,8 +147,9 @@ export async function lookupKoreanWord(
   word: string,
   morphemes: KoreanMorpheme[],
   apiKey: string,
+  known?: ReadonlySet<string>,
 ): Promise<DictionaryEntry> {
-  const candidates = dictionaryCandidates(word, morphemes);
+  const candidates = dictionaryCandidates(word, morphemes, known);
   const cacheKey = JSON.stringify(['exact-v3', ...candidates]);
 
   try {

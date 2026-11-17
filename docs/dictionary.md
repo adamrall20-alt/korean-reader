@@ -28,7 +28,7 @@ The user has obtained a KRDict API key.
 
 1. The content script sends the selected Korean word and Kiwi morphemes to the background.
 2. The background reads the locally stored KRDict API key.
-3. The background builds normalized lookup candidates, preferring the Kiwi dictionary form for predicates.
+3. The background builds normalized lookup candidates, preferring the Kiwi dictionary form for predicates. When Kiwi identifies a noun and the copula 이다 in one subtitle word, the background checks their local known status. If 이다 is known and the noun is still unknown, it searches for the noun first. The original subtitle form is kept, and the red underline remains until both headwords are known.
 4. It checks IndexedDB for the resolved entry for that candidate list, then makes exact headword searches as needed.
 5. For a matching search result with a target code, it requests English translations, pronunciation, conjugations, Hanja and examples from the entry endpoint. Search definitions remain usable if the details request fails.
 6. The worker normalizes the XML, caches the resolved entry and returns it to the popup.

@@ -1,14 +1,27 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-const { listeners } = vi.hoisted(() => ({
+const { listeners, getVocabulary } = vi.hoisted(() => ({
+  getVocabulary: vi.fn(),
   listeners: {
     installed: [] as Array<(...args: unknown[]) => void>,
     message: [] as Array<(...args: unknown[]) => boolean | undefined>,
   },
 }));
 
+vi.mock('@/services/storage/vocabulary', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/services/storage/vocabulary')>(),
+  getVocabulary,
+}));
+
+vi.mock('@/services/dictionary/cache', () => ({
+  getCachedDictionaryEntry: vi.fn(),
+  cacheDictionaryEntry: vi.fn(),
+  clearDictionaryCache: vi.fn(),
+}));
+
 vi.mock('wxt/browser', () => ({
   browser: {
+    storage: { local: { get: async () => ({ krDictApiKey: 'test-key' }) } },
     runtime: {
       getURL: (path: string) => `chrome-extension://test${path}`,
       getManifest: () => ({ version: '0.1.0' }),
@@ -27,6 +40,10 @@ vi.mock('wxt/browser', () => ({
 }));
 
 describe('background entrypoint', () => {
+  afterEach(() => {
+    getVocabulary.mockReset();
+    vi.restoreAllMocks();
+  });
   beforeAll(async () => {
     vi.spyOn(console, 'info').mockImplementation(() => {});
     vi.stubGlobal('defineBackground', (main: () => void) => main());
@@ -65,4 +82,36 @@ describe('background entrypoint', () => {
     expect(sendResponse).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['known', '학생'],
+    ['unknown', '이다'],
+    ['unavailable', '이다'],
+  ])('looks up %s copula constructions using the saved status', async (status, expectedHeadword) => {
+    getVocabulary.mockImplementation(async (headword: string) => {
+      if (status === 'unavailable') throw new Error('Storage unavailable');
+      return headword === '이다' ? { status, contexts: [] } : undefined;
+    });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(`<channel><item><word>${expectedHeadword}</word><sense><definition>definition</definition></sense></item></channel>`),
+    );
+    const message = {
+      type: 'lookup',
+      word: '학생이에요',
+      morphemes: [
+        { text: '학생', tag: 'NNG' },
+        { text: '이', tag: 'VCP' },
+        { text: '에요', tag: 'EF' },
+      ],
+    };
+    const response = await new Promise((resolve) => {
+      listeners.message[0]!(message, { url: 'https://www.youtube.com/watch?v=abcdefghijk' }, resolve);
+    });
+
+    expect(response).toMatchObject({
+      ok: true,
+      entry: { headword: expectedHeadword, originalForm: '학생이에요' },
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(new URL(String(fetchMock.mock.calls[0]?.[0])).searchParams.get('q')).toBe(expectedHeadword);
+  });
 });

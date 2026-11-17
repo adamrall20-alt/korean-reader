@@ -6,6 +6,7 @@ import { VOCABULARY_REVISION_KEY, type KnownHeadwordsResponse } from '@/types/vo
 import { getVocabulary, listVocabulary } from '@/services/storage/vocabulary';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
+import { nominalCopulaHeadwords } from '@/services/korean/dictionary-forms';
 import type {
   GetSettingsMessage,
   LookupMessage,
@@ -116,7 +117,15 @@ export default defineBackground(() => {
           return;
         }
 
-        const entry = await lookupKoreanWord(message.word, message.morphemes, apiKey);
+        const headwords = nominalCopulaHeadwords(message.morphemes);
+        const known = new Set<string>();
+        if (headwords) {
+          await Promise.all(Object.values(headwords).map(async (headword) => {
+            const saved = await getVocabulary(headword).catch(() => undefined);
+            if (saved?.status === 'known') known.add(headword);
+          }));
+        }
+        const entry = await lookupKoreanWord(message.word, message.morphemes, apiKey, known);
         const saved = await getVocabulary(entry.headword).catch(() => undefined);
         sendResponse({ ok: true, entry, savedContexts: saved?.contexts } satisfies LookupResponse);
       }).catch((error: unknown) => {

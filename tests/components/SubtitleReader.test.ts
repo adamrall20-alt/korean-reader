@@ -166,6 +166,28 @@ describe('SubtitleReader', () => {
     expect(wrapper.get('.kr-word-token-unknown').text()).toBe('먹어요');
   });
 
+  it('keeps a noun plus a known copula underlined until the noun is known', async () => {
+    const wrapper = mount(SubtitleReader, { props: {
+      visible: true,
+      knownHeadwords: new Set(['이다']),
+      lines: [{
+        text: '학생이에요',
+        tokens: [{
+          id: '0:0', text: '학생이에요', start: 0, length: 5, clickable: true,
+          morphemes: [
+            { text: '학생', tag: 'NNG', position: 0, length: 2 },
+            { text: '이', tag: 'VCP', position: 2, length: 1 },
+            { text: '에요', tag: 'EF', position: 3, length: 2 },
+          ],
+        }],
+      }],
+    } });
+
+    expect(wrapper.get('.kr-word-token-unknown').text()).toBe('학생이에요');
+    await wrapper.setProps({ knownHeadwords: new Set(['이다', '학생']) });
+    expect(wrapper.find('.kr-word-token-unknown').exists()).toBe(false);
+  });
+
   it('renders nothing when hidden', () => {
     const wrapper = mount(SubtitleReader, {
       props: {
