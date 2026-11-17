@@ -44,6 +44,7 @@ export interface TokenizeResponse {
 export interface DictionaryEntry {
   headword: string;
   originalForm: string;
+  frequencyRank?: number;
   koreanDefinitions: string[];
   definitions: string[];
   partOfSpeech?: string;

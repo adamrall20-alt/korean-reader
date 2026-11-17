@@ -312,3 +312,7 @@ Captions must be enabled for extraction to work; the extension does not turn the
 | `npm run compile` | Type-check with `vue-tsc` |
 | `npm test` | Run Vitest in watch mode |
 | `npm run test:run` | Run Vitest once |
+
+### Word frequency credits
+
+Shiberu Korean Word Frequency List 2026 by [Shiberu](https://shiberu.app/korean-frequency-list), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Source credits and licence are bundled in `public/frequency`. A `#80,000+` indicator means the headword was not found in the list.

@@ -17,6 +17,8 @@ vi.mock('@/services/storage/vocabulary', async (importOriginal) => ({
   markHeadwordsKnown,
 }));
 
+vi.mock('@/services/dictionary/frequency', () => ({ frequencyRank: vi.fn().mockResolvedValue(undefined) }));
+
 vi.mock('@/services/dictionary/cache', () => ({
   getCachedDictionaryEntry: vi.fn(),
   cacheDictionaryEntry: vi.fn(),

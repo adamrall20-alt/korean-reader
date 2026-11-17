@@ -4,6 +4,7 @@ import {
 } from '@/types/preferences';
 import { browser } from 'wxt/browser';
 import { handleAnkiMessage, isAnkiMessage } from '@/services/anki/messages';
+import { frequencyRank } from '@/services/dictionary/frequency';
 import { lookupKoreanWord } from '@/services/dictionary/krdict';
 import { clearDictionaryCache } from '@/services/dictionary/cache';
 import { VOCABULARY_REVISION_KEY, type KnownHeadwordsResponse } from '@/types/vocabulary';
@@ -136,6 +137,7 @@ export default defineBackground(() => {
           }));
         }
         const entry = await lookupKoreanWord(message.word, message.morphemes, apiKey, known);
+        entry.frequencyRank = await frequencyRank(entry.headword).catch(() => undefined);
         const saved = await getVocabulary(entry.headword).catch(() => undefined);
         sendResponse({ ok: true, entry, savedContexts: saved?.contexts } satisfies LookupResponse);
       }).catch((error: unknown) => {

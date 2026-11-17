@@ -216,6 +216,7 @@ watch(() => props.miningContext, () => {
       <div class="kr-dictionary-heading">
         <h2>{{ entry.headword }}</h2>
         <span v-if="entry.partOfSpeech">{{ entry.partOfSpeech }}</span>
+        <span v-if="entry.frequencyRank" class="kr-frequency" :title="entry.frequencyRank > 80000 ? 'Not found in the Shiberu frequency list' : 'Shiberu frequency rank'">#{{ Math.min(entry.frequencyRank, 80000).toLocaleString('en-US') }}{{ entry.frequencyRank > 80000 ? '+' : '' }}</span>
       </div>
       <p v-if="entry.pronunciation" class="kr-dictionary-pronunciation">
         {{ entry.pronunciation }}

@@ -272,3 +272,7 @@ The dictionary popup displays available definitions and lets the user select one
 The subtitle reader recognises the plural suffix 들 on a noun or pronoun, including forms with particles. An imported 여러분 now clears the underline on 여러분들의. The dictionary popup places **Known** beside **Mine Word** and shares its styling. Clicking **Known** saves the resolved headword's local status, preserves any existing mined data, and refreshes the subtitle underline. A new known-only entry is excluded from Anki sync until a sentence is mined for it.
 
 All 81 automated tests passed, type checking passed, and the Chrome production build succeeded. An isolated Chrome test with fixture captions and simulated dictionary and Anki responses verified the reported word form, button placement and styling, immediate underline updates, persistence after reload, and mining after marking a word known. The original YouTube session was not used for this verification.
+
+## Word frequency — 18 November 2026
+
+The dictionary popup displays a local Shiberu frequency rank for the resolved headword. `#80,000+` indicates an absent list entry; it does not prove the word is rare. A failed list load leaves the rank hidden. Live visual verification remains pending.

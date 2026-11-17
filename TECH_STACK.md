@@ -325,3 +325,7 @@ The technologies above represent the preferred initial stack.
 If a specific library is unsuitable or incompatible with browser extension restrictions, explain the problem and propose alternatives before making significant architectural changes.
 
 Reliability and compatibility take priority over strict adherence to a particular library.
+
+## Word frequency
+
+The background worker loads the bundled Shiberu Korean Word Frequency List 2026 (CC BY 4.0) on demand and matches normalized dictionary headwords. The original list, source credits and licence are in `public/frequency`. An absent headword displays `#80,000+`; segmentation or spelling differences can also cause absence.
