@@ -12,6 +12,7 @@ const props = defineProps<{
   error: string | null;
   style: CSSProperties;
   miningContext?: VocabularyContext;
+  recordAudio?: () => Promise<string | undefined>;
   savedContexts?: VocabularyContext[];
 }>();
 
@@ -82,11 +83,16 @@ async function translateDefinitions() {
 }
 
 const mining = ref(false);
+const recording = ref(false);
+const audioUnavailable = ref(false);
 const miningOutcome = ref<VocabularyResponse>();
-const contextAlreadySaved = computed(() => {
+const savedContext = computed(() => {
   const current = props.miningContext;
-  return current && props.savedContexts?.some((context) => sameVocabularyContext(context, current));
+  return current && props.savedContexts?.find((context) => sameVocabularyContext(context, current));
 });
+
+const canAddAudio = computed(() => !!savedContext.value && !savedContext.value.audio && !!props.recordAudio);
+const contextAlreadySaved = computed(() => !!savedContext.value && !canAddAudio.value);
 
 async function saveWord() {
   const { entry, miningContext } = props;
@@ -94,12 +100,28 @@ async function saveWord() {
 
   mining.value = true;
   miningOutcome.value = undefined;
+  const machineDefinitions = translatedDefinitions.value;
+  audioUnavailable.value = false;
   try {
+    let audio: string | undefined;
+    if (props.recordAudio) {
+      recording.value = true;
+      try {
+        audio = await props.recordAudio();
+      } catch {
+        // A recording failure must still allow a new sentence to be saved.
+      }
+      if (props.miningContext === miningContext) {
+        recording.value = false;
+        audioUnavailable.value = !audio;
+      }
+    }
+    if (savedContext.value && !audio && props.miningContext === miningContext) return;
     const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({
       type: 'mine-word',
       entry,
-      context: miningContext,
-      machineDefinitions: translatedDefinitions.value,
+      context: audio ? { ...miningContext, audio } : miningContext,
+      machineDefinitions,
     } satisfies VocabularyMessage);
     if (props.miningContext === miningContext) {
       miningOutcome.value = response ?? { ok: false, error: 'Could not save the word.' };
@@ -115,6 +137,8 @@ async function saveWord() {
 
 watch(() => props.miningContext, () => {
   mining.value = false;
+  recording.value = false;
+  audioUnavailable.value = false;
   miningOutcome.value = undefined;
 });
 </script>
@@ -193,9 +217,11 @@ watch(() => props.miningContext, () => {
       </section>
       <div v-if="miningContext" class="kr-mining-actions">
         <p v-if="!miningContext.image" class="kr-dictionary-message" role="status">Video image unavailable; the word can still be saved.</p>
+        <p v-if="audioUnavailable" role="status">Subtitle audio unavailable.</p>
         <p v-if="miningOutcome?.ok || contextAlreadySaved" role="status">
           {{ miningOutcome?.ok && miningOutcome.outcome === 'mined' ? '✓ Mined'
             : miningOutcome?.ok && miningOutcome.outcome === 'added' ? '✓ Sentence saved'
+            : miningOutcome?.ok && miningOutcome.outcome === 'audio-added' ? '✓ Audio saved'
             : 'Already mined · Sentence saved' }}
         </p>
         <template v-else>
@@ -206,7 +232,7 @@ watch(() => props.miningContext, () => {
             :disabled="mining || translating"
             @click="saveWord"
           >
-            {{ mining ? 'Saving…' : savedContexts?.length ? 'Save Sentence' : 'Mine Word' }}
+            {{ recording ? 'Recording audio…' : mining ? 'Saving…' : canAddAudio ? 'Add Audio' : savedContexts?.length ? 'Save Sentence' : 'Mine Word' }}
           </button>
           <p v-if="miningOutcome && !miningOutcome.ok" class="kr-dictionary-error" role="alert">
             {{ miningOutcome.error }}

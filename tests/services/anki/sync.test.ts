@@ -92,6 +92,70 @@ describe('Anki sync', () => {
     expect(calls).toHaveBeenCalledWith('addNote', { note: expect.objectContaining({ fields: expect.objectContaining({ Image: expect.stringMatching(/^<img src="korean-reader-.*\.jpg">$/) }) }) });
   });
 
+  it('fills empty Audio on an existing note and preserves it on repeat sync', async () => {
+    getVocabulary.mockResolvedValue({
+      ...word, contexts: [{ ...word.contexts[0], audio: 'data:audio/webm;base64,YWJj' }],
+    });
+    let audio = '';
+    const calls = vi.fn((action: string, params) => {
+      switch (action) {
+        case 'findNotes': return [21];
+        case 'notesInfo': return [{
+          noteId: 21, modelName: settings.modelName,
+          fields: {
+            'Focus Word': { value: '먹다' },
+            Sentence: { value: '밥을 &lt;먹어요&gt; &amp; 물을 마셔요.' },
+            Audio: { value: audio },
+          },
+        }];
+        case 'storeMediaFile': return 'stored-clip.webm';
+        case 'updateNoteFields':
+          expect(params.note.fields).toEqual({ Audio: '[sound:stored-clip.webm]' });
+          audio = params.note.fields.Audio;
+          return null;
+        default: throw new Error(action);
+      }
+    });
+    fakeAnki(calls);
+
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'updated' }]);
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'existing' }]);
+    expect(calls).toHaveBeenCalledWith('storeMediaFile', {
+      filename: expect.stringMatching(/^korean-reader-[a-f0-9]{64}\.webm$/), data: 'YWJj',
+    });
+    expect(calls.mock.calls.filter(([action]) => action === 'storeMediaFile')).toHaveLength(1);
+  });
+
+  it('creates the note if audio upload fails and attaches audio to a new note when it succeeds', async () => {
+    getVocabulary.mockResolvedValue({
+      ...word, contexts: [{ ...word.contexts[0], audio: 'data:audio/webm;base64,YWJj' }],
+    });
+    let uploadFails = true;
+    const calls = vi.fn((action: string) => {
+      switch (action) {
+        case 'findNotes': return [];
+        case 'storeMediaFile': return uploadFails ? null : 'stored-clip.webm';
+        case 'canAddNotes': return [true];
+        case 'addNote': return 17;
+        default: throw new Error(action);
+      }
+    });
+    fakeAnki(calls);
+
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([
+      { headword: '먹다', status: 'created', message: expect.stringContaining('Sync again to retry') },
+    ]);
+    expect(calls).toHaveBeenLastCalledWith('addNote', {
+      note: expect.objectContaining({ fields: expect.objectContaining({ Audio: '' }) }),
+    });
+
+    uploadFails = false;
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'created' }]);
+    expect(calls).toHaveBeenLastCalledWith('addNote', {
+      note: expect.objectContaining({ fields: expect.objectContaining({ Audio: '[sound:stored-clip.webm]' }) }),
+    });
+  });
+
   it('appends a missing sentence to an existing note and skips a repeated sync', async () => {
     let sentence = '<b>기존 문장.</b>';
     const calls = vi.fn((action: string, params) => {

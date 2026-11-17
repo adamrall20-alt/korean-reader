@@ -1,4 +1,4 @@
-import type { CaptionSnapshot, CaptionTrack } from '@/types/youtube';
+import type { CaptionAudioTiming, CaptionSnapshot, CaptionTrack } from '@/types/youtube';
 
 const HANGUL_PATTERN = /[\u1100-\u11ff\u3131-\u318e\uac00-\ud7a3]/;
 const CAPTION_WINDOW_SELECTOR = '.ytp-caption-window-container :is(.caption-window, .ytp-caption-window-rollup)';
@@ -215,11 +215,26 @@ export function readCaptionSnapshot(
   const text = lines.join('\n');
   const activeTrack = findActiveCaptionTrack(video);
 
+  const timestamp = readVideoTimestamp(video);
+  const audioTiming: CaptionAudioTiming | undefined = timestamp !== null && text ? { start: timestamp, observedAt: timestamp, caption: text } : undefined;
+  if (audioTiming && video) {
+    for (const track of Array.from(video.textTracks)) {
+      const cues = Array.from(track.activeCues ?? []);
+      if (track.mode === 'disabled' || !cues.length) continue;
+      const cueText = normaliseCaptionText(cues.map((cue) => 'text' in cue ? String(cue.text) : '').join('\n'));
+      if (cueText !== text) continue;
+      audioTiming.start = Math.min(...cues.map((cue) => cue.startTime));
+      audioTiming.end = Math.max(...cues.map((cue) => cue.endTime));
+      break;
+    }
+  }
+
   return {
+    audioTiming,
     lines,
     text,
     isKorean: hasKorean(text) || (text.length > 0 && isKoreanTrack(activeTrack)),
-    timestamp: readVideoTimestamp(video),
+    timestamp,
     videoId: getYouTubeVideoId(url),
     hasVideo: video !== null,
     hasNativeCaptions: lines.length > 0,
@@ -230,16 +245,18 @@ export function readCaptionSnapshot(
   };
 }
 
-function mergeRollingWords(previous: string[], incoming: string[]): string[] {
+interface RollingWord { text: string; time: number | null }
+
+function mergeRollingWords(previous: RollingWord[], incoming: RollingWord[]): RollingWord[] {
   const overlap = Math.min(previous.length, incoming.length);
   for (let count = overlap; count > 0; count -= 1) {
-    if (incoming.slice(0, count).every((word, index) => word === previous[previous.length - count + index])) {
+    if (incoming.slice(0, count).every((word, index) => word.text === previous[previous.length - count + index]?.text)) {
       return [...previous, ...incoming.slice(count)].slice(-14);
     }
   }
 
   // Some roll-up windows expose only the newest spoken word.
-  if (incoming.length === 1 && !/[.!?。！？]$/u.test(previous.at(-1) ?? '')) {
+  if (incoming.length === 1 && !/[.!?。！？]$/u.test(previous.at(-1)?.text ?? '')) {
     return [...previous, ...incoming].slice(-14);
   }
   return incoming.slice(-14);
@@ -267,7 +284,7 @@ export function createCaptionMonitor({
   let timer: ReturnType<typeof setInterval> | null = null;
   let lastKey: string | null = null;
 
-  let rolling: { words: string[]; firstChange: number; lastChange: number; pending: CaptionSnapshot } | null = null;
+  let rolling: { words: RollingWord[]; firstChange: number; lastChange: number; pending: CaptionSnapshot } | null = null;
   let lastVideoId: string | null = null;
 
   const emitRolling = (now: number) => {
@@ -275,8 +292,10 @@ export function createCaptionMonitor({
       now - rolling.firstChange < ROLLING_MAX_WAIT_MS) return;
     if (rolling.firstChange === Infinity) return;
 
-    const text = rolling.words.join(' ');
-    onUpdate({ ...rolling.pending, text, lines: [text] });
+    const text = rolling.words.map((word) => word.text).join(' ');
+    const timing = rolling.pending.audioTiming;
+    const audioTiming = timing && { ...timing, start: rolling.words[0]?.time ?? timing.start, end: undefined };
+    onUpdate({ ...rolling.pending, text, lines: [text], audioTiming });
     rolling.firstChange = Infinity;
   };
 
@@ -303,7 +322,11 @@ export function createCaptionMonitor({
     }
 
     if (changedVideo) onUpdate({ ...snapshot, lines: [], text: '' });
-    const incoming = snapshot.lines.join(' ').split(/\s+/u);
+    if (rolling && snapshot.timestamp !== null && rolling.pending.timestamp !== null) {
+      const elapsed = snapshot.timestamp - rolling.pending.timestamp;
+      if (elapsed < 0 || elapsed > 4) rolling = null;
+    }
+    const incoming = snapshot.lines.join(' ').split(/\s+/u).map((text) => ({ text, time: snapshot.timestamp }));
     rolling = {
       words: mergeRollingWords(rolling?.words ?? [], incoming),
       firstChange: Math.min(rolling?.firstChange ?? now, now),

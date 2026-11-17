@@ -195,13 +195,13 @@ One Anki card is allowed per vocabulary headword. The extension must never creat
 
 The Sentence field contains the original subtitle sentence. If the user has saved additional example sentences for the word, they are appended in the same field, separated by newlines.
 
-The Image field contains the captured video frame when available. The Audio field remains empty until audio capture is implemented. Missing optional media must not prevent note creation.
+The Image field contains the captured video frame when available. The Audio field contains the original audio for a mined subtitle when available. Missing optional media must not prevent note creation.
 
 #### Front of Card
 
 The front of the card displays the following elements in order:
 
-1. Focus word audio.
+1. Mined subtitle audio.
 2. Image.
 3. Sentence.
 

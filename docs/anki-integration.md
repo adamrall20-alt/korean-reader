@@ -31,7 +31,7 @@ Click **Mark words known** to save the previewed words locally. Existing vocabul
 | Definition | Edited or dictionary English or a saved machine translation, followed by the Korean definition when available |
 | Pronunciation | Dictionary pronunciation when available |
 | Image | First captured video frame, if available; existing non-empty images are preserved |
-| Audio | Empty on new notes |
+| Audio | First available subtitle recording as an Anki sound reference. An existing note receives it only if the mapped field is empty. |
 
 Sentence text is HTML-escaped. The original subtitle form and dictionary headword are highlighted in orange when they appear. The extension uses existing note types and templates. Existing cards keep their deck and other fields when a sentence is appended.
 
@@ -48,3 +48,8 @@ For Korean-only entries, clicking **Sync to Anki** attempts on-device English tr
 ## Live verification
 
 Sync one word to the intended deck and inspect its card in Anki. Check the orange focus word on the front and the definition, headword, and pronunciation on the back. Close the note in Anki's browser before syncing an additional sentence, because AnkiConnect can decline updates to the currently open note.
+
+
+### Subtitle audio
+
+When you mine a word, Korean Reader replays the subtitle, records its audio and returns the paused video to the point where you selected the word. Select **Add Audio** to record a previously saved sentence again if it has no clip. The recording stays local until you select **Sync to Anki**. If capture or upload is unavailable, the sentence can still be saved. An upload failure appears in the sync results and can be retried by syncing again.

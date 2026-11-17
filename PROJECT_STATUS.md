@@ -80,7 +80,7 @@ The user confirmed the Phase 2–3 workflow on a live YouTube video, including o
 
 ### Remaining Phase 8 features
 
-Screenshot capture is implemented; live YouTube and Anki verification is pending. Audio capture remains pending.
+Screenshot and subtitle audio capture are implemented. Live verification of audio playback on the Kimchi Sentence Mining note type is pending.
 
 ## Phase 8 known word import — 17 November 2026
 
@@ -250,3 +250,10 @@ Automated verification: 71 tests passed, type checking passed, and the Chrome pr
 ## Kimchi Reader import — 17 November 2026
 
 Settings now accepts Kimchi Reader word status CSV exports and marks status 2 words known, preserving existing vocabulary details. The Storage vocabulary section is collapsed by default. The supplied CSV contains 13,220 status 2 rows; live import remains to be verified. Automated suite (71 tests), type checking and production build passed.
+
+
+## Phase 8 audio capture — 17 November 2026
+
+Mining replays the selected subtitle, records its original audio and returns the paused video to the selection point. The clip is stored with its sentence. Select **Add Audio** on a saved sentence without audio to capture it again. Explicit Anki sync fills the mapped Audio field on a new note or an existing note whose Audio field is empty. Capture or upload failures still allow the sentence to be saved.
+
+Verification passed in isolated Chrome with local video and a segmented MediaSource fixture. Both exact cue bounds and rendered caption boundaries produced decodable audio, restored the paused position and skipped ads. The automated suite, type check and Chrome build passed. Live YouTube playback, caption boundary accuracy and playback in the user's Anki note template remain to be verified. Rendered and rolling captions use estimated boundaries. Chrome may block capture on protected video or skip ranges that cannot be replayed.

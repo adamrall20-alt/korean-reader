@@ -87,8 +87,14 @@ export async function importKnownHeadwords(words: string[]): Promise<number> {
 export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word' }>) {
   const headword = normalizeHeadword(message.entry.headword);
   return updateVocabulary(headword, (store, existing) => {
-    if (existing?.contexts.some((context) => sameVocabularyContext(context, message.context))) {
-      return 'existing' as const;
+    const index = existing?.contexts.findIndex((context) => sameVocabularyContext(context, message.context)) ?? -1;
+    if (existing && index >= 0) {
+      const saved = existing.contexts[index]!;
+      if (saved.audio || !message.context.audio) return 'existing' as const;
+      const contexts = [...existing.contexts];
+      contexts[index] = { ...saved, audio: message.context.audio };
+      store.put({ ...existing, contexts, updatedAt: new Date().toISOString() });
+      return 'audio-added' as const;
     }
 
     const now = new Date().toISOString();

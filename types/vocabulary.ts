@@ -17,6 +17,7 @@ export interface VocabularyContext {
   sourceTitle: string;
   timestamp?: number;
   image?: string;
+  audio?: string;
 }
 
 export interface VocabularyEntry extends DictionaryEntry {
@@ -38,7 +39,7 @@ export type VocabularyMessage =
   | { type: 'delete-vocabulary'; headword: string };
 
 export type VocabularyResponse =
-  | { ok: true; entries?: VocabularyEntry[]; outcome?: 'mined' | 'added' | 'existing' }
+  | { ok: true; entries?: VocabularyEntry[]; outcome?: 'mined' | 'added' | 'audio-added' | 'existing' }
   | { ok: false; error: string };
 
 export function sameVocabularyContext(a: VocabularyContext, b: VocabularyContext): boolean {

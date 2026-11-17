@@ -2,6 +2,7 @@ import { AnkiClient, type AnkiNote, type AnkiNoteInfo } from '@/services/anki/cl
 import { plainText } from '@/services/anki/fields';
 import { getVocabulary, listVocabulary, recordAnkiSync } from '@/services/storage/vocabulary';
 import { ANKI_DEFAULT_FIELDS, ANKI_FIELD_ROLES, type AnkiSettings, type AnkiSyncResult } from '@/types/anki';
+import { isSubtitleAudio, SUBTITLE_AUDIO_PREFIX } from '@/types/audio';
 import type { VocabularyEntry } from '@/types/vocabulary';
 
 function headwordTag(headword: string): string {
@@ -115,12 +116,33 @@ async function uploadImage(client: AnkiClient, entry: VocabularyEntry): Promise<
   return `<img src="${escapeHtml(stored)}">`;
 }
 
+async function attachAudio(
+  client: AnkiClient,
+  entry: VocabularyEntry,
+  field: string | undefined,
+  changes: Record<string, string>,
+): Promise<string | undefined> {
+  const clip = entry.contexts.find((context) => isSubtitleAudio(context.audio))?.audio;
+  if (!field || !clip) return;
+  try {
+    const data = clip.slice(SUBTITLE_AUDIO_PREFIX.length);
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data));
+    const id = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    const filename = `korean-reader-${id}.webm`;
+    const stored = await client.request('storeMediaFile', { filename, data });
+    if (typeof stored !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(stored)) throw new Error('Invalid media filename.');
+    changes[field] = `[sound:${stored}]`;
+  } catch (error) {
+    return `Subtitle audio could not be uploaded. Sync again to retry. ${errorMessage(error)}`;
+  }
+}
+
 async function updateExistingNote(
   client: AnkiClient,
   existing: AnkiNoteInfo,
   entry: VocabularyEntry,
   settings: AnkiSettings,
-): Promise<boolean> {
+): Promise<{ updated: boolean; message?: string }> {
   const field = settings.fields.sentence;
   if (existing.modelName !== settings.modelName || !existing.fields[field]) {
     throw new Error(`This word already exists in the “${existing.modelName}” note type. Select its note type and sentence field to update it.`);
@@ -151,13 +173,17 @@ async function updateExistingNote(
     const image = await uploadImage(client, entry);
     if (image) changes[imageField] = image;
   }
-  if (!Object.keys(changes).length) return false;
+  const audioField = settings.fields.audio;
+  const message = audioField && existing.fields[audioField]?.value.trim() === ''
+    ? await attachAudio(client, entry, audioField, changes)
+    : undefined;
+  if (!Object.keys(changes).length) return { updated: false, message };
   await client.request('updateNoteFields', { note: { id: existing.noteId, fields: changes } });
   const [updated] = await client.request('notesInfo', { notes: [existing.noteId] });
   if (!Object.entries(changes).every(([name, value]) => updated?.fields[name]?.value === value)) {
     throw new Error('Anki did not save the update. Close the note in Anki’s browser and retry.');
   }
-  return true;
+  return { updated: true, message };
 }
 
 export async function validateAnkiSettings(client: AnkiClient, settings: AnkiSettings): Promise<void> {
@@ -181,12 +207,12 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Anki sync failed.';
 }
 
-async function saveResult(headword: string, status: 'created' | 'updated' | 'existing', id: number, focusField: string): Promise<AnkiSyncResult> {
+async function saveResult(headword: string, status: 'created' | 'updated' | 'existing', id: number, focusField: string, message?: string): Promise<AnkiSyncResult> {
   try {
     await recordAnkiSync(headword, id, focusField);
-    return { headword, status };
+    return message ? { headword, status, message } : { headword, status };
   } catch {
-    return { headword, status, message: 'Anki succeeded, but the local sync marker could not be saved.' };
+    return { headword, status, message: [message, 'Anki succeeded, but the local sync marker could not be saved.'].filter(Boolean).join(' ') };
   }
 }
 
@@ -199,7 +225,7 @@ export async function syncVocabulary(settings: AnkiSettings, headwords: string[]
     const client = new AnkiClient(settings);
     await validateAnkiSettings(client, settings);
     const results: AnkiSyncResult[] = [];
-    const candidates: Array<{ headword: string; note: AnkiNote }> = [];
+    const candidates: Array<{ headword: string; note: AnkiNote; message?: string }> = [];
     for (const headword of new Set(headwords.map((word) => word.trim().normalize('NFC')))) {
       try {
         const entry = await getVocabulary(headword);
@@ -207,12 +233,13 @@ export async function syncVocabulary(settings: AnkiSettings, headwords: string[]
         if (!entry.contexts.length) continue;
         const existing = await findExisting(client, entry, settings);
         if (existing) {
-          const updated = await updateExistingNote(client, existing, entry, settings);
-          results.push(await saveResult(headword, updated ? 'updated' : 'existing', existing.noteId, settings.fields.word));
+          const { updated, message } = await updateExistingNote(client, existing, entry, settings);
+          results.push(await saveResult(headword, updated ? 'updated' : 'existing', existing.noteId, settings.fields.word, message));
         } else {
           const note = buildNote(entry, settings);
           if (settings.fields.image) note.fields[settings.fields.image] = await uploadImage(client, entry);
-          candidates.push({ headword, note });
+          const message = await attachAudio(client, entry, settings.fields.audio, note.fields);
+          candidates.push({ headword, note, message });
         }
       } catch (error) {
         results.push({ headword, status: 'failed', message: errorMessage(error) });
@@ -235,7 +262,7 @@ export async function syncVocabulary(settings: AnkiSettings, headwords: string[]
         for (const [index, candidate] of eligible.entries()) {
           const id = ids[index];
           results.push(typeof id === 'number' && id > 0
-            ? await saveResult(candidate.headword, 'created', id, settings.fields.word)
+            ? await saveResult(candidate.headword, 'created', id, settings.fields.word, candidate.message)
             : { headword: candidate.headword, status: 'failed', message: 'Anki did not return a note ID. Retry to check the collection.' });
         }
       } catch (error) {

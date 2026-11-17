@@ -225,7 +225,7 @@ Tasks:
 
 - [x] Move Anki deck configuration and field mapping to the Settings page.
 - [ ] Screenshot capture for Anki cards.
-- [ ] Audio capture.
+- [ ] Subtitle audio capture and Anki attachment (implemented, live verification pending).
 - [x] Import known words from an Anki deck through AnkiConnect in Settings.
 - [ ] Fix word checking against common conjugations, prefering the noun over the verb when both are valid dictionary entries.
 

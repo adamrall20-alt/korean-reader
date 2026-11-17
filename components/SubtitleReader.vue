@@ -15,6 +15,7 @@ import { isKnownSubtitleWord } from '@/services/korean/dictionary-forms';
 import { captureVideoFrame } from '@/services/youtube/capture';
 import type { VocabularyContext } from '@/types/vocabulary';
 
+const recordAudio = ref<() => Promise<string | undefined>>();
 const miningContext = ref<VocabularyContext>();
 const savedContexts = ref<VocabularyContext[]>([]);
 const selectedTokenId = ref<string | null>(null);
@@ -64,11 +65,13 @@ const selectToken = async (token: SubtitleToken) => {
   const video = findVideo(document);
   video?.pause();
   const image = captureVideoFrame(video);
+  const timestamp = readVideoTimestamp(video) ?? props.source?.timestamp;
+  recordAudio.value = video && timestamp !== undefined ? props.prepareAudio?.(video, timestamp) : undefined;
   miningContext.value = props.source ? {
     ...props.source,
     originalForm: token.text,
     image,
-    timestamp: readVideoTimestamp(video) ?? props.source.timestamp,
+    timestamp,
   } : undefined;
   savedContexts.value = [];
   selectedTokenId.value = token.id;
@@ -106,6 +109,7 @@ const props = defineProps<{
   lines: TokenizedSubtitleLine[];
   visible: boolean;
   knownHeadwords?: ReadonlySet<string>;
+  prepareAudio?: (video: HTMLVideoElement, selectedAt: number) => (() => Promise<string | undefined>) | undefined;
   source?: Omit<VocabularyContext, 'originalForm'>;
 }>();
 
@@ -172,6 +176,7 @@ onBeforeUnmount(() => {
       :error="lookupError"
       :style="popupStyle"
       :mining-context="miningContext"
+      :record-audio="recordAudio"
       :saved-contexts="savedContexts"
       @close="closePopup"
       @resize="repositionPopup"

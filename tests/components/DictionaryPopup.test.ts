@@ -89,6 +89,46 @@ describe('DictionaryPopup mining', () => {
     expect(wrapper.find('.kr-mine-button').exists()).toBe(false);
   });
 
+  it('records on the mine click and saves the audio with the selected sentence', async () => {
+    const audio = 'data:audio/webm;base64,YWJj';
+    const recordAudio = vi.fn().mockResolvedValue(audio);
+    sendMessage.mockReset().mockResolvedValue({ ok: true, outcome: 'mined' });
+    const wrapper = mount(DictionaryPopup, { props: { ...props, miningContext, recordAudio } });
+    expect(recordAudio).not.toHaveBeenCalled();
+
+    await wrapper.get('.kr-mine-button').trigger('click');
+    await flushPromises();
+
+    expect(recordAudio).toHaveBeenCalledOnce();
+    expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
+      type: 'mine-word', entry, context: { ...miningContext, audio }, machineDefinitions: [],
+    });
+    expect(wrapper.text()).toContain('✓ Mined');
+  });
+
+  it('saves the sentence when capture fails and offers audio on an existing sentence', async () => {
+    const recordAudio = vi.fn().mockRejectedValue(new Error('No audio track'));
+    sendMessage.mockReset().mockResolvedValue({ ok: true, outcome: 'mined' });
+    const wrapper = mount(DictionaryPopup, { props: { ...props, miningContext, recordAudio } });
+
+    await wrapper.get('.kr-mine-button').trigger('click');
+    await flushPromises();
+    expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
+      type: 'mine-word', entry, context: miningContext, machineDefinitions: [],
+    });
+    expect(wrapper.text()).toContain('Subtitle audio unavailable.');
+
+    const existing = mount(DictionaryPopup, {
+      props: { ...props, miningContext, recordAudio, savedContexts: [miningContext] },
+    });
+    expect(existing.get('.kr-mine-button').text()).toBe('Add Audio');
+    recordAudio.mockResolvedValue('data:audio/webm;base64,YWJj');
+    sendMessage.mockResolvedValue({ ok: true, outcome: 'audio-added' });
+    await existing.get('.kr-mine-button').trigger('click');
+    await flushPromises();
+    expect(existing.text()).toContain('✓ Audio saved');
+  });
+
   it('distinguishes an existing context from a new sentence for the same word', async () => {
     const wrapper = mount(DictionaryPopup, {
       props: { ...props, miningContext, savedContexts: [miningContext] },

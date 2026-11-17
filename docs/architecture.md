@@ -100,6 +100,8 @@ Implemented behaviour (Phase 1 and Phase 2):
 - The overlay is a Vue app mounted in a Shadow DOM host appended to the player. It renders the
   placeholder soft-font stack and makes only the subtitle word spans interactive.
 - Clicking a word pauses the active YouTube video before opening the dictionary lookup.
+- An explicit mine action records up to 12 seconds from the video element. It uses matching text-track cue times when available. Otherwise it seeks slightly before the first observation and stops when the selected rendered caption changes during replay. Roll-up timing uses the observations of the words in the grouped phrase.
+- The content script records audio as WebM/Opus with no additional Chrome permission. It discards clips that are silent, interrupted or missing a usable playback range. The background worker validates and stores the clip with its sentence and uploads it to AnkiConnect during explicit sync.
 - Kiwi tokenization runs through the background `tokenize` message before native captions are
   hidden. If analysis fails, native captions remain visible.
 - When Korean captions stop, native captions are restored after a 500 ms delay. If extraction never produces Korean text, native captions were never hidden.

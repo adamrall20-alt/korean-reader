@@ -3,6 +3,8 @@ import subtitleOverlayStyles from '@/assets/subtitle-overlay.css?inline';
 import SubtitleReader from '@/components/SubtitleReader.vue';
 import type { TokenizedSubtitleLine } from '@/types/messages';
 import type { VocabularyContext } from '@/types/vocabulary';
+import { captureSubtitleAudio } from '@/services/youtube/audio';
+import { getYouTubeVideoId } from '@/services/youtube/captions';
 import type { CaptionSnapshot } from '@/types/youtube';
 
 export const SUBTITLE_OVERLAY_HOST_ID = 'korean-reader-subtitle-overlay';
@@ -23,6 +25,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
     lines: TokenizedSubtitleLine[];
     visible: boolean;
     knownHeadwords: Set<string>;
+    snapshot?: CaptionSnapshot;
     source?: Omit<VocabularyContext, 'originalForm'>;
   }>({
     lines: [],
@@ -33,6 +36,24 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
   let host: HTMLDivElement | null = null;
   let app: App<Element> | null = null;
   let mountPoint: HTMLDivElement | null = null;
+
+  let recording: { videoId: string; controller: AbortController } | undefined;
+  const recordingHere = () => recording?.videoId === getYouTubeVideoId(doc.location.href);
+
+  function prepareAudio(video: HTMLVideoElement, selectedAt: number) {
+    const { audioTiming, videoId } = state.snapshot ?? {};
+    if (!audioTiming || !videoId) return undefined;
+    return async () => {
+      if (recording) return undefined;
+      const controller = new AbortController();
+      recording = { videoId, controller };
+      try {
+        return await captureSubtitleAudio(video, videoId, audioTiming, selectedAt, controller.signal);
+      } finally {
+        recording = undefined;
+      }
+    };
+  }
 
   function build(): void {
     host = doc.createElement('div');
@@ -62,6 +83,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
           lines: state.lines,
           visible: state.visible,
           source: state.source,
+          prepareAudio,
           knownHeadwords: state.knownHeadwords,
         });
       },
@@ -84,6 +106,8 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
   }
 
   function hide(): void {
+    if (recordingHere()) return;
+    recording?.controller.abort();
     if (state.visible) {
       state.visible = false;
     }
@@ -102,6 +126,8 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
     player: HTMLElement | null,
     lines: TokenizedSubtitleLine[] | null = null,
   ): void {
+    if (recording?.videoId === snapshot.videoId) return;
+    recording?.controller.abort();
     if (!player) {
       hide();
       return;
@@ -109,6 +135,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
 
     ensureMounted(player);
 
+    state.snapshot = snapshot;
     state.source = snapshot.videoId ? {
       sentence: snapshot.text,
       sourceUrl: `https://www.youtube.com/watch?v=${encodeURIComponent(snapshot.videoId)}`,
@@ -125,6 +152,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
   }
 
   function destroy(): void {
+    recording?.controller.abort();
     app?.unmount();
     app = null;
     host?.remove();

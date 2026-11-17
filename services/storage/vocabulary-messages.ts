@@ -1,4 +1,5 @@
 import { changeVocabulary, listVocabulary, mineWord } from '@/services/storage/vocabulary';
+import { isSubtitleAudio } from '@/types/audio';
 import type { VocabularyMessage, VocabularyResponse } from '@/types/vocabulary';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -25,6 +26,7 @@ function isMineMessage(message: Record<string, unknown>): boolean {
     typeof context.sourceTitle === 'string' && typeof context.sourceUrl === 'string' &&
     /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]+$/.test(context.sourceUrl) &&
     (context.image === undefined || (typeof context.image === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(context.image) && context.image.length <= 8000000)) &&
+    (context.audio === undefined || isSubtitleAudio(context.audio)) &&
     (context.timestamp === undefined ||
       (typeof context.timestamp === 'number' && Number.isFinite(context.timestamp) && context.timestamp >= 0));
 }

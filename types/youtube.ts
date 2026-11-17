@@ -4,7 +4,15 @@ export interface CaptionTrack {
   kind: string;
 }
 
+export interface CaptionAudioTiming {
+  start: number;
+  observedAt: number;
+  caption: string;
+  end?: number;
+}
+
 export interface CaptionSnapshot {
+  audioTiming?: CaptionAudioTiming;
   lines: string[];
   text: string;
   isKorean: boolean;
