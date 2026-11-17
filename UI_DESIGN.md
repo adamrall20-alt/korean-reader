@@ -203,4 +203,4 @@ Visual refinements can be introduced after core functionality is reliable.
 
 ## Toolbar popup refinement
 
-The toolbar popup presents Anki connection status, counts of mined words already found in Anki and new mined words not yet found there, and an explicit sync button. Counts are unavailable until Anki is connected and configured. Vocabulary management and JSON export are in Settings, as are Anki connection, deck, note type and field mapping controls. The supplied penguin is the header logo and the supplied star pattern is a subtle popup background.
+The toolbar popup presents Anki connection status, vocabulary counts, and an explicit sync button. **Known words** counts all local entries marked known, including imports, even when Anki is disconnected. **New words** counts mined words absent from Anki and requires a configured Anki connection. Vocabulary management and JSON export are in Settings, as are Anki connection, deck, note type and field mapping controls. The supplied penguin is the header logo and the supplied star pattern is a subtle popup background.

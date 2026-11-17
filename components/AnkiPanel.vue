@@ -8,7 +8,7 @@ import {
   type AnkiFieldRole, type AnkiImportPreview, type AnkiMessage, type AnkiResponse, type AnkiSettings, type AnkiSyncResult, type AnkiTranslation,
 } from '@/types/anki';
 
-const props = defineProps<{ vocabulary?: VocabularyEntry[] }>();
+const props = defineProps<{ vocabulary?: VocabularyEntry[]; knownCount?: number }>();
 const emit = defineEmits<{ synced: []; imported: [] }>();
 const settings = ref<AnkiSettings>({ ...DEFAULT_ANKI_SETTINGS, fields: { ...ANKI_DEFAULT_FIELDS } });
 const decks = ref<string[]>([]);
@@ -314,7 +314,7 @@ onMounted(() => {
 
     <div v-if="vocabulary" class="rounded-xl bg-ink-soft p-3">
       <div class="grid grid-cols-2 gap-3" aria-live="polite">
-        <div><p class="text-xs text-muted">Known words</p><p class="text-2xl font-semibold tabular-nums">{{ unsynced === undefined ? '—' : vocabulary.length - unsynced }}</p></div>
+        <div><p class="text-xs text-muted">Known words</p><p class="text-2xl font-semibold tabular-nums">{{ knownCount?.toLocaleString() ?? '—' }}</p></div>
         <div><p class="text-xs text-muted">New words</p><p class="text-2xl font-semibold tabular-nums">{{ unsynced ?? '—' }}</p></div>
       </div>
       <p v-if="!configured" class="mt-1 text-xs text-muted">Connect Anki and configure a deck in Settings to check.</p>

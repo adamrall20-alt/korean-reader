@@ -1,15 +1,19 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ANKI_DEFAULT_FIELDS, DEFAULT_ANKI_SETTINGS } from '@/types/anki';
+import { VOCABULARY_REVISION_KEY } from '@/types/vocabulary';
 import MiningPanel from '@/components/MiningPanel.vue';
 import VocabularyManager from '@/components/VocabularyManager.vue';
 
-const { sendMessage } = vi.hoisted(() => ({
+const { sendMessage, addStorageListener, removeStorageListener } = vi.hoisted(() => ({
   sendMessage: vi.fn(),
+  addStorageListener: vi.fn(),
+  removeStorageListener: vi.fn(),
 }));
 
 vi.mock('wxt/browser', () => ({
   browser: {
+    storage: { onChanged: { addListener: addStorageListener, removeListener: removeStorageListener } },
     runtime: {
       sendMessage,
       getManifest: () => ({ version: '0.1.0' }),
@@ -20,6 +24,8 @@ vi.mock('wxt/browser', () => ({
 describe('MiningPanel', () => {
   beforeEach(() => {
     sendMessage.mockReset();
+    addStorageListener.mockClear();
+    removeStorageListener.mockClear();
   });
 
   it('shows counters and keeps management and configuration out of the popup', () => {
@@ -69,7 +75,7 @@ describe('MiningPanel', () => {
     try {
       const wrapper = mount(MiningPanel);
       await flushPromises();
-      expect(wrapper.findAll('.tabular-nums').map((item) => item.text())).toEqual(['0', '1']);
+      expect(wrapper.findAll('.tabular-nums').map((item) => item.text())).toEqual(['2', '1']);
       expect(translate).not.toHaveBeenCalled();
       const sync = wrapper.findAll('button').find((button) => button.text() === 'Sync to Anki')!;
       await sync.trigger('click');
@@ -79,12 +85,39 @@ describe('MiningPanel', () => {
         settings,
         translations: [{ headword: '먹다', korean: ['밥을 먹는 행동.'], english: ['The act of eating.'] }],
       });
-      expect(wrapper.findAll('.tabular-nums').map((item) => item.text())).toEqual(['1', '0']);
+      expect(wrapper.findAll('.tabular-nums').map((item) => item.text())).toEqual(['2', '0']);
       expect(wrapper.text()).toContain('1 created');
       expect(dismiss).toHaveBeenCalledOnce();
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('refreshes the known count after a large import with Anki disconnected', async () => {
+    let entries: Array<{ headword: string; contexts: []; status: string }> = [];
+    sendMessage.mockImplementation(async (message) => message.type === 'list-vocabulary'
+      ? { ok: true, entries }
+      : { ok: true, settings: DEFAULT_ANKI_SETTINGS });
+    const wrapper = mount(MiningPanel);
+    await flushPromises();
+    const counts = () => wrapper.findAll('.tabular-nums').map((item) => item.text());
+    expect(counts()).toEqual(['0', '—']);
+
+    entries = Array.from({ length: 6001 }, (_, index) => ({
+      headword: `단어${index}`,
+      contexts: [],
+      status: index === 6000 ? 'unknown' : 'known',
+    }));
+    const listener = addStorageListener.mock.calls[0]![0];
+    listener({ [VOCABULARY_REVISION_KEY]: { newValue: 'imported' } }, 'local');
+    await flushPromises();
+    expect(counts()).toEqual([(6000).toLocaleString(), '—']);
+    expect(sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'count-unsynced' }));
+    expect(wrapper.findAll('button').find((button) => button.text() === 'Sync to Anki')?.attributes('disabled'))
+      .toBeDefined();
+
+    wrapper.unmount();
+    expect(removeStorageListener).toHaveBeenCalledWith(listener);
   });
 
   it('keeps Anki sync disabled before connection', () => {

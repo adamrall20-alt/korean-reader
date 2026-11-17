@@ -84,9 +84,11 @@ Screenshot capture and audio capture are pending.
 
 ## Phase 8 known word import — 17 November 2026
 
-Settings → Anki → Import known words reads a selected deck and its subdecks through AnkiConnect. The preview reports unique Korean focus words, words already known, and notes without a usable focus word. Confirming the preview updates the local vocabulary and refreshes subtitle underlines. Existing definitions and mined sentences are preserved. Imported words with no mined sentences are excluded from Anki sync and the toolbar counts.
+Settings → Anki → Import known words reads a selected deck and its subdecks through AnkiConnect. The preview reports unique Korean focus words, words already known, and notes without a usable focus word. Confirming the preview updates the local vocabulary and refreshes subtitle underlines. Existing definitions and mined sentences are preserved. Imported words with no mined sentences are excluded from Anki sync.
 
-Automated verification: 67 tests passed, type checking passed, and the Chrome production build succeeded. An isolated Chrome test with a simulated Anki connection verified the Settings flow, repeat imports, subtitle underline updates, and mining an imported word. The import has not been tried against a live Anki deck.
+Automated verification: 67 tests passed, type checking passed, and the Chrome production build succeeded. An isolated Chrome test with a simulated Anki connection verified the Settings flow, repeat imports, subtitle underline updates, and mining an imported word. The user confirmed that approximately 6,000 words imported from a live Anki deck and appeared in the JSON export.
+
+The toolbar now counts all local words marked known, including existing imports, and refreshes when vocabulary changes. The New words counter still counts mined words absent from Anki. All 68 tests, type checking, and the production build passed. An isolated Chrome check confirmed the open popup updated after saving 6,000 test words and after marking one unknown.
 
 ## Phase 8 lookup refinement — 17 November 2026
 
