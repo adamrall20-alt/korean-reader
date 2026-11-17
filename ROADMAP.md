@@ -247,7 +247,7 @@ Tasks:
 - [x] Automatically highlight the currently playing subtitle line.
 - [x] Add automatic scrolling to follow the current subtitle, with an option to disable auto-scroll.
 - [x] Add a search bar to find words or phrases within the transcript.
-- [x] Make individual Korean words clickable, reusing the existing dictionary popup, Known button, and Mine Word functionality. Clicking a word opens its definition. Selecting Mine Word seeks to the cue start before capturing media and saving.
+- [x] Make individual Korean words clickable, reusing the existing dictionary popup, Known button, and Mine Word functionality. Clicking a word pauses playback and opens its definition without seeking. Selecting Mine Word seeks to the cue start before capturing media and saving.
 - [x] Reuse existing subtitle extraction and processing logic rather than creating a separate system.
 - [x] Handle video navigation, unavailable subtitles, fullscreen, and theatre mode without breaking the layout.
 - [x] Ensure the sidebar can be closed and reopened without losing functionality.

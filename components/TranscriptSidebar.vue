@@ -73,6 +73,7 @@ function seek(cue: TranscriptCue) {
 function wordSelection(cue: TranscriptCue) {
   const videoId = props.videoId;
   const video = playbackVideo(videoId);
+  video?.pause();
   const recordAudio = video && props.prepareAudio(video, videoId, {
     start: cue.start, end: cue.end, observedAt: cue.observedAt ?? cue.start, caption: cue.text,
   }, cue.start);

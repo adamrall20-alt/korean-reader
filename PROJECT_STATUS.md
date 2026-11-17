@@ -286,3 +286,7 @@ All 81 automated tests passed, type checking passed, and the Chrome production b
 ## Word frequency — 18 November 2026
 
 The dictionary popup displays a local Shiberu frequency rank for the resolved headword. `#80,000+` indicates an absent list entry; it does not prove the word is rare. A failed list load leaves the rank hidden. Live visual verification remains pending.
+
+## Transcript word playback — 18 November 2026
+
+Selecting a transcript word pauses playback while opening its dictionary definition, without seeking. Mining still seeks to the selected line for media capture. Live YouTube verification remains pending.

@@ -61,7 +61,7 @@ describe('transcript sidebar', () => {
     expect(list.scrollTop).toBe(145);
   });
 
-  it('opens the shared dictionary without seeking, then mines using the selected cue time', async () => {
+  it('pauses and opens the shared dictionary without seeking, then mines using the selected cue time', async () => {
     sendMessage.mockImplementation(async (message) => message.type === 'lookup' ? {
       ok: true,
       entry: {
@@ -77,12 +77,12 @@ describe('transcript sidebar', () => {
     await flushPromises();
     expect(wrapper.get('[role="dialog"]').text()).toContain('apple');
     expect(video.currentTime).toBe(18);
-    expect(pause).not.toHaveBeenCalled();
+    expect(pause).toHaveBeenCalledOnce();
 
     await wrapper.get('.kr-mine-button').trigger('click');
     await flushPromises();
     expect(video.currentTime).toBe(6);
-    expect(pause).toHaveBeenCalledOnce();
+    expect(pause).toHaveBeenCalledTimes(2);
     expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: 'mine-word',
       context: expect.objectContaining({
