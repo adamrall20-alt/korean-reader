@@ -242,11 +242,11 @@ These features are outside the initial development scope.
 - [ ] Vocabulary frequency information.
 - [ ] Sentence-level grammar analysis.
 - [ ] Additional dictionary sources.
-- [ ] CSV export and vocabulary import.
 - [x] Subtitle size, text colour, unknown word underline colour and font.
 - [ ] Stats and long term learning progress tracking.
-- [ ] Web server and accounts?
 - [x] Keep the Settings navigation visible while scrolling on wider screens.
 - [ ] Word frequency information in the dictionary popup.
+
+- [ ] Web server and accounts?
 
 Future enhancements should only be considered after the minimum viable product is complete.
