@@ -211,11 +211,24 @@ Tasks:
 - [ ] Add subtle animations where useful.
 - [ ] Refine dark and light appearances.
 - [ ] Improve loading and error states.
-- [ ] Create a logo for the extension.
+- [x] Create a logo for the extension.
+- [ ] Implement the JSON local vocabulary storage in the settings page.
 
 Completion criteria:
 
 The interface feels consistent, polished and comfortable to use.
+
+## Phase 8 — Additional Features
+**Goal:** Implement additional features that enhance the user experience.
+Create complete flashcards with audio and images, and allow users to capture screenshots and audio from YouTube videos.
+
+Tasks:
+
+- [ ] Move Anki deck configuration and field mapping to the Settings page.
+- [ ] Screenshot capture for Anki cards.
+- [ ] Audio capture.
+- [ ] Import already known words from Anki or other sources, add this as a section in the settings page.
+- [ ] Fix word checking against common conjugations, prefering the noun over the verb when both are valid dictionary entries.
 
 ## Future Enhancements
 
@@ -224,15 +237,11 @@ These features are outside the initial development scope.
 - [ ] Full transcript reader and dedicated reading panel.
 - [ ] Click a subtitle line to jump to its timestamp.
 - [ ] Vocabulary frequency information.
-- [ ] Screenshot capture for Anki cards.
-- [ ] Audio capture.
 - [ ] Sentence-level grammar analysis.
 - [ ] Additional dictionary sources.
 - [ ] CSV export and vocabulary import.
 - [ ] Advanced subtitle customisation.
 - [ ] Stats and long term learning progress tracking.
 - [ ] Web server and accounts?
-- [ ] Import already known words from Anki or other sources.
-- [ ] Fix word checking against common conjugations, prefering the noun over the verb when both are valid dictionary entries.
 
 Future enhancements should only be considered after the minimum viable product is complete.
