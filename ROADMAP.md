@@ -203,13 +203,13 @@ The user confirmed that the wireframes and Figma mockups have already been compl
 
 Tasks:
 
-- [ ] Refine spacing and typography.
-- [ ] Improve popup positioning.
-- [ ] Refine interactive states.
-- [ ] Improve responsive layouts.
-- [ ] Add subtle animations where useful.
-- [ ] Refine dark and light appearances.
-- [ ] Improve loading and error states.
+- [x] Refine spacing and typography.
+- [x] Improve popup positioning.
+- [x] Refine interactive states.
+- [x] Improve responsive layouts.
+- [x] Add subtle animations where useful.
+- [x] Refine dark and light appearances.
+- [x] Improve loading and error states.
 - [x] Create a logo for the extension.
 - [x] Implement the JSON local vocabulary storage in the settings page.
 
@@ -242,5 +242,6 @@ These features are outside the initial development scope.
 - [ ] Advanced subtitle customisation.
 - [ ] Stats and long term learning progress tracking.
 - [ ] Web server and accounts?
+- [ ] Make the settings navigation UI move down with the page as the user scrolls.
 
 Future enhancements should only be considered after the minimum viable product is complete.
