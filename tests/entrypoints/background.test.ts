@@ -1,7 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-const { listeners, getVocabulary } = vi.hoisted(() => ({
+const { listeners, getVocabulary, markHeadwordsKnown, setStorage } = vi.hoisted(() => ({
   getVocabulary: vi.fn(),
+  markHeadwordsKnown: vi.fn(),
+  setStorage: vi.fn().mockResolvedValue(undefined),
   listeners: {
     installed: [] as Array<(...args: unknown[]) => void>,
     message: [] as Array<(...args: unknown[]) => boolean | undefined>,
@@ -11,6 +13,7 @@ const { listeners, getVocabulary } = vi.hoisted(() => ({
 vi.mock('@/services/storage/vocabulary', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/services/storage/vocabulary')>(),
   getVocabulary,
+  markHeadwordsKnown,
 }));
 
 vi.mock('@/services/dictionary/cache', () => ({
@@ -21,7 +24,7 @@ vi.mock('@/services/dictionary/cache', () => ({
 
 vi.mock('wxt/browser', () => ({
   browser: {
-    storage: { local: { get: async () => ({ krDictApiKey: 'test-key' }) } },
+    storage: { local: { get: async () => ({ krDictApiKey: 'test-key' }), set: setStorage } },
     runtime: {
       getURL: (path: string) => `chrome-extension://test${path}`,
       getManifest: () => ({ version: '0.1.0' }),
@@ -42,12 +45,38 @@ vi.mock('wxt/browser', () => ({
 describe('background entrypoint', () => {
   afterEach(() => {
     getVocabulary.mockReset();
+    markHeadwordsKnown.mockReset();
+    setStorage.mockClear();
     vi.restoreAllMocks();
   });
   beforeAll(async () => {
     vi.spyOn(console, 'info').mockImplementation(() => {});
     vi.stubGlobal('defineBackground', (main: () => void) => main());
     await import('@/entrypoints/background');
+  });
+
+  it('accepts a valid Known action from YouTube and notifies subtitle tabs after saving', async () => {
+    const messageListener = listeners.message[0]!;
+    const sender = { url: 'https://www.youtube.com/watch?v=abcdefghijk' };
+    const sendResponse = vi.fn();
+    const message = { type: 'mark-word-known', headword: '여러분' };
+    expect(messageListener({ ...message, headword: ' ' }, sender, sendResponse)).toBe(false);
+    expect(messageListener(message, { url: 'https://example.com/' }, sendResponse)).toBe(false);
+    expect(sendResponse).not.toHaveBeenCalled();
+
+    markHeadwordsKnown.mockResolvedValueOnce(1);
+    const response = await new Promise((resolve) => {
+      expect(messageListener(message, sender, resolve)).toBe(true);
+    });
+    expect(markHeadwordsKnown).toHaveBeenCalledExactlyOnceWith(['여러분']);
+    expect(setStorage).toHaveBeenCalledExactlyOnceWith({ vocabularyRevision: expect.any(String) });
+    expect(response).toEqual({ ok: true });
+
+    setStorage.mockClear();
+    markHeadwordsKnown.mockRejectedValueOnce(new Error('Storage unavailable'));
+    await expect(new Promise((resolve) => messageListener(message, sender, resolve)))
+      .resolves.toEqual({ ok: false, error: 'Storage unavailable' });
+    expect(setStorage).not.toHaveBeenCalled();
   });
 
   it('registers the install and message listeners', () => {

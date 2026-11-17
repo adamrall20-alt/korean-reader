@@ -2,7 +2,7 @@
 
 ## Plain-English overview
 
-Korean Reader is a Chrome extension that turns Korean YouTube subtitles into a vocabulary workflow. The extension reads the caption text YouTube is already showing, analyzes the Korean locally, and places an interactive subtitle layer over the video. Clicking a word asks the dictionary service for an entry; choosing **Mine Word** saves the selected meaning, sentence, video details, and available media. The user can later review the local vocabulary and explicitly send it to Anki.
+Korean Reader is a Chrome extension that turns Korean YouTube subtitles into a vocabulary workflow. The extension reads the caption text YouTube is already showing, analyzes the Korean locally, and places an interactive subtitle layer over the video. Clicking a word asks the dictionary service for an entry. Choosing **Mine Word** saves the selected meaning, sentence, video details, and available media. Choosing **Known** records the headword's local known status. The user can later review mined vocabulary and explicitly send it to Anki.
 
 The extension is split into three parts. The YouTube page part watches captions and displays the subtitle and dictionary interfaces. The background part coordinates work, runs Korean analysis, accesses local storage, and makes external requests. The popup and Settings pages let the user manage vocabulary, keys, imports, and Anki settings. They communicate through typed extension messages so each part has a clear job.
 
@@ -104,8 +104,8 @@ The stored record extends the dictionary entry with its known status, creation a
 
 - The normalized headword is the IndexedDB key. Adding a context uses a single read-write transaction to prevent duplicates across tabs.
 - Repeating the same subtitle text from the same video leaves the stored record as it was. A different context can be saved explicitly using **Save Sentence**.
-- Mining marks the word as known. The toolbar popup can toggle known status and edit English definitions.
-- Subtitle tabs read known headwords from the background and refresh when the vocabulary revision changes. Exact text, Kiwi predicate forms, and nouns with particles can match a known headword. Unmatched words are underlined in red.
+- Mining marks the word as known. The dictionary popup's **Known** action uses the same background storage operation as known-word imports. It preserves existing data, and a newly marked word starts with no mined contexts. Settings can toggle known status and edit English definitions.
+- Subtitle tabs read known headwords from the background and refresh when the vocabulary revision changes. Exact text, Kiwi predicate forms, and nouns or pronouns with the plural suffix 들 and particles can match a known headword. Unmatched words are underlined in red.
 - JSON export includes the complete vocabulary collection. Anki sync uses the stored contexts and saves the returned note ID and sync time.
 
 ## 7. Subtitle Overlay

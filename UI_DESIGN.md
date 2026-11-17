@@ -99,13 +99,13 @@ The dictionary headword should be visually prominent.
 
 Definitions should be easy to scan. When multiple definitions are available, let the user select one or more; selected definitions have a lighter grey background. A single definition is selected by default. Only the selected definitions are saved when mining a new word.
 
-### Mining Button
+### Word Actions
 
 Include a prominent green button labelled:
 
 "Mine Word"
 
-This button must be the only way to save the currently selected dictionary entry through the popup.
+Place a button labelled "Known" directly beside "Mine Word" and use the same styling for both. "Known" updates the dictionary headword's local status without mining a sentence. Confirm the action and refresh the subtitle underline. Disable the "Known" action when the headword is already known.
 
 After successful mining, display a confirmation state:
 
@@ -130,7 +130,7 @@ The panel should display:
 - Selected Anki deck.
 - Synchronisation button.
 
-A word defaults to unknown until it is marked. Mining a word marks it as known. The user can change the status later.
+A word defaults to unknown until it is marked. Mining a word and selecting "Known" both mark it as known. The user can change the status later.
 
 The interface should make it easy to review collected vocabulary and synchronise it with Anki.
 

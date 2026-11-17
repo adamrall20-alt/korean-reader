@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser';
 import { AnkiClient } from '@/services/anki/client';
-import { importKnownHeadwords, listVocabulary, saveMachineTranslation } from '@/services/storage/vocabulary';
+import { listVocabulary, markHeadwordsKnown, saveMachineTranslation } from '@/services/storage/vocabulary';
 import { previewKnownWords } from '@/services/anki/import';
 import { countUnsynced, syncVocabulary, validateAnkiSettings } from '@/services/anki/sync';
 import { ANKI_FIELD_ROLES, DEFAULT_ANKI_SETTINGS, type AnkiMessage, type AnkiResponse, type AnkiSettings } from '@/types/anki';
@@ -66,7 +66,7 @@ export async function handleAnkiMessage(message: AnkiMessage): Promise<AnkiRespo
     return { ok: true, importPreview: await previewKnownWords(message.settings, message.deckName) };
   }
   if (message.type === 'import-anki-words') {
-    return { ok: true, markedKnown: await importKnownHeadwords(message.headwords) };
+    return { ok: true, markedKnown: await markHeadwordsKnown(message.headwords) };
   }
   if (message.type === 'sync-anki') {
     for (const translation of message.translations) await saveMachineTranslation(translation);

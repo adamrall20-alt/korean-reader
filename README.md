@@ -7,7 +7,7 @@ The long-term workflow is:
 1. Watch a Korean video on YouTube.
 2. Read Korean subtitles with individually clickable words.
 3. Click a word to see its dictionary entry.
-4. Mine the word explicitly.
+4. Choose **Mine Word** to save a sentence or **Known** to mark the word known locally.
 5. Review saved vocabulary.
 6. Synchronise newly mined words to Anki through AnkiConnect.
 
@@ -37,8 +37,9 @@ Implemented:
 - Dictionary popup with up to three English definitions, Korean definitions as a fallback, and optional entry details.
 - On-demand English translation of Korean definitions on desktop Chrome when its built-in Translator API is available.
 - YouTube playback pauses when a subtitle word is selected.
-- Red underlines for unknown Korean subtitle words, removed when the word is marked known.
+- Red underlines for unknown Korean subtitle words. Known base forms match conjugated verbs and nouns or pronouns with particles or the plural suffix 들.
 - Explicit **Mine Word** and **Save Sentence** actions in the dictionary popup.
+- **Known** beside **Mine Word** marks the dictionary headword as known without saving a sentence or creating an Anki card.
 - Local vocabulary management with search, date sorting, known status, definition edits, deletion, and JSON export.
 - Direct Settings shortcut in the toolbar popup.
 - Screenshot capture for Anki notes, where browser video access permits.
@@ -279,6 +280,7 @@ Captions must be enabled for extraction to work; the extension does not turn the
 3. Expand its sentence and check the source link and timestamp.
 4. Reopen the same subtitle word to check its saved state. Find it in a different sentence and click **Save Sentence**. The toolbar panel should show both sentences under one word.
 5. Check search, the status filter, definition editing, and **Export JSON**. Delete the test entry when finished.
+6. Look up another unknown word and click **Known** beside **Mine Word**. Confirm its underline clears immediately, it appears as **Known** in Settings → Storage, and it does not increase the Anki **New words** count.
 
 ## Project Documentation
 

@@ -64,6 +64,7 @@
 
 - [x] Explicit vocabulary mining with one local record per normalized headword.
 - [x] Red underlines for unknown subtitle words, updated when vocabulary status changes.
+- [x] Dictionary popup Known button and underline matching for the plural suffix 들.
 - [x] Save subtitle context, original form, video source, playback timestamp, and mining date.
 - [x] Vocabulary panel with search, date sorting, status filtering, definition editing, deletion, and JSON export.
 
@@ -158,7 +159,7 @@ Latest dated automated verification recorded: 17 November 2026. Counts below are
 
 | Check | Command | Result |
 |---|---|---|
-| Unit/component tests | `npm run test:run` | Pass — latest recorded feature verification: 71 tests; earlier checkpoints are listed in dated entries |
+| Unit/component tests | `npm run test:run` | Pass — latest recorded feature verification: 81 tests; earlier checkpoints are listed in dated entries |
 | Headless Chrome smoke test | Temporary unpacked build and KRDict fixtures | Pass — bundled Kiwi, local key settings, exact lookup, pronunciation, cache reuse and clearing |
 | Phase 4 Chrome fixture test | Unpacked extension with fixture captions and KRDict | Pass — explicit save, source metadata, duplicate handling, additional sentences, schema upgrade, cache isolation, status, edits, deletion and JSON export |
 | Phase 5 Chrome fixture test | Unpacked extension with a loopback mock AnkiConnect server | Pass — connection, default settings, explicit sync, creation, duplicate skip, added sentence, and saved note ID |
@@ -187,7 +188,7 @@ Latest dated automated verification recorded: 17 November 2026. Counts below are
 | Caption source | DOM caption windows polled every 250 ms; no YouTube API dependency |
 | Korean detection | Hangul Unicode ranges plus caption-track language metadata when available |
 | Caption fallback | Restore native captions after a 500 ms delay when Korean captions stop |
-| Vocabulary status | Unknown by default; mining marks a word as known |
+| Vocabulary status | Unknown by default. Mining or selecting **Known** marks the dictionary headword as known. |
 | Export | JSON in Phase 4; CSV export and import later |
 | Version control | Git + GitHub |
 
@@ -259,3 +260,9 @@ Verification passed in isolated Chrome with local video and a segmented MediaSou
 ## Phase 8 definition selection — 17 November 2026
 
 The dictionary popup displays available definitions and lets the user select one or more before mining a new word. Selected rows are lighter grey; a sole definition is selected by default. Only selected definitions are stored and sent to Anki. Korean definitions and on-device translations share their selection. Saving another sentence for an existing word preserves its existing definitions. Matching KRDict homonym definitions are included from the first search page. Live verification remains pending.
+
+## Phase 8 subtitle underlines and Known action — 17 November 2026
+
+The subtitle reader recognises the plural suffix 들 on a noun or pronoun, including forms with particles. An imported 여러분 now clears the underline on 여러분들의. The dictionary popup places **Known** beside **Mine Word** and shares its styling. Clicking **Known** saves the resolved headword's local status, preserves any existing mined data, and refreshes the subtitle underline. A new known-only entry is excluded from Anki sync until a sentence is mined for it.
+
+All 81 automated tests passed, type checking passed, and the Chrome production build succeeded. An isolated Chrome test with fixture captions and simulated dictionary and Anki responses verified the reported word form, button placement and styling, immediate underline updates, persistence after reload, and mining after marking a word known. The original YouTube session was not used for this verification.

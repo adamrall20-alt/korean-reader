@@ -159,10 +159,11 @@ export default defineBackground(() => {
     }
 
     if (isVocabularyMessage(message)) {
-      if (message.type === 'mine-word' ? !fromYouTube : !fromExtensionPage) return false;
+      const fromWordPopup = message.type === 'mine-word' || message.type === 'mark-word-known';
+      if (fromWordPopup ? !fromYouTube : !fromExtensionPage) return false;
 
       void handleVocabularyMessage(message).then(async (response) => {
-        if (response.ok && (message.type === 'set-vocabulary-status' ||
+        if (response.ok && (message.type === 'mark-word-known' || message.type === 'set-vocabulary-status' ||
           message.type === 'delete-vocabulary' || (message.type === 'mine-word' && response.outcome !== 'existing'))) {
           await notifyVocabularyChanged();
         }

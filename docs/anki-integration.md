@@ -22,6 +22,8 @@ In **Settings → Anki**, connect to Anki Desktop. Under **Import known words**,
 
 Click **Mark words known** to save the previewed words locally. Existing vocabulary records retain their definitions and examples. New entries become available in **Storage** and affect subtitle lookups and underlines right away. Import reads the deck without writing to Anki. A word enters the sync workflow after you mine a subtitle sentence for it.
 
+The dictionary popup's **Known** button also saves a word's status locally. A word marked known this way is eligible for Anki sync once you mine a sentence for it.
+
 ## Kimchi Sentence Mining fields
 
 | Anki field | Value |

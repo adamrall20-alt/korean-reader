@@ -14,6 +14,7 @@ const props = defineProps<{
   miningContext?: VocabularyContext;
   recordAudio?: () => Promise<string | undefined>;
   savedContexts?: VocabularyContext[];
+  isKnown?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -104,6 +105,40 @@ const savedContext = computed(() => {
 
 const canAddAudio = computed(() => !!savedContext.value && !savedContext.value.audio && !!props.recordAudio);
 const contextAlreadySaved = computed(() => !!savedContext.value && !canAddAudio.value);
+
+const markingKnown = ref(false);
+const knownOutcome = ref<VocabularyResponse>();
+
+watch(() => props.entry, () => {
+  markingKnown.value = false;
+  knownOutcome.value = undefined;
+});
+watch(() => props.isKnown, (known) => {
+  if (!known && knownOutcome.value?.ok) knownOutcome.value = undefined;
+});
+
+async function markKnown() {
+  const { entry } = props;
+  if (!entry || props.isKnown || knownOutcome.value?.ok || markingKnown.value) return;
+
+  markingKnown.value = true;
+  knownOutcome.value = undefined;
+  try {
+    const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({
+      type: 'mark-word-known',
+      headword: entry.headword,
+    } satisfies VocabularyMessage);
+    if (props.entry === entry) {
+      knownOutcome.value = response ?? { ok: false, error: 'Could not mark the word as known.' };
+    }
+  } catch {
+    if (props.entry === entry) {
+      knownOutcome.value = { ok: false, error: 'Could not mark the word as known. Try again.' };
+    }
+  } finally {
+    if (props.entry === entry) markingKnown.value = false;
+  }
+}
 
 async function saveWord() {
   const { entry, miningContext } = props;
@@ -232,19 +267,22 @@ watch(() => props.miningContext, () => {
         <h3>Examples</h3>
         <p v-for="example in entry.examples.slice(0, 2)" :key="example">{{ example }}</p>
       </section>
-      <div v-if="miningContext" class="kr-mining-actions">
-        <p v-if="!savedContexts?.length && (entry.definitions.length || entry.koreanDefinitions.length) > 1" class="kr-dictionary-message">Select one or more definitions to mine.</p>
-        <p v-if="!miningContext.image" class="kr-dictionary-message" role="status">Video image unavailable; the word can still be saved.</p>
-        <p v-if="audioUnavailable" role="status">Subtitle audio unavailable.</p>
-        <p v-if="miningOutcome?.ok || contextAlreadySaved" role="status">
-          {{ miningOutcome?.ok && miningOutcome.outcome === 'mined' ? '✓ Mined'
-            : miningOutcome?.ok && miningOutcome.outcome === 'added' ? '✓ Sentence saved'
-            : miningOutcome?.ok && miningOutcome.outcome === 'audio-added' ? '✓ Audio saved'
-            : 'Already mined · Sentence saved' }}
-        </p>
-        <template v-else>
-          <p v-if="savedContexts?.length" class="kr-dictionary-message">Already mined</p>
+      <div class="kr-mining-actions">
+        <template v-if="miningContext">
+          <p v-if="!savedContexts?.length && (entry.definitions.length || entry.koreanDefinitions.length) > 1" class="kr-dictionary-message">Select one or more definitions to mine.</p>
+          <p v-if="!miningContext.image" class="kr-dictionary-message" role="status">Video image unavailable; the word can still be saved.</p>
+          <p v-if="audioUnavailable" role="status">Subtitle audio unavailable.</p>
+          <p v-if="miningOutcome?.ok || contextAlreadySaved" role="status">
+            {{ miningOutcome?.ok && miningOutcome.outcome === 'mined' ? '✓ Mined'
+              : miningOutcome?.ok && miningOutcome.outcome === 'added' ? '✓ Sentence saved'
+              : miningOutcome?.ok && miningOutcome.outcome === 'audio-added' ? '✓ Audio saved'
+              : 'Already mined · Sentence saved' }}
+          </p>
+          <p v-else-if="savedContexts?.length" class="kr-dictionary-message">Already mined</p>
+        </template>
+        <div class="kr-word-actions">
           <button
+            v-if="miningContext && !miningOutcome?.ok && !contextAlreadySaved"
             type="button"
             class="kr-mine-button"
             :disabled="mining || translating || (!savedContexts?.length && !selectedDefinitions.length)"
@@ -252,10 +290,21 @@ watch(() => props.miningContext, () => {
           >
             {{ recording ? 'Recording audio…' : mining ? 'Saving…' : canAddAudio ? 'Add Audio' : savedContexts?.length ? 'Save Sentence' : 'Mine Word' }}
           </button>
-          <p v-if="miningOutcome && !miningOutcome.ok" class="kr-dictionary-error" role="alert">
-            {{ miningOutcome.error }}
-          </p>
-        </template>
+          <button
+            type="button"
+            class="kr-mine-button kr-known-button"
+            :aria-pressed="!!(isKnown || knownOutcome?.ok)"
+            :disabled="markingKnown || isKnown || knownOutcome?.ok"
+            @click="markKnown"
+          >
+            Known
+          </button>
+        </div>
+        <p v-if="miningOutcome && !miningOutcome.ok" class="kr-dictionary-error" role="alert">
+          {{ miningOutcome.error }}
+        </p>
+        <p v-if="knownOutcome?.ok" role="status">Marked as known.</p>
+        <p v-else-if="knownOutcome" class="kr-dictionary-error" role="alert">{{ knownOutcome.error }}</p>
       </div>
     </template>
   </aside>

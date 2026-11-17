@@ -39,7 +39,7 @@ The primary workflow is:
 
 Clicking a word must never automatically mine it.
 
-Vocabulary must only be saved when the user explicitly selects "Mine Word".
+Mining requires an explicit "Mine Word" action. The adjacent "Known" action saves the dictionary headword's local known status.
 
 Vocabulary must only be transferred to Anki when the user explicitly initiates synchronisation.
 
@@ -124,6 +124,8 @@ Known/unknown status rules:
 
 - A word that has not been marked before defaults to unknown.
 - Mining a word marks it as known.
+- Selecting "Known" marks the dictionary headword as known without saving a mined sentence or creating an Anki card.
+- A stored noun or pronoun can also match when it appears with particles and the plural suffix 들. For example, known 여러분 removes the underline from 여러분들의.
 - The user can change the status with a known/unknown toggle.
 
 ### 3.5 Vocabulary Management

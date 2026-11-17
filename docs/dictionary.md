@@ -44,6 +44,8 @@ The user has obtained a KRDict API key.
 - Hanja where available.
 - Example sentences where available.
 
+Once a lookup returns an entry, **Known** saves its dictionary headword locally. The selected subtitle form remains visible in the popup. Subtitle underlines use Kiwi's morphology to match known headwords, so 여러분들의 can match 여러분 through the plural suffix 들 and the particle 의.
+
 ## Morphological Analysis
 
 Kiwi runs as bundled WebAssembly in the background worker. See `docs/architecture.md`.

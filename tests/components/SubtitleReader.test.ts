@@ -166,6 +166,27 @@ describe('SubtitleReader', () => {
     expect(wrapper.get('.kr-word-token-unknown').text()).toBe('먹어요');
   });
 
+  it('matches a known pronoun with a plural suffix and particle', async () => {
+    const wrapper = mount(SubtitleReader, { props: {
+      visible: true,
+      knownHeadwords: new Set(['여러분']),
+      lines: [{
+        text: '여러분들의',
+        tokens: [{
+          id: '0:0', text: '여러분들의', start: 0, length: 5, clickable: true,
+          morphemes: [
+            { text: '여러분', tag: 'NP', position: 0, length: 3 },
+            { text: '들', tag: 'XSN', position: 3, length: 1 },
+            { text: '의', tag: 'JKG', position: 4, length: 1 },
+          ],
+        }],
+      }],
+    } });
+    expect(wrapper.find('.kr-word-token-unknown').exists()).toBe(false);
+    await wrapper.setProps({ knownHeadwords: new Set(['여러']) });
+    expect(wrapper.get('.kr-word-token-unknown').text()).toBe('여러분들의');
+  });
+
   it('keeps a noun plus a known copula underlined until the noun is known', async () => {
     const wrapper = mount(SubtitleReader, { props: {
       visible: true,

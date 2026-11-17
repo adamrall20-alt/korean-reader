@@ -86,7 +86,7 @@ Responsible for:
 - Identifying subtitle updates.
 - Hiding native captions and rendering the custom interactive subtitle overlay.
 - Rendering the dictionary popup in an isolated Shadow DOM so YouTube styles do not leak into it.
-- Sending selected-word and mining requests to the background.
+- Sending dictionary lookup, mining and mark-known requests to the background.
 
 ### Background Service Worker
 

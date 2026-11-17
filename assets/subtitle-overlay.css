@@ -187,6 +187,12 @@
   margin: 0.35rem 0;
 }
 
+.kr-word-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
 .kr-mine-button {
   padding: 0.35em 0.75em;
   border: 0;

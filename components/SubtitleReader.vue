@@ -178,6 +178,7 @@ onBeforeUnmount(() => {
       :mining-context="miningContext"
       :record-audio="recordAudio"
       :saved-contexts="savedContexts"
+      :is-known="!!dictionaryEntry && knownHeadwords?.has(dictionaryEntry.headword.trim().normalize('NFC'))"
       @close="closePopup"
       @resize="repositionPopup"
     />

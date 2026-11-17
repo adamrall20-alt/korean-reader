@@ -33,6 +33,7 @@ export interface VocabularyEntry extends DictionaryEntry {
 
 export type VocabularyMessage =
   | { type: 'mine-word'; entry: DictionaryEntry; context: VocabularyContext; machineDefinitions: string[] }
+  | { type: 'mark-word-known'; headword: string }
   | { type: 'list-vocabulary' }
   | { type: 'edit-vocabulary'; headword: string; definitions: string[] }
   | { type: 'set-vocabulary-status'; headword: string; status: VocabularyStatus }

@@ -1,4 +1,4 @@
-import { changeVocabulary, listVocabulary, mineWord } from '@/services/storage/vocabulary';
+import { changeVocabulary, listVocabulary, markHeadwordsKnown, mineWord } from '@/services/storage/vocabulary';
 import { isSubtitleAudio } from '@/types/audio';
 import type { VocabularyMessage, VocabularyResponse } from '@/types/vocabulary';
 
@@ -37,13 +37,17 @@ export function isVocabularyMessage(message: unknown): message is VocabularyMess
   if (message.type === 'mine-word') return isMineMessage(message);
   if (!hasText(message.headword)) return false;
 
-  return message.type === 'delete-vocabulary' ||
+  return message.type === 'mark-word-known' || message.type === 'delete-vocabulary' ||
     (message.type === 'edit-vocabulary' && isStringList(message.definitions)) ||
     (message.type === 'set-vocabulary-status' && (message.status === 'known' || message.status === 'unknown'));
 }
 
 export async function handleVocabularyMessage(message: VocabularyMessage): Promise<VocabularyResponse> {
   if (message.type === 'mine-word') return { ok: true, outcome: await mineWord(message) };
+  if (message.type === 'mark-word-known') {
+    await markHeadwordsKnown([message.headword]);
+    return { ok: true };
+  }
 
   if (message.type !== 'list-vocabulary') await changeVocabulary(message);
   return { ok: true, entries: await listVocabulary() };

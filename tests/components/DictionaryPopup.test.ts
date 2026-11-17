@@ -66,6 +66,44 @@ describe('DictionaryPopup mining', () => {
     timestamp: 12.5,
   };
 
+  it('marks the dictionary headword known without selecting definitions or recording audio', async () => {
+    sendMessage.mockReset()
+      .mockRejectedValueOnce(new Error('Storage unavailable'))
+      .mockResolvedValueOnce({ ok: true });
+    const recordAudio = vi.fn();
+    const wrapper = mount(DictionaryPopup, { props: {
+      ...props,
+      entry: { ...entry, definitions: ['to play', 'to joke'] },
+      miningContext,
+      recordAudio,
+    } });
+    const known = wrapper.get('.kr-known-button');
+    const mine = wrapper.get('.kr-mine-button:not(.kr-known-button)');
+    expect(known.text()).toBe('Known');
+    expect(known.classes()).toContain('kr-mine-button');
+    expect(mine.element.nextElementSibling).toBe(known.element);
+    expect(mine.attributes('disabled')).toBeDefined();
+    expect(sendMessage).not.toHaveBeenCalled();
+
+    await known.trigger('click');
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toContain('Try again');
+    await known.trigger('click');
+    await flushPromises();
+
+    expect(sendMessage.mock.calls).toEqual([
+      [{ type: 'mark-word-known', headword: entry.headword }],
+      [{ type: 'mark-word-known', headword: entry.headword }],
+    ]);
+    expect(recordAudio).not.toHaveBeenCalled();
+    expect(known.attributes('aria-pressed')).toBe('true');
+    expect(known.attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).toContain('Marked as known.');
+    await wrapper.setProps({ isKnown: true });
+    await wrapper.setProps({ isKnown: false });
+    expect(known.attributes('disabled')).toBeUndefined();
+  });
+
   it('requires an explicit mine action, reports a failed save, and lets the user retry', async () => {
     sendMessage.mockReset()
       .mockResolvedValueOnce({ ok: false, error: 'Storage unavailable' })
@@ -73,10 +111,10 @@ describe('DictionaryPopup mining', () => {
     const wrapper = mount(DictionaryPopup, { props: { ...props, miningContext } });
     expect(sendMessage).not.toHaveBeenCalled();
 
-    await wrapper.get('.kr-mine-button').trigger('click');
+    await wrapper.get('.kr-mine-button:not(.kr-known-button)').trigger('click');
     await flushPromises();
     expect(wrapper.get('[role="alert"]').text()).toBe('Storage unavailable');
-    await wrapper.get('.kr-mine-button').trigger('click');
+    await wrapper.get('.kr-mine-button:not(.kr-known-button)').trigger('click');
     await flushPromises();
 
     expect(sendMessage).toHaveBeenLastCalledWith({
@@ -86,27 +124,27 @@ describe('DictionaryPopup mining', () => {
       machineDefinitions: [],
     });
     expect(wrapper.text()).toContain('✓ Mined');
-    expect(wrapper.find('.kr-mine-button').exists()).toBe(false);
+    expect(wrapper.find('.kr-mine-button:not(.kr-known-button)').exists()).toBe(false);
   });
 
   it('mines only selected definitions and resets selection for another entry', async () => {
     sendMessage.mockReset().mockResolvedValue({ ok: true, outcome: 'mined' });
     const multi = { ...entry, definitions: ['first', 'second', 'third'], koreanDefinitions: ['unrelated'] };
     const wrapper = mount(DictionaryPopup, { props: { ...props, entry: multi, miningContext } });
-    expect(wrapper.get('.kr-mine-button').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('.kr-mine-button:not(.kr-known-button)').attributes('disabled')).toBeDefined();
     const choices = wrapper.findAll('.kr-definition-button');
     await choices[0]!.trigger('click');
     await choices[1]!.trigger('click');
     await choices[0]!.trigger('click');
     expect(choices[0]!.attributes('aria-pressed')).toBe('false');
     expect(choices[1]!.attributes('aria-pressed')).toBe('true');
-    await wrapper.get('.kr-mine-button').trigger('click');
+    await wrapper.get('.kr-mine-button:not(.kr-known-button)').trigger('click');
     await flushPromises();
     expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
       entry: expect.objectContaining({ definitions: ['second'], koreanDefinitions: [] }),
     }));
     await wrapper.setProps({ entry: { ...multi, headword: '다른', definitions: ['one', 'two'] }, miningContext: { ...miningContext } });
-    expect(wrapper.get('.kr-mine-button').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('.kr-mine-button:not(.kr-known-button)').attributes('disabled')).toBeDefined();
   });
 
   it('keeps selected Korean definitions paired with their translations', async () => {
@@ -119,7 +157,7 @@ describe('DictionaryPopup mining', () => {
     await wrapper.get('.kr-translate-button').trigger('click');
     await flushPromises();
     await wrapper.findAll('.kr-definition-button')[3]!.trigger('click');
-    await wrapper.get('.kr-mine-button').trigger('click');
+    await wrapper.get('.kr-mine-button:not(.kr-known-button)').trigger('click');
     await flushPromises();
     expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
       entry: expect.objectContaining({ koreanDefinitions: ['둘째'] }),
@@ -135,7 +173,7 @@ describe('DictionaryPopup mining', () => {
     const wrapper = mount(DictionaryPopup, { props: { ...props, miningContext, recordAudio } });
     expect(recordAudio).not.toHaveBeenCalled();
 
-    await wrapper.get('.kr-mine-button').trigger('click');
+    await wrapper.get('.kr-mine-button:not(.kr-known-button)').trigger('click');
     await flushPromises();
 
     expect(recordAudio).toHaveBeenCalledOnce();
@@ -150,7 +188,7 @@ describe('DictionaryPopup mining', () => {
     sendMessage.mockReset().mockResolvedValue({ ok: true, outcome: 'mined' });
     const wrapper = mount(DictionaryPopup, { props: { ...props, miningContext, recordAudio } });
 
-    await wrapper.get('.kr-mine-button').trigger('click');
+    await wrapper.get('.kr-mine-button:not(.kr-known-button)').trigger('click');
     await flushPromises();
     expect(sendMessage).toHaveBeenCalledExactlyOnceWith({
       type: 'mine-word', entry, context: miningContext, machineDefinitions: [],
@@ -160,10 +198,10 @@ describe('DictionaryPopup mining', () => {
     const existing = mount(DictionaryPopup, {
       props: { ...props, miningContext, recordAudio, savedContexts: [miningContext] },
     });
-    expect(existing.get('.kr-mine-button').text()).toBe('Add Audio');
+    expect(existing.get('.kr-mine-button:not(.kr-known-button)').text()).toBe('Add Audio');
     recordAudio.mockResolvedValue('data:audio/webm;base64,YWJj');
     sendMessage.mockResolvedValue({ ok: true, outcome: 'audio-added' });
-    await existing.get('.kr-mine-button').trigger('click');
+    await existing.get('.kr-mine-button:not(.kr-known-button)').trigger('click');
     await flushPromises();
     expect(existing.text()).toContain('✓ Audio saved');
   });
@@ -173,9 +211,9 @@ describe('DictionaryPopup mining', () => {
       props: { ...props, miningContext, savedContexts: [miningContext] },
     });
     expect(wrapper.text()).toContain('Already mined · Sentence saved');
-    expect(wrapper.find('.kr-mine-button').exists()).toBe(false);
+    expect(wrapper.find('.kr-mine-button:not(.kr-known-button)').exists()).toBe(false);
 
     await wrapper.setProps({ miningContext: { ...miningContext, sentence: '친구와 장난하지.' } });
-    expect(wrapper.get('.kr-mine-button').text()).toBe('Save Sentence');
+    expect(wrapper.get('.kr-mine-button:not(.kr-known-button)').text()).toBe('Save Sentence');
   });
 });

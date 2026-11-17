@@ -62,9 +62,10 @@ export function isKnownSubtitleWord(token: SubtitleToken, known: ReadonlySet<str
   if (preferredForm && preferredForm !== surface) return known.has(preferredForm);
   if (known.has(surface)) return true;
 
-  // A noun or pronoun with a particle still refers to the same headword.
-  const withoutParticles = token.morphemes.filter(({ tag }) => !tag.startsWith('J'));
-  return withoutParticles.length === 1 &&
-    /^(NN|NP|NR)/u.test(withoutParticles[0]!.tag) &&
-    known.has(withoutParticles[0]!.text.normalize('NFC'));
+  // Particles and the plural suffix 들 do not change the nominal headword.
+  const [nominal, ...suffixes] = token.morphemes.filter(({ tag }) => !tag.startsWith('J'));
+  return !!nominal && /^(NN|NP|NR)/u.test(nominal.tag) &&
+    (suffixes.length === 0 ||
+      (suffixes.length === 1 && suffixes[0]?.tag === 'XSN' && suffixes[0].text === '들')) &&
+    known.has(nominal.text.normalize('NFC'));
 }

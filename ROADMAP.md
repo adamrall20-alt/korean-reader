@@ -228,6 +228,8 @@ Tasks:
 - [x] Import known words from an Anki deck through AnkiConnect in Settings.
 - [x] Fix word checking against common conjugations, prefering the noun over the verb when both are valid dictionary entries.
 - [x] For words with multiple dictionary definitions, allow the user to select which definitions to mine and sync to Anki (live verification pending).
+- [x] Match known nouns and pronouns with the plural suffix 들 and particles in subtitles.
+- [x] Add a Known button beside Mine Word to update local status without mining.
 
 Phase 8 is in progress. The remaining items are live verification of captured audio on YouTube and in the user's Anki card template, live verification of the Kimchi Reader CSV import, and live verification of definition selection. See PROJECT_STATUS.md for current details.
 
