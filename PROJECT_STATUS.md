@@ -2,9 +2,9 @@
 
 ## Current Project State
 
-**Status:** Phase 6 complete; interface refinement in progress
-**Current Phase:** Phase 7 — Interface Refinement
-**Last Updated:** 16 November 2026
+**Status:** Phase 8 lookup refinement and direct Anki import implemented
+**Current Phase:** Phase 8 — Additional Features
+**Last Updated:** 17 November 2026
 
 ## Completed
 
@@ -80,13 +80,19 @@ The user confirmed the Phase 2–3 workflow on a live YouTube video, including o
 
 ### Remaining Phase 8 features
 
-Screenshot capture, audio capture, and known-word import are pending.
+Screenshot capture and audio capture are pending.
+
+## Phase 8 known word import — 17 November 2026
+
+Settings → Anki → Import known words reads a selected deck and its subdecks through AnkiConnect. The preview reports unique Korean focus words, words already known, and notes without a usable focus word. Confirming the preview updates the local vocabulary and refreshes subtitle underlines. Existing definitions and mined sentences are preserved. Imported words with no mined sentences are excluded from Anki sync and the toolbar counts.
+
+Automated verification: 67 tests passed, type checking passed, and the Chrome production build succeeded. An isolated Chrome test with a simulated Anki connection verified the Settings flow, repeat imports, subtitle underline updates, and mining an imported word. The import has not been tried against a live Anki deck.
 
 ## Phase 8 lookup refinement — 17 November 2026
 
 When Kiwi identifies a noun plus 이다, clicking the subtitle word looks up the noun first if 이다 is already known and the noun is still unknown. For example, 학생이에요 opens 학생 and keeps 학생이에요 as the original form. The subtitle remains underlined until both headwords are known.
 
-Verified with the bundled Kiwi model for 학생이에요, 의사예요 and 학생입니다. Automated tests, type checking and the Chrome production build passed. Live YouTube verification is pending.
+Verified with the bundled Kiwi model for 학생이에요, 의사예요 and 학생입니다. Automated tests, type checking and the Chrome production build passed. The user confirmed the lookup works in live use.
 
 ## Phase 0 Checklist
 

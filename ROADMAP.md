@@ -226,7 +226,7 @@ Tasks:
 - [ ] Move Anki deck configuration and field mapping to the Settings page.
 - [ ] Screenshot capture for Anki cards.
 - [ ] Audio capture.
-- [ ] Import already known words from Anki or other sources, add this as a section in the settings page.
+- [x] Import known words from an Anki deck through AnkiConnect in Settings.
 - [ ] Fix word checking against common conjugations, prefering the noun over the verb when both are valid dictionary entries.
 
 ## Future Enhancements

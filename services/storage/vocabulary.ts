@@ -54,6 +54,36 @@ export function listVocabulary(): Promise<VocabularyEntry[]> {
   return readVocabulary((store) => store.getAll());
 }
 
+export async function importKnownHeadwords(words: string[]): Promise<number> {
+  const database = await openDatabase();
+  try {
+    return await new Promise<number>((resolve, reject) => {
+      const transaction = database.transaction(VOCABULARY_STORE, 'readwrite');
+      const store = transaction.objectStore(VOCABULARY_STORE);
+      const now = new Date().toISOString();
+      let marked = 0;
+      transaction.oncomplete = () => resolve(marked);
+      transaction.onabort = () => reject(transaction.error ?? new Error('Could not save imported words.'));
+
+      for (const headword of new Set(words.map(normalizeHeadword).filter(Boolean))) {
+        const request = store.get(headword);
+        request.onsuccess = () => {
+          const existing = request.result as VocabularyEntry | undefined;
+          if (existing?.status === 'known') return;
+          const entry: VocabularyEntry = existing ? { ...existing, status: 'known', updatedAt: now } : {
+            headword, originalForm: headword, definitions: [], koreanDefinitions: [], examples: [],
+            contexts: [], status: 'known', createdAt: now, updatedAt: now,
+          };
+          store.put(entry);
+          marked += 1;
+        };
+      }
+    });
+  } finally {
+    database.close();
+  }
+}
+
 export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word' }>) {
   const headword = normalizeHeadword(message.entry.headword);
   return updateVocabulary(headword, (store, existing) => {
@@ -66,6 +96,11 @@ export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word'
     const entry: VocabularyEntry = existing
       ? {
           ...existing,
+          ...(!existing.contexts.length ? {
+            ...message.entry,
+            headword,
+            definitions: existing.definitions.length ? existing.definitions : message.entry.definitions,
+          } : {}),
           contexts: [...existing.contexts, context],
           machineDefinitions: existing.machineDefinitions?.length ? existing.machineDefinitions : message.machineDefinitions,
           status: 'known',
@@ -81,7 +116,7 @@ export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word'
           updatedAt: now,
         };
     store.put(entry);
-    return existing ? 'added' as const : 'mined' as const;
+    return existing?.contexts.length ? 'added' as const : 'mined' as const;
   });
 }
 

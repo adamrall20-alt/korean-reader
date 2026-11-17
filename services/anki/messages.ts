@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { AnkiClient } from '@/services/anki/client';
-import { listVocabulary, saveMachineTranslation } from '@/services/storage/vocabulary';
+import { importKnownHeadwords, listVocabulary, saveMachineTranslation } from '@/services/storage/vocabulary';
+import { previewKnownWords } from '@/services/anki/import';
 import { countUnsynced, syncVocabulary, validateAnkiSettings } from '@/services/anki/sync';
 import { ANKI_FIELD_ROLES, DEFAULT_ANKI_SETTINGS, type AnkiMessage, type AnkiResponse, type AnkiSettings } from '@/types/anki';
 
@@ -30,6 +31,11 @@ export function isAnkiMessage(value: unknown): value is AnkiMessage {
     case 'get-anki-fields': return isConnection(value) && typeof value.modelName === 'string' && !!value.modelName;
     case 'save-anki-settings': return isSettings(value.settings);
     case 'count-unsynced': return isSettings(value.settings);
+    case 'preview-anki-import':
+      return isSettings(value.settings) && typeof value.deckName === 'string' && !!value.deckName.trim();
+    case 'import-anki-words':
+      return Array.isArray(value.headwords) && value.headwords.length > 0 &&
+        value.headwords.every((word) => typeof word === 'string' && /\p{Script=Hangul}/u.test(word));
     case 'sync-anki':
       return isSettings(value.settings) && Array.isArray(value.translations) &&
         value.translations.every((translation) => isRecord(translation) &&
@@ -56,10 +62,17 @@ export async function handleAnkiMessage(message: AnkiMessage): Promise<AnkiRespo
   if (message.type === 'count-unsynced') {
     return { ok: true, unsynced: await countUnsynced(message.settings) };
   }
+  if (message.type === 'preview-anki-import') {
+    return { ok: true, importPreview: await previewKnownWords(message.settings, message.deckName) };
+  }
+  if (message.type === 'import-anki-words') {
+    return { ok: true, markedKnown: await importKnownHeadwords(message.headwords) };
+  }
   if (message.type === 'sync-anki') {
     for (const translation of message.translations) await saveMachineTranslation(translation);
     const entries = await listVocabulary();
-    return { ok: true, results: await syncVocabulary(message.settings, entries.map((entry) => entry.headword)) };
+    const mined = entries.filter((entry) => entry.contexts.length);
+    return { ok: true, results: mined.length ? await syncVocabulary(message.settings, mined.map((entry) => entry.headword)) : [] };
   }
 
   const client = new AnkiClient(message);

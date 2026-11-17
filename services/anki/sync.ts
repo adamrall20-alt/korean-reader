@@ -1,4 +1,5 @@
 import { AnkiClient, type AnkiNote, type AnkiNoteInfo } from '@/services/anki/client';
+import { plainText } from '@/services/anki/fields';
 import { getVocabulary, listVocabulary, recordAnkiSync } from '@/services/storage/vocabulary';
 import { ANKI_DEFAULT_FIELDS, ANKI_FIELD_ROLES, type AnkiSettings, type AnkiSyncResult } from '@/types/anki';
 import type { VocabularyEntry } from '@/types/vocabulary';
@@ -12,13 +13,6 @@ const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;
 
 function escapeHtml(text: string): string {
   return text.replace(/[&<>"]/g, (character) => entities[character]!);
-}
-
-function plainText(html: string): string {
-  return html.replace(/<[^>]*>/g, '')
-    .replace(/&(amp|lt|gt|quot|nbsp|#39|apos);/gi, (entity) =>
-      ({ '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&nbsp;': ' ', '&#39;': "'", '&apos;': "'" })[entity.toLowerCase()] ?? entity)
-    .normalize('NFC').trim();
 }
 
 function escapeSearch(text: string): string {
@@ -82,7 +76,7 @@ function exactMatch(note: AnkiNoteInfo, entry: VocabularyEntry, settings: AnkiSe
 
 export async function countUnsynced(settings: AnkiSettings): Promise<number> {
   const client = new AnkiClient(settings);
-  const entries = await listVocabulary();
+  const entries = (await listVocabulary()).filter((entry) => entry.contexts.length);
   let count = 0;
   for (let index = 0; index < entries.length; index += 20) {
     const batch = entries.slice(index, index + 20);
@@ -197,6 +191,7 @@ export async function syncVocabulary(settings: AnkiSettings, headwords: string[]
       try {
         const entry = await getVocabulary(headword);
         if (!entry) throw new Error('This word is no longer in your vocabulary.');
+        if (!entry.contexts.length) continue;
         const existing = await findExisting(client, entry, settings);
         if (existing) {
           const updated = await updateExistingNote(client, existing, entry, settings);

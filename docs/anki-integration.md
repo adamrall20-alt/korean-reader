@@ -16,6 +16,12 @@ If AnkiConnect denies access, use the exact extension origin shown under **Conne
 
 Reference: [AnkiConnect API documentation](https://github.com/ankiultimate/anki-connect/blob/master/README.md).
 
+## Import known words
+
+In **Settings → Anki**, connect to Anki Desktop. Under **Import known words**, choose a deck and click **Preview import**. The preview includes its subdecks and uses the **Focus Word** field. For the configured note type, it can also use the mapped word field when there is no **Focus Word** field. Empty or non-Korean values are skipped, and identical headwords are counted once.
+
+Click **Mark words known** to save the previewed words locally. Existing vocabulary records retain their definitions and examples. New entries become available in **Storage** and affect subtitle lookups and underlines right away. Import reads the deck without writing to Anki. A word enters the sync workflow after you mine a subtitle sentence for it.
+
 ## Kimchi Sentence Mining fields
 
 | Anki field | Value |

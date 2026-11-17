@@ -100,7 +100,7 @@ describe('Anki sync', () => {
   });
 
   it('counts only headwords missing from the Anki collection', async () => {
-    listVocabulary.mockResolvedValueOnce([word, { ...word, headword: '가다' }]);
+    listVocabulary.mockResolvedValueOnce([word, { ...word, headword: '가다' }, { ...word, headword: '이다', contexts: [] }]);
     fakeAnki((action) => {
       if (action === 'findNotes') return [21];
       if (action === 'notesInfo') return [{
@@ -109,6 +109,15 @@ describe('Anki sync', () => {
       throw new Error(action);
     });
     await expect(countUnsynced(settings)).resolves.toBe(1);
+  });
+
+  it('never syncs an imported word without a mined sentence', async () => {
+    getVocabulary.mockResolvedValueOnce({ ...word, contexts: [] });
+    const calls = vi.fn();
+    fakeAnki(calls);
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([]);
+    expect(calls).not.toHaveBeenCalled();
+    expect(recordAnkiSync).not.toHaveBeenCalled();
   });
 
   it('adds saved English to a previously synced Korean-only definition', async () => {

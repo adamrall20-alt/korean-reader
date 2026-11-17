@@ -13,7 +13,7 @@ async function loadVocabulary() {
   try {
     const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({ type: 'list-vocabulary' });
     if (!response?.ok) throw new Error(response?.error ?? 'Could not access saved vocabulary.');
-    entries.value = response.entries ?? [];
+    entries.value = (response.entries ?? []).filter((entry) => entry.contexts.length);
     error.value = '';
   } catch (failure) {
     error.value = failure instanceof Error ? failure.message : 'Could not access saved vocabulary.';

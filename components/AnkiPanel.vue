@@ -5,13 +5,15 @@ import { createDefinitionTranslator, translateDefinitionList } from '@/services/
 import { browser } from 'wxt/browser';
 import {
   ANKI_DEFAULT_FIELDS, ANKI_FIELD_ROLES, DEFAULT_ANKI_SETTINGS,
-  type AnkiFieldRole, type AnkiMessage, type AnkiResponse, type AnkiSettings, type AnkiSyncResult, type AnkiTranslation,
+  type AnkiFieldRole, type AnkiImportPreview, type AnkiMessage, type AnkiResponse, type AnkiSettings, type AnkiSyncResult, type AnkiTranslation,
 } from '@/types/anki';
 
 const props = defineProps<{ vocabulary?: VocabularyEntry[] }>();
-const emit = defineEmits<{ synced: [] }>();
+const emit = defineEmits<{ synced: []; imported: [] }>();
 const settings = ref<AnkiSettings>({ ...DEFAULT_ANKI_SETTINGS, fields: { ...ANKI_DEFAULT_FIELDS } });
 const decks = ref<string[]>([]);
+const importDeck = ref('');
+const importPreview = ref<AnkiImportPreview>();
 const models = ref<string[]>([]);
 const fields = ref<string[]>([]);
 const connected = ref(false);
@@ -103,13 +105,38 @@ async function readFields() {
 
 async function loadConnection(requestPermission: boolean) {
   connected.value = false;
+  importPreview.value = undefined;
   const result = await request({ type: 'connect-anki', ...connection(), requestPermission });
   decks.value = result.decks ?? [];
   models.value = result.models ?? [];
   if (!decks.value.includes(settings.value.deckName)) settings.value.deckName = '';
+  if (!decks.value.includes(importDeck.value)) importDeck.value = settings.value.deckName;
   if (!models.value.includes(settings.value.modelName)) settings.value.modelName = '';
   connected.value = true;
   await readFields();
+}
+
+function previewImport() {
+  if (!connected.value || !importDeck.value) return;
+  void run(async () => {
+    importPreview.value = undefined;
+    const result = await request({
+      type: 'preview-anki-import', settings: configuration(), deckName: importDeck.value,
+    });
+    importPreview.value = result.importPreview;
+  });
+}
+
+function importWords() {
+  const headwords = importPreview.value?.headwords;
+  if (!connected.value || !headwords?.length) return;
+  void run(async () => {
+    const result = await request({ type: 'import-anki-words', headwords: [...headwords] });
+    importPreview.value = undefined;
+    const count = result.markedKnown ?? 0;
+    notice.value = `${count} ${count === 1 ? 'word' : 'words'} marked known.`;
+    emit('imported');
+  });
 }
 
 function changeModel() {
@@ -251,6 +278,39 @@ onMounted(() => {
     </fieldset>
 
     </details>
+
+    <section v-if="vocabulary === undefined" aria-labelledby="anki-import-heading" class="space-y-2 border-t border-white/10 pt-3">
+      <h3 id="anki-import-heading" class="text-sm font-medium">Import known words</h3>
+      <p v-if="!connected" class="text-xs text-muted">Open Anki Desktop and connect above to choose a deck.</p>
+      <template v-else>
+        <p class="text-xs text-muted">Mark focus words from a deck and its subdecks as known in Korean Reader.</p>
+        <fieldset :disabled="busy" class="flex flex-wrap items-end gap-2">
+          <label class="grid min-w-0 flex-1 gap-1 text-xs">
+            Import from deck
+            <select v-model="importDeck" class="rounded-lg border border-white/15 bg-ink px-2 py-1" @change="importPreview = undefined; notice = ''">
+              <option value="">Choose deck</option>
+              <option v-for="deck in decks" :key="deck">{{ deck }}</option>
+            </select>
+          </label>
+          <button type="button" :disabled="!importDeck || busy" class="rounded-lg border border-white/15 px-2 py-1 text-xs disabled:opacity-50" @click="previewImport">
+            Preview import
+          </button>
+        </fieldset>
+        <div v-if="importPreview" class="space-y-2 rounded-lg bg-ink p-3 text-xs">
+          <p role="status">
+            {{ importPreview.total }} unique focus words · {{ importPreview.alreadyKnown }} already known ·
+            {{ importPreview.headwords.length }} to mark known
+          </p>
+          <p v-if="importPreview.skipped" class="text-muted">{{ importPreview.skipped }} notes skipped because they had no Korean focus word.</p>
+          <p v-if="importPreview.headwords.length" lang="ko" class="break-words text-muted">
+            {{ importPreview.headwords.slice(0, 12).join(', ') }}<template v-if="importPreview.headwords.length > 12">…</template>
+          </p>
+          <button v-if="importPreview.headwords.length" type="button" :disabled="busy" class="rounded-lg bg-accent px-3 py-1.5 text-white disabled:opacity-50" @click="importWords">
+            Mark words known
+          </button>
+        </div>
+      </template>
+    </section>
 
     <div v-if="vocabulary" class="rounded-xl bg-ink-soft p-3">
       <div class="grid grid-cols-2 gap-3" aria-live="polite">

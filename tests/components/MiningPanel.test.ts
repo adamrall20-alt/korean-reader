@@ -37,7 +37,13 @@ describe('MiningPanel', () => {
       koreanDefinitions: ['밥을 먹는 행동.'],
       originalForm: '먹어요',
       examples: [],
-      contexts: [],
+      contexts: [{
+        sentence: '밥을 먹어요.',
+        originalForm: '먹어요',
+        sourceTitle: 'Video',
+        sourceUrl: 'https://www.youtube.com/watch?v=abcdefghijk',
+        minedAt: '2026-11-16T00:00:00.000Z',
+      }],
       status: 'known',
       createdAt: '2026-11-16T00:00:00.000Z',
       updatedAt: '2026-11-16T00:00:00.000Z',
@@ -49,7 +55,7 @@ describe('MiningPanel', () => {
     let unsynced = 1;
     sendMessage.mockImplementation(async (message) => {
       switch (message.type) {
-        case 'list-vocabulary': return { ok: true, entries: [entry] };
+        case 'list-vocabulary': return { ok: true, entries: [entry, { ...entry, headword: '이다', contexts: [] }] };
         case 'get-anki-settings': return { ok: true, settings };
         case 'connect-anki': return { ok: true, decks: ['Korean'], models: [settings.modelName] };
         case 'get-anki-fields': return { ok: true, fields: Object.values(ANKI_DEFAULT_FIELDS) };

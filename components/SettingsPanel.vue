@@ -11,6 +11,7 @@ const krDictApiKey = ref('');
 const settingsMessage = ref('');
 const savingSettings = ref(false);
 const clearingCache = ref(false);
+const vocabularyRevision = ref(0);
 
 onMounted(async () => {
   try {
@@ -188,8 +189,8 @@ const sections = [
                 {{ clearingCache ? 'Clearing…' : 'Clear dictionary cache' }}
               </button>
             </div>
-            <AnkiPanel v-else-if="section.id === 'anki'" class="mt-4 border-t border-white/10 pt-4" />
-            <VocabularyManager v-else-if="section.id === 'storage'" class="mt-4 border-t border-white/10 pt-4" />
+            <AnkiPanel v-else-if="section.id === 'anki'" class="mt-4 border-t border-white/10 pt-4" @imported="vocabularyRevision += 1" />
+            <VocabularyManager v-else-if="section.id === 'storage'" :key="vocabularyRevision" class="mt-4 border-t border-white/10 pt-4" />
             <p v-else class="mt-4 border-t border-white/10 pt-4 text-xs text-muted">
               This section is a placeholder and does not save any settings yet.
             </p>

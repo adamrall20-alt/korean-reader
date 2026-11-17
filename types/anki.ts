@@ -38,12 +38,21 @@ export interface AnkiTranslation {
   english: string[];
 }
 
+export interface AnkiImportPreview {
+  headwords: string[];
+  total: number;
+  alreadyKnown: number;
+  skipped: number;
+}
+
 export type AnkiMessage =
   | { type: 'get-anki-settings' }
   | { type: 'save-anki-settings'; settings: AnkiSettings }
   | { type: 'connect-anki'; port: number; apiKey: string; requestPermission: boolean }
   | { type: 'get-anki-fields'; port: number; apiKey: string; modelName: string }
   | { type: 'count-unsynced'; settings: AnkiSettings }
+  | { type: 'preview-anki-import'; settings: AnkiSettings; deckName: string }
+  | { type: 'import-anki-words'; headwords: string[] }
   | { type: 'sync-anki'; settings: AnkiSettings; translations: AnkiTranslation[] };
 
 export type AnkiResponse = {
@@ -53,5 +62,7 @@ export type AnkiResponse = {
   models?: string[];
   fields?: string[];
   unsynced?: number;
+  importPreview?: AnkiImportPreview;
+  markedKnown?: number;
   results?: AnkiSyncResult[];
 } | { ok: false; error: string };

@@ -22,6 +22,12 @@ import type {
 
 const KRDICT_API_KEY_STORAGE = 'krDictApiKey';
 
+async function notifyVocabularyChanged() {
+  await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: crypto.randomUUID() }).catch((error) => {
+    console.warn('[Korean Reader] Could not notify subtitle tabs of vocabulary changes.', error);
+  });
+}
+
 function isPingMessage(message: unknown): message is PingMessage {
   return (
     typeof message === 'object' &&
@@ -158,9 +164,7 @@ export default defineBackground(() => {
       void handleVocabularyMessage(message).then(async (response) => {
         if (response.ok && (message.type === 'set-vocabulary-status' ||
           message.type === 'delete-vocabulary' || (message.type === 'mine-word' && response.outcome !== 'existing'))) {
-          await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: crypto.randomUUID() }).catch((error) => {
-            console.warn('[Korean Reader] Could not notify subtitle tabs of vocabulary changes.', error);
-          });
+          await notifyVocabularyChanged();
         }
         sendResponse(response);
       }).catch((error: unknown) => {
@@ -176,7 +180,10 @@ export default defineBackground(() => {
     if (!fromExtensionPage) return false;
 
     if (isAnkiMessage(message)) {
-      void handleAnkiMessage(message).then(sendResponse).catch((error: unknown) => {
+      void handleAnkiMessage(message).then(async (response) => {
+        if (response.ok && response.markedKnown) await notifyVocabularyChanged();
+        sendResponse(response);
+      }).catch((error: unknown) => {
         sendResponse({ ok: false, error: error instanceof Error ? error.message : 'AnkiConnect request failed.' });
       });
       return true;

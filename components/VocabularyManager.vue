@@ -150,7 +150,8 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
                 </li>
               </ul>
             </template>
-            <details class="text-xs">
+            <p v-if="!entry.contexts.length" class="text-xs text-muted">Imported from Anki</p>
+            <details v-else class="text-xs">
               <summary class="cursor-pointer text-muted">{{ entry.contexts.length }} {{ entry.contexts.length === 1 ? 'sentence' : 'sentences' }}</summary>
               <ul class="space-y-2 pt-2">
                 <li v-for="(context, index) in entry.contexts" :key="index">
