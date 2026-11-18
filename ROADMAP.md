@@ -276,12 +276,13 @@ YouTube can serve an English transcript while the video player displays Korean c
 - [x] Start from the current local known-word count and chart changes after opt-in.
 - [x] Show live review counts, a seven-day scheduled total, and known-word overlap for the configured Anki deck.
 
-## Phase 10 — Accounts and Progress Sync (planned)
+## Phase 10 — Accounts and Progress Sync (prototype)
 
 **Goal:** Let users optionally sign in with Google and carry their known-word progress between Chrome profiles.
 
-- [ ] Confirm remaining decisions and approve the first implementation milestone.
-- [ ] Validate Chrome extension sign-in, a large first import and two-profile sync on Firebase Spark.
+- [x] Approve and implement the first prototype milestone.
+- [x] Verify the 13,000-word import, merge, revision conflicts and account isolation in the Firestore emulator.
+- [ ] Validate live Google sign-in and two-profile sync on Firebase Spark.
 - [ ] Implement account and guest data separation, automatic merging, and offline sync.
 - [ ] Extend Statistics with account history, backdated progress and sync status.
 - [ ] Add registration capacity controls and verify account isolation and recovery before open sign-up.

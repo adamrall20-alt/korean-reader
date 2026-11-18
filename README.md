@@ -128,7 +128,7 @@ korean-reader/
 
 ## Requirements
 
-- Node.js 22 or newer.
+- Node.js 24.12 or newer.
 - npm.
 - Google Chrome desktop.
 
@@ -299,7 +299,8 @@ Captions must be enabled for extraction to work; the extension does not turn the
 - `ROADMAP.md` — implementation order and task tracking.
 - `PROJECT_STATUS.md` — current status and known issues.
 - `docs/architecture.md` — runtime architecture and data ownership.
-- [Phase 10 accounts and progress sync](docs/account-sync.md) — planned behaviour, architecture and open decisions.
+- [Phase 10 accounts and progress sync](docs/account-sync.md) — prototype behaviour, architecture and open decisions.
+- [Phase 10 prototype setup](docs/account-sync-setup.md) — Firebase configuration and the two-profile Chrome test.
 - `docs/dictionary.md` — KRDict lookup and caching behaviour.
 - `docs/anki-integration.md` — AnkiConnect setup, note mapping, and sync behaviour.
 - `docs/interview-questions.md` — interview-style questions about the product and its engineering.

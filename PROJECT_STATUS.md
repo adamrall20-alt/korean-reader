@@ -8,7 +8,7 @@
 
 **Last Updated:** 18 November 2026
 
-**Next planned phase:** Phase 10 — Accounts and Progress Sync. The [planning record](docs/account-sync.md) captures the Firebase Spark proposal and agreed behaviours. Account deletion and retention remain open. Implementation and verification are pending.
+**Phase 10 prototype:** The opt-in Chrome test build supports Google sign-in wiring, explicit known-word and history import, and test edits with an account-specific offline queue. All 103 tests passed with the emulator, including the 13,000-word import, two-client merge and account isolation. Type checking and both Chrome builds passed. An isolated Chrome profile verified the stable extension ID, signed-out account messaging and guest history. Live Google sign-in, two Chrome profiles and Firebase Spark usage measurements remain pending. Account deletion and launch registration controls remain open. See the [prototype setup and test steps](docs/account-sync-setup.md).
 
 ## Phase 9 transcript sidebar
 

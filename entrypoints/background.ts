@@ -1,3 +1,5 @@
+import { handleAccountMessage } from '@/services/account/messages';
+import { accountEnabled, isAccountMessage } from '@/types/account';
 import {
   DEFAULT_SUBTITLE_APPEARANCE, isSubtitleAppearance, SUBTITLE_APPEARANCE_KEY, THEME_KEY,
   type InterfaceTheme, type PreferencesResponse,
@@ -97,6 +99,14 @@ export default defineBackground(() => {
   });
 
   browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+    if (accountEnabled && isAccountMessage(message) && sender.url === browser.runtime.getURL('/statistics.html')) {
+      void handleAccountMessage(message).then(
+        (view) => sendResponse({ ok: true, view }),
+        (error: unknown) => sendResponse({ ok: false, error: error instanceof Error ? error.message : 'Account request failed.' }),
+      );
+      return true;
+    }
+
     if (isPingMessage(message)) {
       const response: PingResponse = {
         ok: true,

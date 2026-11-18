@@ -1,0 +1,8 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "phase10Data", "fieldPath": "words", "indexes": [] },
+    { "collectionGroup": "phase10Data", "fieldPath": "history", "indexes": [] },
+    { "collectionGroup": "phase10Data", "fieldPath": "dailyChanges", "indexes": [] }
+  ]
+}

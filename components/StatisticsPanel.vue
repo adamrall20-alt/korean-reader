@@ -1,20 +1,26 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
+import AccountPrototype from './AccountPrototype.vue';
+import { accountEnabled, type AccountView } from '@/types/account';
 import logo from '@/assets/penguin.png';
 import stars from '@/assets/stars.png';
 import type { AnkiResponse } from '@/types/anki';
 import type { AnkiDeckStatistics, HistoryResponse, KnownWordHistory } from '@/types/statistics';
 import { VOCABULARY_REVISION_KEY } from '@/types/vocabulary';
 
-const history = ref<KnownWordHistory | null>(null);
+const guestHistory = ref<KnownWordHistory | null>(null);
+const account = ref<AccountView>();
+const history = computed(() => account.value?.history ?? guestHistory.value);
 const loadingHistory = ref(true);
 const historyError = ref('');
 const deck = ref<AnkiDeckStatistics | null>(null);
 const loadingDeck = ref(true);
 const deckError = ref('');
-const dateFormat = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-const formatDate = (at: number) => dateFormat.format(at);
+const dateFormat = computed(() => new Intl.DateTimeFormat(undefined, {
+  month: 'short', day: 'numeric', year: 'numeric', timeZone: account.value?.timeZone ?? undefined,
+}));
+const formatDate = (at: number) => dateFormat.value.format(at);
 const formatCount = (count: number) => count.toLocaleString();
 
 const points = computed(() => history.value ? [history.value.baseline, ...history.value.days] : []);
@@ -48,7 +54,7 @@ async function loadHistory(start = false) {
       type: start ? 'start-known-word-tracking' : 'get-known-word-history',
     });
     if (!response.ok) throw new Error(response.error);
-    if (request === historyRequest) history.value = response.history;
+    if (request === historyRequest) guestHistory.value = response.history;
   } catch (error) {
     if (request === historyRequest) {
       historyError.value = error instanceof Error ? error.message : 'Could not load known-word history.';
@@ -99,12 +105,14 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
 
     <main class="mx-auto grid max-w-5xl gap-6 px-6 py-8">
 
+    <AccountPrototype v-if="accountEnabled" @update="account = $event" />
+
     <section aria-labelledby="known-words-heading" class="grid gap-4 rounded-xl border border-interface/10 bg-ink-soft p-5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="known-words-heading" class="font-semibold">Known words over time</h2>
+        <h2 id="known-words-heading" class="font-semibold">{{ account?.history ? 'Account known words over time' : 'Known words over time' }}</h2>
         <p v-if="history" class="text-xs text-muted">Since {{ formatDate(history.baseline.at) }}</p>
       </div>
-      <p v-if="historyError" class="text-sm text-danger" role="alert">{{ historyError }} <button type="button" class="underline" @click="loadHistory()">Retry</button></p>
+      <p v-if="historyError && !account?.history" class="text-sm text-danger" role="alert">{{ historyError }} <button type="button" class="underline" @click="loadHistory()">Retry</button></p>
       <template v-if="history && current && chart">
         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <p class="text-3xl font-semibold tabular-nums">{{ formatCount(current.count) }}</p>

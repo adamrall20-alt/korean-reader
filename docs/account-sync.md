@@ -1,6 +1,6 @@
 # Phase 10 — Accounts and progress sync
 
-Planning record, 18 November 2026. Implementation and the Firebase proof of concept are awaiting approval.
+Phase 10 prototype implemented for a dedicated Chrome test build. Local verification uses the Firestore emulator. Live Firebase sign-in and the two-Chrome-profile test are pending.
 
 ## Agreed product behaviour
 
@@ -31,7 +31,7 @@ References: [Firebase sign-in for Chrome extensions](https://firebase.google.com
 
 - Cloud account deletion and what the user can retain. The recommendation is to offer an export of known words, the baseline and daily totals, then delete cloud data and restore guest progress. Alternatives discussed were offering to copy account progress into guest mode, or restoring guest progress immediately after deletion. Export restoration is outside the proposal.
 - The daily registration cap and document grouping are pending measurements.
-- The user chose to keep discussing the design. A proof of concept was recommended as the first implementation milestone. Its scope would be Google sign-in, a large import and sync across two Chrome profiles, including offline conflict handling.
+- The prototype uses explicit import and sync controls in Statistics. Automatic vocabulary integration, release registration controls and account deletion are future Phase 10 milestones.
 
 ## Verification before launch
 
@@ -39,3 +39,13 @@ References: [Firebase sign-in for Chrome extensions](https://firebase.google.com
 - Test the first browser's graph, a large initial import, overlapping words, repeated sign-ins and concurrent activity from two browsers.
 - Test offline edits, same-word conflicts, backdated graph changes, time-zone boundaries, failures and retries. Confirm that local mining, **Mark unknown** and Anki still behave as described.
 - Verify the daily cap and manual pause, including that existing users can still sync and new users can continue as guests. Test recovery from service or quota failures and measure launch capacity.
+
+## Prototype implementation
+
+[Setup and live test instructions](account-sync-setup.md)
+
+The test build uses the Chrome Identity API to obtain a Google token, then exchanges it for a Firebase session in the extension background worker. The worker stores that session in IndexedDB and keeps per-account snapshots and pending edits in extension-local storage. The Statistics panel imports the current profile on request, checks the cloud when opened, and attempts to send test edits immediately. **Sync now** flushes the queue and refreshes the account after a network interruption.
+
+The first import writes a profile with the original history, a per-installation import marker and up to 64 word group documents in one Firestore transaction. Later imports add words with no account record. A tombstone preserves the revision of words marked unknown. A word edit and its effect on the graph commit in the same transaction. Account time determines which day receives the change. Dates before the first import are clamped to its day, and future client timestamps are clamped to the time of the sync attempt.
+
+An initial import using all groups can write up to 66 documents. A single edit can write two. A refresh reads the account's groups, progress and installation markers. These are implementation counts. Actual Spark usage and a daily registration cap require the live trial. The prototype uses a per-UID tester allowlist, a manual sync control and a single account snapshot per device. Incremental downloads and automatic retry scheduling are future work.

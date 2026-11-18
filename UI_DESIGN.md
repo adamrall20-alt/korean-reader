@@ -223,9 +223,9 @@ The tab uses the same fixed star-pattern background and dark/light overlay treat
 
 The Anki section names the saved deck and has a **Refresh** button. It shows reviews left today, the next seven days of scheduled reviews, and deck word overlap. Connection and configuration messages appear in that section so the vocabulary graph remains usable.
 
-### Account progress (Phase 10, planned)
+### Account progress (Phase 10)
 
-Offer optional Google sign-in and show the account graph in the existing Statistics tab. Show the active account, last successful sync and pending or unavailable sync states. When registration is paused, explain that guest use is available. After sign-out, show guest progress.
+The dedicated test build puts Google sign-in, explicit import and sync, and test headword controls in Statistics. The account graph uses the existing Statistics chart. The planned release offers optional Google sign-in and automatic sync. Show the active account, last successful sync and pending or unavailable sync states. When registration is paused, explain that guest use is available. After sign-out, show guest progress.
 
 In account mode, distinguish deleting a local mined entry from **Mark unknown**, which changes the shared list. Continue presenting the current computer's live Anki figures separately. See the [Phase 10 plan](docs/account-sync.md) for account behaviour and the open deletion decision.
 
