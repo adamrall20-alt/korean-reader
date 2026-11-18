@@ -215,6 +215,14 @@ Visual refinements can be introduced after core functionality is reliable.
 
 The toolbar popup presents Anki connection status, vocabulary counts, and an explicit sync button. **Known words** counts all local entries marked known, including imports, even when Anki is disconnected. **New words** counts mined words absent from Anki and requires a configured Anki connection. Vocabulary management and JSON export are in Settings, as are Anki connection, deck, note type and field mapping controls. The supplied penguin is the header logo and the supplied star pattern is a subtle popup background.
 
+## Statistics
+
+In the toolbar popup, the penguin and Korean Reader title precede two right-aligned controls. The bar-graph Statistics icon sits immediately to the left of Settings and opens a new browser tab.
+
+The tab uses the saved interface theme. The known-word graph leads with the current count, change from the starting count, and the tracking start date. **Start tracking** appears until the user opts in. **View recorded totals** exposes the same data as a table.
+
+The Anki section names the saved deck and has a **Refresh** button. It shows reviews left today, the next seven days of scheduled reviews, and deck word overlap. Connection and configuration messages appear in that section so the vocabulary graph remains usable.
+
 ## Word frequency
 
 Show the Shiberu frequency rank in green to the right of the dictionary heading. Display `#80,000+` when the headword is absent from the list.

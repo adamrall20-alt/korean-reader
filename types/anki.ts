@@ -1,3 +1,5 @@
+import type { AnkiDeckStatistics } from './statistics';
+
 export const ANKI_FIELD_ROLES = ['word', 'sentence', 'definition', 'pronunciation', 'image', 'audio'] as const;
 export type AnkiFieldRole = typeof ANKI_FIELD_ROLES[number];
 
@@ -46,6 +48,7 @@ export interface AnkiImportPreview {
 }
 
 export type AnkiMessage =
+  | { type: 'get-anki-deck-statistics' }
   | { type: 'get-anki-settings' }
   | { type: 'save-anki-settings'; settings: AnkiSettings }
   | { type: 'connect-anki'; port: number; apiKey: string; requestPermission: boolean }
@@ -58,6 +61,7 @@ export type AnkiMessage =
 export type AnkiResponse = {
   ok: true;
   settings?: AnkiSettings;
+  deckStatistics?: AnkiDeckStatistics | null;
   decks?: string[];
   models?: string[];
   fields?: string[];

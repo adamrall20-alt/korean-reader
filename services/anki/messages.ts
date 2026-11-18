@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { AnkiClient } from '@/services/anki/client';
 import { listVocabulary, markHeadwordsKnown, saveMachineTranslation } from '@/services/storage/vocabulary';
+import { readDeckStatistics } from './statistics';
 import { previewKnownWords } from '@/services/anki/import';
 import { countUnsynced, syncVocabulary, validateAnkiSettings } from '@/services/anki/sync';
 import { ANKI_FIELD_ROLES, DEFAULT_ANKI_SETTINGS, type AnkiMessage, type AnkiResponse, type AnkiSettings } from '@/types/anki';
@@ -26,7 +27,8 @@ function isSettings(value: unknown): value is AnkiSettings {
 export function isAnkiMessage(value: unknown): value is AnkiMessage {
   if (!isRecord(value)) return false;
   switch (value.type) {
-    case 'get-anki-settings': return true;
+    case 'get-anki-settings':
+    case 'get-anki-deck-statistics': return true;
     case 'connect-anki': return isConnection(value) && typeof value.requestPermission === 'boolean';
     case 'get-anki-fields': return isConnection(value) && typeof value.modelName === 'string' && !!value.modelName;
     case 'save-anki-settings': return isSettings(value.settings);
@@ -49,9 +51,13 @@ export function isAnkiMessage(value: unknown): value is AnkiMessage {
 }
 
 export async function handleAnkiMessage(message: AnkiMessage): Promise<AnkiResponse> {
-  if (message.type === 'get-anki-settings') {
+  if (message.type === 'get-anki-settings' || message.type === 'get-anki-deck-statistics') {
     const stored: unknown = (await browser.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
-    return { ok: true, settings: isSettings(stored) ? stored : DEFAULT_ANKI_SETTINGS };
+    const settings = isSettings(stored) ? stored : DEFAULT_ANKI_SETTINGS;
+    if (message.type === 'get-anki-deck-statistics') {
+      return { ok: true, deckStatistics: await readDeckStatistics(settings) };
+    }
+    return { ok: true, settings };
   }
   if (message.type === 'save-anki-settings') {
     const { settings } = message;

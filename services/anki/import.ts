@@ -3,10 +3,14 @@ import { plainText } from '@/services/anki/fields';
 import { listVocabulary } from '@/services/storage/vocabulary';
 import { ANKI_DEFAULT_FIELDS, type AnkiImportPreview, type AnkiSettings } from '@/types/anki';
 
+export function deckSearch(deckName: string): string {
+  const escapedDeck = deckName.replace(/[\\"*_]/g, '\\$&');
+  return `"deck:${escapedDeck}"`;
+}
+
 export async function previewKnownWords(settings: AnkiSettings, deckName: string): Promise<AnkiImportPreview> {
   const client = new AnkiClient(settings);
-  const escapedDeck = deckName.replace(/[\\"*_]/g, '\\$&');
-  const ids = await client.request('findNotes', { query: `"deck:${escapedDeck}"` });
+  const ids = await client.request('findNotes', { query: deckSearch(deckName) });
   const words = new Set<string>();
   let skipped = 0;
   for (let offset = 0; offset < ids.length; offset += 250) {

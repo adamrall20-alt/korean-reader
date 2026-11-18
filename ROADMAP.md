@@ -270,6 +270,12 @@ YouTube can serve an English transcript while the video player displays Korean c
 - [x] Request Korean from YouTube's transcript panel and select the Korean track when the transcript exposes a language menu.
 - [x] Check that most letters in the full transcript are Hangul. If that check fails, collect the Korean captions shown during playback.
 
+## Statistics
+
+- [x] Open Statistics in a new browser tab from the toolbar popup.
+- [x] Start from the current local known-word count and chart changes after opt-in.
+- [x] Show live review counts, a seven-day scheduled total, and known-word overlap for the configured Anki deck.
+
 ## Future Enhancements
 
 These features are outside the initial development scope.

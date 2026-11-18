@@ -55,9 +55,16 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
       <div class="flex items-center gap-3">
         <img :src="logo" alt="" class="size-9 rounded-xl object-cover" />
         <h1 class="min-w-0 truncate text-base font-semibold tracking-tight">Korean Reader</h1>
-        <button type="button" class="ml-auto grid size-8 shrink-0 place-items-center rounded-lg border border-interface/10 text-muted transition-colors hover:bg-interface/10 hover:text-paper" aria-label="Open settings" title="Open settings" @click="browser.runtime.openOptionsPage()">
-          <span aria-hidden="true">⚙</span>
-        </button>
+        <div class="ml-auto flex shrink-0 items-center gap-1.5">
+          <button type="button" class="grid size-8 place-items-center rounded-lg border border-interface/10 text-accent hover:bg-accent/10" aria-label="Open Statistics" title="Open Statistics" @click="browser.tabs.create({ url: browser.runtime.getURL('/statistics.html') })">
+            <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+              <path d="M3 13V9m5 4V3m5 10V6" />
+            </svg>
+          </button>
+          <button type="button" class="grid size-8 shrink-0 place-items-center rounded-lg border border-interface/10 text-muted transition-colors hover:bg-interface/10 hover:text-paper" aria-label="Open settings" title="Open settings" @click="browser.runtime.openOptionsPage()">
+            <span aria-hidden="true">⚙</span>
+          </button>
+        </div>
       </div>
     </header>
     <section class="flex-1 space-y-3 bg-cover bg-center px-5 py-5" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">

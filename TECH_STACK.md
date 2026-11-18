@@ -180,6 +180,10 @@ Use Chrome Storage API for appropriate extension configuration and settings.
 
 IndexedDB access is centralised in the background service worker. Content scripts run in the YouTube page context and must not own extension-origin IndexedDB. Avoid maintaining multiple competing sources of truth.
 
+### Known-word history
+
+IndexedDB schema version 3 adds a status index to vocabulary and a statistics store. Starting tracking records an immutable baseline. Count-changing vocabulary writes record the latest total under the local date in the same transaction, including bulk imports. Changes on the same day replace that day's snapshot and preserve the baseline. History stays in the Chrome profile. The Statistics page reads it through extension-page-only messages and listens for vocabulary updates.
+
 ## 7. Anki Integration
 
 Use AnkiConnect.

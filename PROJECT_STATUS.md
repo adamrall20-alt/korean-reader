@@ -292,3 +292,11 @@ The dictionary popup displays a local Shiberu frequency rank for the resolved he
 ## Transcript word playback — 18 November 2026
 
 Selecting a transcript word pauses playback while opening its dictionary definition, without seeking. Mining still seeks to the selected line for media capture. Live YouTube verification remains pending.
+
+## Statistics — 18 November 2026
+
+The toolbar's bar-graph icon opens Statistics in a separate Chrome tab. **Start tracking** captures the current known-word count. The graph then records count-changing vocabulary activity by day, with a table for exact totals. The baseline persists locally across reloads. Existing vocabulary is preserved by the database upgrade.
+
+The Anki panel uses the deck saved in Settings and shows reviews left today, scheduled reviews for the next seven days, and the percentage of unique focus words marked known locally. The figures refresh on demand and require Anki Desktop and AnkiConnect. The vocabulary graph is available offline.
+
+Verification: 97 automated tests passed, type checking passed, and the Chrome production build succeeded. An isolated Chrome test verified the new tab, upgrading an existing vocabulary database, the 13,000 to 13,005 example with concurrent additions, status and deletion adjustments, rollback on a failed history write, persistence on reload, and the Anki panel with simulated responses and a connection failure. Comparison against the user's live Anki deck and scheduler settings remains pending.

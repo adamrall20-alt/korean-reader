@@ -50,6 +50,8 @@ Implemented:
 - Direct Settings shortcut in the toolbar popup.
 - Screenshot capture for Anki notes, where browser video access permits.
 - Subtitle audio capture and Anki media attachment, with live YouTube and card playback checks still pending.
+- A Statistics tab with opt-in known-word history and review and vocabulary figures for the configured Anki deck.
+
 - Import of known words from Anki decks and Kimchi Reader status CSV files.
 - Selectable dictionary definitions when mining.
 - Component tests, type checking and production builds (see the dated verification log in PROJECT_STATUS.md).

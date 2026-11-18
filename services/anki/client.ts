@@ -23,6 +23,9 @@ interface Actions {
   deckNames: [undefined, string[]];
   modelNames: [undefined, string[]];
   modelFieldNames: [{ modelName: string }, string[]];
+  deckNamesAndIds: [undefined, Record<string, number>];
+  getDeckStats: [{ decks: string[] }, Record<string, { review_count: number }>];
+  findCards: [{ query: string }, number[]];
   findNotes: [{ query: string }, number[]];
   notesInfo: [{ notes: number[] }, AnkiNoteInfo[]];
   canAddNotes: [{ notes: AnkiNote[] }, boolean[]];

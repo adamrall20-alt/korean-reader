@@ -1,5 +1,6 @@
 import type { AnkiTranslation } from '@/types/anki';
-import { openDatabase, VOCABULARY_STORE } from '@/services/storage/database';
+import { openDatabase, STATISTICS_STORE, VOCABULARY_STORE } from '@/services/storage/database';
+import { recordKnownWordCount } from './statistics';
 import { sameVocabularyContext, type VocabularyEntry, type VocabularyMessage } from '@/types/vocabulary';
 
 const normalizeHeadword = (headword: string) => headword.trim().normalize('NFC');
@@ -19,19 +20,19 @@ async function readVocabulary<T>(read: (store: IDBObjectStore) => IDBRequest<T>)
 
 async function updateVocabulary<T>(
   headword: string,
-  update: (store: IDBObjectStore, entry: VocabularyEntry | undefined) => T,
+  update: (store: IDBObjectStore, entry: VocabularyEntry | undefined, transaction: IDBTransaction) => T,
 ): Promise<T> {
   const database = await openDatabase();
   try {
     return await new Promise<T>((resolve, reject) => {
-      const transaction = database.transaction(VOCABULARY_STORE, 'readwrite');
+      const transaction = database.transaction([VOCABULARY_STORE, STATISTICS_STORE], 'readwrite');
       const store = transaction.objectStore(VOCABULARY_STORE);
       const request = store.get(headword);
       let result: T;
       let updateError: unknown;
       request.onsuccess = () => {
         try {
-          result = update(store, request.result as VocabularyEntry | undefined);
+          result = update(store, request.result as VocabularyEntry | undefined, transaction);
         } catch (error) {
           updateError = error;
           transaction.abort();
@@ -58,24 +59,29 @@ export async function markHeadwordsKnown(words: string[]): Promise<number> {
   const database = await openDatabase();
   try {
     return await new Promise<number>((resolve, reject) => {
-      const transaction = database.transaction(VOCABULARY_STORE, 'readwrite');
+      const transaction = database.transaction([VOCABULARY_STORE, STATISTICS_STORE], 'readwrite');
       const store = transaction.objectStore(VOCABULARY_STORE);
       const now = new Date().toISOString();
       let marked = 0;
       transaction.oncomplete = () => resolve(marked);
       transaction.onabort = () => reject(transaction.error ?? new Error('Could not mark words as known.'));
 
-      for (const headword of new Set(words.map(normalizeHeadword).filter(Boolean))) {
+      const headwords = new Set(words.map(normalizeHeadword).filter(Boolean));
+      let remaining = headwords.size;
+      for (const headword of headwords) {
         const request = store.get(headword);
         request.onsuccess = () => {
           const existing = request.result as VocabularyEntry | undefined;
-          if (existing?.status === 'known') return;
-          const entry: VocabularyEntry = existing ? { ...existing, status: 'known', updatedAt: now } : {
-            headword, originalForm: headword, definitions: [], koreanDefinitions: [], examples: [],
-            contexts: [], status: 'known', createdAt: now, updatedAt: now,
-          };
-          store.put(entry);
-          marked += 1;
+          if (existing?.status !== 'known') {
+            const entry: VocabularyEntry = existing ? { ...existing, status: 'known', updatedAt: now } : {
+              headword, originalForm: headword, definitions: [], koreanDefinitions: [], examples: [],
+              contexts: [], status: 'known', createdAt: now, updatedAt: now,
+            };
+            store.put(entry);
+            marked += 1;
+          }
+          remaining -= 1;
+          if (!remaining && marked) recordKnownWordCount(transaction);
         };
       }
     });
@@ -86,7 +92,7 @@ export async function markHeadwordsKnown(words: string[]): Promise<number> {
 
 export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word' }>) {
   const headword = normalizeHeadword(message.entry.headword);
-  return updateVocabulary(headword, (store, existing) => {
+  return updateVocabulary(headword, (store, existing, transaction) => {
     const index = existing?.contexts.findIndex((context) => sameVocabularyContext(context, message.context)) ?? -1;
     if (existing && index >= 0) {
       const saved = existing.contexts[index]!;
@@ -122,6 +128,7 @@ export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word'
           updatedAt: now,
         };
     store.put(entry);
+    if (existing?.status !== 'known') recordKnownWordCount(transaction);
     return existing?.contexts.length ? 'added' as const : 'mined' as const;
   });
 }
@@ -130,9 +137,10 @@ export function changeVocabulary(message: Extract<VocabularyMessage, {
   type: 'delete-vocabulary' | 'edit-vocabulary' | 'set-vocabulary-status';
 }>) {
   const headword = normalizeHeadword(message.headword);
-  return updateVocabulary(headword, (store, existing) => {
+  return updateVocabulary(headword, (store, existing, transaction) => {
     if (message.type === 'delete-vocabulary') {
       store.delete(headword);
+      if (existing?.status === 'known') recordKnownWordCount(transaction);
       return;
     }
     if (!existing) throw new Error('This word is no longer in your vocabulary.');
@@ -141,6 +149,8 @@ export function changeVocabulary(message: Extract<VocabularyMessage, {
       ? { definitions: message.definitions }
       : { status: message.status };
     store.put({ ...existing, ...changes, updatedAt: new Date().toISOString() });
+    if (message.type === 'set-vocabulary-status' &&
+      (existing.status === 'known') !== (message.status === 'known')) recordKnownWordCount(transaction);
   });
 }
 

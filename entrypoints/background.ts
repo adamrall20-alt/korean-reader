@@ -8,6 +8,8 @@ import { frequencyRank } from '@/services/dictionary/frequency';
 import { lookupKoreanWord } from '@/services/dictionary/krdict';
 import { clearDictionaryCache } from '@/services/dictionary/cache';
 import { VOCABULARY_REVISION_KEY, type KnownHeadwordsResponse } from '@/types/vocabulary';
+import { readKnownWordHistory } from '@/services/storage/statistics';
+import type { HistoryResponse } from '@/types/statistics';
 import { getVocabulary, listVocabulary } from '@/services/storage/vocabulary';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
@@ -214,6 +216,15 @@ export default defineBackground(() => {
 
     // Only extension pages can read or change dictionary settings.
     if (!fromExtensionPage) return false;
+
+    if (message && typeof message === 'object' && 'type' in message &&
+      (message.type === 'get-known-word-history' || message.type === 'start-known-word-tracking')) {
+      void readKnownWordHistory(message.type === 'start-known-word-tracking').then(
+        (history) => sendResponse({ ok: true, history } satisfies HistoryResponse),
+        () => sendResponse({ ok: false, error: 'Could not access known-word history.' } satisfies HistoryResponse),
+      );
+      return true;
+    }
 
     if (isAnkiMessage(message)) {
       void handleAnkiMessage(message).then(async (response) => {

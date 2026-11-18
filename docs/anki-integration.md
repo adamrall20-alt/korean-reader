@@ -55,3 +55,9 @@ Sync one word to the intended deck and inspect its card in Anki. Check the orang
 ### Subtitle audio
 
 When you mine a word, Korean Reader replays the subtitle, records its audio and returns the paused video to the point where you selected the word. Select **Add Audio** to record a previously saved sentence again if it has no clip. The recording stays local until you select **Sync to Anki**. If capture or upload is unavailable, the sentence can still be saved. An upload failure appears in the sync results and can be retried by syncing again.
+
+## Deck statistics
+
+Open **Statistics** from the toolbar popup. The Anki section uses the saved deck in Settings and queries Anki Desktop when the tab opens or you select **Refresh**. It reports the Anki scheduler's review count and counts scheduled review cards from tomorrow through seven Anki days ahead. The forecast excludes new, suspended, and learning cards. Scheduled dates can change after reviews.
+
+Deck word coverage uses the same Focus Word extraction as known-word import. It compares unique usable words from the deck and its subdecks with the extension's local known words. Importing all deck words can yield 100% coverage even if cards are still due.

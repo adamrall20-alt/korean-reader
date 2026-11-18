@@ -244,6 +244,12 @@ Provide configuration for:
 - Subtitle appearance, including the custom subtitle font.
 - Vocabulary management.
 
+### 3.8 Statistics
+
+The toolbar opens Statistics in a new tab. **Start tracking** saves the current local known-word count as the starting point. The graph shows changes from that point forward, including words mined, marked known, imported, or removed from the known vocabulary.
+
+The page can also show the Anki deck selected in Settings, with reviews left today, scheduled reviews for the next seven days, and the percentage of unique deck words that Korean Reader has marked known.
+
 ## 4. Storage and Privacy
 
 - Store vocabulary locally.
