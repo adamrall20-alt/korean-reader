@@ -40,7 +40,9 @@ export async function syncProgress(
   return runTransaction(db, async (transaction) => {
     const stored = (await transaction.get(profile)).data() as Progress | undefined;
     const marker = seed && doc(data, `device-${seed.device}`);
-    if (marker && (await transaction.get(marker)).exists()) return 0;
+    // A repeat import must still merge new words. Word revisions make it
+    // idempotent and prevent local imports from restoring account removals.
+    const alreadyImported = marker && (await transaction.get(marker)).exists();
     if (!stored && !seed) throw new Error('Import progress before editing the account.');
     const documents = await Promise.all([...groups.keys()].map((id) => transaction.get(doc(data, id))));
     const progress: Progress = stored ?? {
@@ -72,7 +74,7 @@ export async function syncProgress(
       }
     }
     if (!stored || changed) transaction.set(profile, progress);
-    if (marker) transaction.set(marker, { imported: true });
+    if (marker && !alreadyImported) transaction.set(marker, { imported: true });
     return conflicts;
   });
 }

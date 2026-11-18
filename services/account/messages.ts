@@ -70,7 +70,7 @@ async function handle(message: AccountMessage): Promise<AccountView> {
         const conflicts = await syncProgress(db, user.uid, local.pending);
         if (conflicts) notice = `Kept the account’s newer change for ${conflicts} word(s).`;
       }
-      if (message.action === 'import') {
+      if (message.action === 'import' || (message.action === 'sync' && local.progress)) {
         const [entries, history, installation] = await Promise.all([
           listVocabulary(), readKnownWordHistory(false), browser.storage.local.get('phase10Device'),
         ]);
@@ -86,6 +86,10 @@ async function handle(message: AccountMessage): Promise<AccountView> {
       const synced = { ...await fetchProgress(db, user.uid), lastSync: Date.now(), pending: {} };
       await browser.storage.local.set({ [key]: synced });
       Object.assign(local, synced);
+      if (!notice) {
+        const count = Object.values(local.words).filter((word) => word.known).length;
+        notice = `${message.action === 'import' ? 'Import' : 'Sync'} complete. ${count.toLocaleString()} account known words.`;
+      }
     } catch (error) {
       notice = error instanceof Error ? error.message : 'Cloud sync is unavailable.';
     }

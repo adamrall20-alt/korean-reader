@@ -312,3 +312,9 @@ The bundled Kiwi model splits 복싱장에서 into 복싱 + 장 + 에서. Lookup
 The disabled Known button now displays ✓ Known and names the known headword in its tooltip. Only an active save uses the waiting cursor; an already-known word no longer appears to be loading.
 
 Verification: 105 automated tests passed (one emulator test skipped), type checking passed, and the Chrome production build succeeded. Regression coverage includes compound lookup order, compound status with a particle, and the already-known button state. Confirmed the reported word's segmentation using the bundled Kiwi model. Live YouTube verification remains pending.
+
+## Repeat account imports and manual sync — 19 November 2026
+
+Fixed the installation import marker silently skipping all later imports from the same Chrome profile. Repeated imports now merge newly known words while preserving the original account history and revision-based removals. Once account progress is cached, Sync now also merges the profile's local known words. Both actions show a completion message with the refreshed total; failures retain the previous successful timestamp.
+
+Verification: 108 tests passed with one Firestore emulator test skipped; type checking and the Chrome production build passed. New regression coverage reproduces eight new words after an earlier import, repeat-import idempotency, preservation of account removals/history, manual sync uploads, and failure feedback. The emulator could not start with the system Java version (requires Java 21+). Live account verification remains pending. Automatic queueing of normal vocabulary changes, local unknown-status propagation, and complete account/guest separation remain future Phase 10 work; the pending counter currently counts explicit account edits only.
