@@ -304,3 +304,11 @@ The toolbar's bar-graph icon opens Statistics in a separate Chrome tab. **Start 
 The Anki panel uses the deck saved in Settings and shows reviews left today, scheduled reviews for the next seven days, and the percentage of unique focus words marked known locally. The figures refresh on demand and require Anki Desktop and AnkiConnect. The vocabulary graph is available offline.
 
 Verification: 97 automated tests passed, type checking passed, and the Chrome production build succeeded. An isolated Chrome test verified the new tab, upgrading an existing vocabulary database, the 13,000 to 13,005 example with concurrent additions, status and deletion adjustments, rollback on a failed history write, persistence on reload, and the Anki panel with simulated responses and a connection failure. Comparison against the user's live Anki deck and scheduler settings remains pending.
+
+## Compound noun lookup and Known feedback — 19 November 2026
+
+The bundled Kiwi model splits 복싱장에서 into 복싱 + 장 + 에서. Lookup now tries the complete nominal headword 복싱장 before falling back to individual nouns. Known-word matching uses the same compound form, so a known 복싱장 clears the underline on 복싱장에서. Knowing only 복싱 does not automatically mark the distinct compound 복싱장 known. Existing vocabulary is preserved.
+
+The disabled Known button now displays ✓ Known and names the known headword in its tooltip. Only an active save uses the waiting cursor; an already-known word no longer appears to be loading.
+
+Verification: 105 automated tests passed (one emulator test skipped), type checking passed, and the Chrome production build succeeded. Regression coverage includes compound lookup order, compound status with a particle, and the already-known button state. Confirmed the reported word's segmentation using the bundled Kiwi model. Live YouTube verification remains pending.

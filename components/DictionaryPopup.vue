@@ -298,10 +298,12 @@ watch(() => props.miningContext, () => {
             type="button"
             class="kr-mine-button kr-known-button"
             :aria-pressed="!!(isKnown || knownOutcome?.ok)"
+            :aria-busy="markingKnown"
+            :title="isKnown || knownOutcome?.ok ? `${entry.headword} is already known` : `Mark ${entry.headword} as known`"
             :disabled="markingKnown || isKnown || knownOutcome?.ok"
             @click="markKnown"
           >
-            Known
+            {{ markingKnown ? 'Saving…' : isKnown || knownOutcome?.ok ? '✓ Known' : 'Known' }}
           </button>
         </div>
         <p v-if="miningOutcome && !miningOutcome.ok" class="kr-dictionary-error" role="alert">

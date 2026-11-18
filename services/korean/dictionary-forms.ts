@@ -13,6 +13,13 @@ export function nominalCopulaHeadwords(morphemes: KoreanMorpheme[]) {
   };
 }
 
+function nominalForm(morphemes: KoreanMorpheme[]): string | undefined {
+  const parts = morphemes.filter(({ tag }) => !tag.startsWith('J'));
+  if (parts.at(-1)?.tag === 'XSN' && parts.at(-1)?.text === '들') parts.pop();
+  if (!parts.length || !parts.every(({ tag }) => /^(NN|NP|NR)/u.test(tag))) return undefined;
+  return parts.map(({ text }) => text).join('').normalize('NFC');
+}
+
 export function dictionaryCandidates(
   word: string,
   morphemes: KoreanMorpheme[],
@@ -37,6 +44,7 @@ export function dictionaryCandidates(
   const dictionaryForm = hasPredicate && lexicalForm.length > 0 ? `${lexicalForm}다` : '';
   const candidates = [
     dictionaryForm,
+    nominalForm(morphemes) ?? '',
     word,
     ...morphemes
       .filter((morpheme) => /^(VV|VA|VX|VCP|VCN)/u.test(morpheme.tag))

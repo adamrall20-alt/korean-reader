@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tokenizeSubtitleLine } from '@/services/korean/tokenizer';
-import { dictionaryCandidates } from '@/services/korean/dictionary-forms';
+import { dictionaryCandidates, isKnownSubtitleWord } from '@/services/korean/dictionary-forms';
 import type { TokenInfo } from 'kiwi-nlp';
 
 function morpheme(
@@ -83,5 +83,24 @@ describe('Korean subtitle tokenization', () => {
       ['world', false],
       ['!', false],
     ]);
+  });
+});
+
+describe('compound noun status', () => {
+  const token = tokenizeSubtitleLine('복싱장에서', [
+    morpheme('복싱', 0, 2, 'NNG'),
+    morpheme('장', 2, 1, 'NNG'),
+    morpheme('에서', 3, 2, 'JKB'),
+  ], 0).tokens[0]!;
+
+  it('looks up the whole compound before its individual nouns', () => {
+    expect(dictionaryCandidates(token.text, token.morphemes))
+      .toEqual(['복싱장', '복싱장에서', '복싱', '장']);
+  });
+
+  it('recognises a known compound with a particle without treating its root as the whole word', () => {
+    expect(isKnownSubtitleWord(token, new Set(['복싱장']))).toBe(true);
+    expect(isKnownSubtitleWord(token, new Set(['복싱']))).toBe(false);
+    expect(isKnownSubtitleWord(token, new Set())).toBe(false);
   });
 });

@@ -210,6 +210,10 @@
 
 .kr-mine-button:disabled {
   opacity: 0.65;
+  cursor: default;
+}
+
+.kr-known-button[aria-busy="true"] {
   cursor: wait;
 }
 

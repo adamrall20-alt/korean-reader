@@ -66,6 +66,15 @@ describe('DictionaryPopup mining', () => {
     timestamp: 12.5,
   };
 
+  it('explains an already known headword without indicating ongoing work', () => {
+    const wrapper = mount(DictionaryPopup, { props: { ...props, isKnown: true } });
+    const button = wrapper.get('.kr-known-button');
+    expect(button.text()).toBe('✓ Known');
+    expect(button.attributes('aria-busy')).toBe('false');
+    expect(button.attributes('title')).toBe(`${entry.headword} is already known`);
+    expect(button.attributes('disabled')).toBeDefined();
+  });
+
   it('marks the dictionary headword known without selecting definitions or recording audio', async () => {
     sendMessage.mockReset()
       .mockRejectedValueOnce(new Error('Storage unavailable'))
