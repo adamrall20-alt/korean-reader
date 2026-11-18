@@ -289,6 +289,8 @@ YouTube can serve an English transcript while the video player displays Korean c
 
 See the [Phase 10 plan](docs/account-sync.md) for decisions, scope and verification.
 
+Repeat imports and **Sync now** merge newly known local vocabulary into an existing account snapshot. Imports are idempotent and preserve account-side removals. Automated checks cover this merge; see [PROJECT_STATUS.md](PROJECT_STATUS.md). Local Known actions are not yet automatically queued.
+
 ## Future Enhancements
 
 These features are outside the initial development scope.

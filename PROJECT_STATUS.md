@@ -6,7 +6,7 @@
 
 **Current Phase:** Phase 9 — Interactive Transcript Sidebar
 
-**Last Updated:** 18 November 2026
+**Last Updated:** 19 November 2026
 
 **Phase 10 prototype:** The opt-in Chrome test build supports Google sign-in wiring, explicit known-word and history import, and test edits with an account-specific offline queue. All 103 tests passed with the emulator, including the 13,000-word import, two-client merge and account isolation. Type checking and both Chrome builds passed. An isolated Chrome profile verified the stable extension ID, signed-out account messaging and guest history. The owner confirmed live sign-in and sync in the separate test build after Firestore tester approval. The normal unpacked build can now enable the same panel using an OAuth client for its existing extension ID. The normal build was rebuilt with its own OAuth client and checked in a clean Chrome profile under the original extension ID. Live sign-in on the existing installation and Firebase Spark usage measurements remain pending. Account deletion and launch registration controls remain open. See the [prototype setup and test steps](docs/account-sync-setup.md).
 
@@ -318,3 +318,10 @@ Verification: 105 automated tests passed (one emulator test skipped), type check
 Fixed the installation import marker silently skipping all later imports from the same Chrome profile. Repeated imports now merge newly known words while preserving the original account history and revision-based removals. Once account progress is cached, Sync now also merges the profile's local known words. Both actions show a completion message with the refreshed total; failures retain the previous successful timestamp.
 
 Verification: 108 tests passed with one Firestore emulator test skipped; type checking and the Chrome production build passed. New regression coverage reproduces eight new words after an earlier import, repeat-import idempotency, preservation of account removals/history, manual sync uploads, and failure feedback. The emulator could not start with the system Java version (requires Java 21+). Live account verification remains pending. Automatic queueing of normal vocabulary changes, local unknown-status propagation, and complete account/guest separation remain future Phase 10 work; the pending counter currently counts explicit account edits only.
+
+
+## Phase 10 sync follow-up — 19 November 2026
+
+Fixed repeat imports from an already-imported Chrome profile silently skipping newly known words. **Sync now** also merges local known words into an existing account snapshot before refreshing it. Imports remain idempotent, preserve the original account history, and use word revisions to preserve account-side unknown statuses. The Cloud sync card reports completion with the refreshed account total; failed requests retain the previous successful-sync time. In the reported case, syncing the eight new words should update the account from 13,307 to 13,315.
+
+Verification: 108 tests passed and one Firestore emulator test was skipped; type checking and the Chrome production build passed. The emulator could not start because the installed Java version is below 21. Live verification in the signed-in Chrome profile remains pending. Local Known actions are not automatically queued; the pending counter currently tracks explicit account edits only. Automatic vocabulary integration, local unknown-status propagation and full account/guest separation remain incomplete Phase 10 work.
