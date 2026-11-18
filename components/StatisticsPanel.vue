@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import logo from '@/assets/penguin.png';
+import stars from '@/assets/stars.png';
 import type { AnkiResponse } from '@/types/anki';
 import type { AnkiDeckStatistics, HistoryResponse, KnownWordHistory } from '@/types/statistics';
 import { VOCABULARY_REVISION_KEY } from '@/types/vocabulary';
@@ -85,14 +86,18 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
 </script>
 
 <template>
-  <main class="mx-auto grid max-w-4xl gap-5 px-4 py-8 sm:px-8">
-    <header class="flex items-center gap-3">
-      <img :src="logo" alt="" class="size-10 rounded-xl" />
-      <div>
-        <p class="text-xs text-muted">Korean Reader</p>
-        <h1 class="text-2xl font-semibold tracking-tight">Statistics</h1>
+  <div class="min-h-screen bg-cover bg-center bg-fixed text-paper" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
+    <header class="relative z-10 border-b border-interface/10 bg-ink">
+      <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-4">
+        <img :src="logo" alt="" class="size-9 rounded-xl object-cover" />
+        <div>
+          <p class="text-sm font-semibold tracking-tight">Korean Reader</p>
+          <p class="text-xs text-muted">Statistics</p>
+        </div>
       </div>
     </header>
+
+    <main class="mx-auto grid max-w-5xl gap-6 px-6 py-8">
 
     <section aria-labelledby="known-words-heading" class="grid gap-4 rounded-xl border border-interface/10 bg-ink-soft p-5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
@@ -174,5 +179,6 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
       </dl>
       <p v-else class="text-sm text-muted">Choose an Anki deck in <a href="/options.html" class="underline">Settings</a> to see its statistics.</p>
     </section>
-  </main>
+    </main>
+  </div>
 </template>

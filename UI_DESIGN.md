@@ -219,7 +219,7 @@ The toolbar popup presents Anki connection status, vocabulary counts, and an exp
 
 In the toolbar popup, the penguin and Korean Reader title precede two right-aligned controls. The bar-graph Statistics icon sits immediately to the left of Settings and opens a new browser tab.
 
-The tab uses the saved interface theme. The known-word graph leads with the current count, change from the starting count, and the tracking start date. **Start tracking** appears until the user opts in. **View recorded totals** exposes the same data as a table.
+The tab uses the same fixed star-pattern background and dark/light overlay treatment as Settings, with a solid header above it. The known-word graph leads with the current count, change from the starting count, and the tracking start date. **Start tracking** appears until the user opts in. **View recorded totals** exposes the same data as a table.
 
 The Anki section names the saved deck and has a **Refresh** button. It shows reviews left today, the next seven days of scheduled reviews, and deck word overlap. Connection and configuration messages appear in that section so the vocabulary graph remains usable.
 
