@@ -8,7 +8,7 @@
 
 **Last Updated:** 18 November 2026
 
-**Phase 10 prototype:** The opt-in Chrome test build supports Google sign-in wiring, explicit known-word and history import, and test edits with an account-specific offline queue. All 103 tests passed with the emulator, including the 13,000-word import, two-client merge and account isolation. Type checking and both Chrome builds passed. An isolated Chrome profile verified the stable extension ID, signed-out account messaging and guest history. Live Google sign-in, two Chrome profiles and Firebase Spark usage measurements remain pending. Account deletion and launch registration controls remain open. See the [prototype setup and test steps](docs/account-sync-setup.md).
+**Phase 10 prototype:** The opt-in Chrome test build supports Google sign-in wiring, explicit known-word and history import, and test edits with an account-specific offline queue. All 103 tests passed with the emulator, including the 13,000-word import, two-client merge and account isolation. Type checking and both Chrome builds passed. An isolated Chrome profile verified the stable extension ID, signed-out account messaging and guest history. The owner confirmed live sign-in and sync in the separate test build after Firestore tester approval. The normal unpacked build can now enable the same panel using an OAuth client for its existing extension ID. The normal build was rebuilt with its own OAuth client and checked in a clean Chrome profile under the original extension ID. Live sign-in on the existing installation and Firebase Spark usage measurements remain pending. Account deletion and launch registration controls remain open. See the [prototype setup and test steps](docs/account-sync-setup.md).
 
 ## Phase 9 transcript sidebar
 
