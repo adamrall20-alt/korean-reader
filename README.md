@@ -299,6 +299,7 @@ Captions must be enabled for extraction to work; the extension does not turn the
 - `ROADMAP.md` — implementation order and task tracking.
 - `PROJECT_STATUS.md` — current status and known issues.
 - `docs/architecture.md` — runtime architecture and data ownership.
+- [Phase 10 accounts and progress sync](docs/account-sync.md) — planned behaviour, architecture and open decisions.
 - `docs/dictionary.md` — KRDict lookup and caching behaviour.
 - `docs/anki-integration.md` — AnkiConnect setup, note mapping, and sync behaviour.
 - `docs/interview-questions.md` — interview-style questions about the product and its engineering.
@@ -306,7 +307,7 @@ Captions must be enabled for extraction to work; the extension does not turn the
 ## Privacy
 
 - Vocabulary and dictionary cache data are stored locally.
-- No accounts, analytics or tracking.
+- The current build runs without accounts, analytics or usage tracking. Optional progress sync is planned for Phase 10.
 - The KRDict API key will be stored in `chrome.storage.local`, never in source control.
 - The content script will not receive API credentials.
 

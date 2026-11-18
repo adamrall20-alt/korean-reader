@@ -18,7 +18,7 @@ The extension is split into three parts. The YouTube page part watches captions 
 | AnkiConnect | Sends notes and media to Anki Desktop and imports known words from a selected deck. | It reuses the user's existing Anki note type and local collection; review scheduling stays in Anki. |
 | Vitest + Vue Test Utils + jsdom | Tests services and UI components. | They provide fast automated checks without requiring a browser for every change. Chrome fixture checks cover extension flows where browser behavior matters. |
 
-The background service worker is the single owner of the extension's stored data and network calls. It can stop when idle under Manifest V3, so operations are message-driven and the worker wakes when needed. Dictionary lookups contact KRDict; AnkiConnect calls go to the local Anki Desktop endpoint. There is no Korean Reader cloud account or backend.
+The background service worker is the single owner of the extension's stored data and network calls. It can stop when idle under Manifest V3, so operations are message-driven and the worker wakes when needed. Dictionary lookups contact KRDict; AnkiConnect calls go to the local Anki Desktop endpoint. The current build stores vocabulary and progress locally. The [Phase 10 plan](account-sync.md) describes proposed account-scoped storage and Firebase sync.
 
 Current status is Phase 8. Screenshot/audio capture, Anki known-word imports and definition selection are implemented; their remaining live checks are listed in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
 
@@ -26,7 +26,7 @@ Current status is Phase 8. Screenshot/audio capture, Anki known-word imports and
 
 Korean Reader is a personal Chrome Manifest V3 extension for learning Korean from YouTube. This document records the runtime structure and the decisions that must remain consistent as features are added.
 
-The project has completed Phases 0–7 and is working through Phase 8 additions. The extension now covers YouTube caption extraction, interactive words, dictionary lookup, local vocabulary management and Anki sync, with screenshot/audio capture, import tools and selectable definitions added in Phase 8. Remaining live checks are tracked in PROJECT_STATUS.md.
+The extension covers YouTube captions and the Phase 9 transcript sidebar, interactive words, dictionary lookup, local vocabulary management, progress statistics and Anki sync. Phase 8 added screenshot and audio capture, import tools and selectable definitions. Remaining live checks are tracked in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
 
 ## 2. Runtime Components
 

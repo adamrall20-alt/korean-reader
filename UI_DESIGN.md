@@ -223,6 +223,12 @@ The tab uses the same fixed star-pattern background and dark/light overlay treat
 
 The Anki section names the saved deck and has a **Refresh** button. It shows reviews left today, the next seven days of scheduled reviews, and deck word overlap. Connection and configuration messages appear in that section so the vocabulary graph remains usable.
 
+### Account progress (Phase 10, planned)
+
+Offer optional Google sign-in and show the account graph in the existing Statistics tab. Show the active account, last successful sync and pending or unavailable sync states. When registration is paused, explain that guest use is available. After sign-out, show guest progress.
+
+In account mode, distinguish deleting a local mined entry from **Mark unknown**, which changes the shared list. Continue presenting the current computer's live Anki figures separately. See the [Phase 10 plan](docs/account-sync.md) for account behaviour and the open deletion decision.
+
 ## Word frequency
 
 Show the Shiberu frequency rank in green to the right of the dictionary heading. Display `#80,000+` when the headword is absent from the list.

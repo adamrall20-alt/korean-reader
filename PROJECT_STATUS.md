@@ -8,6 +8,8 @@
 
 **Last Updated:** 18 November 2026
 
+**Next planned phase:** Phase 10 — Accounts and Progress Sync. The [planning record](docs/account-sync.md) captures the Firebase Spark proposal and agreed behaviours. Account deletion and retention remain open. Implementation and verification are pending.
+
 ## Phase 9 transcript sidebar
 
 The toolbar's **Open Sidebar** button opens a searchable, resizable transcript on YouTube watch pages. It sits above recommendations in standard desktop layout, overlays theatre and narrow layouts, and hides during fullscreen. The active line follows playback, with an Auto-scroll toggle. If the full Korean transcript cannot load, the panel collects rendered captions for the current video while playback progresses. Reopening the panel on the same video retains the collected lines. Navigating to a different video clears them.

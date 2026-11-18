@@ -4,7 +4,7 @@
 
 Korean Reader is a locally operated Google Chrome extension.
 
-It has no remote backend or cloud database. It uses KRDict for dictionary data and connects to the user's local Anki Desktop through AnkiConnect.
+The current build uses local storage, KRDict for dictionary data and AnkiConnect for the user's local Anki Desktop. Phase 10 proposes Firebase Spark for optional Google sign-in and Firestore progress sync. See the [Phase 10 plan](docs/account-sync.md).
 
 Its main responsibilities are:
 
@@ -183,6 +183,10 @@ IndexedDB access is centralised in the background service worker. Content script
 ### Known-word history
 
 IndexedDB schema version 3 adds a status index to vocabulary and a statistics store. Starting tracking records an immutable baseline. Count-changing vocabulary writes record the latest total under the local date in the same transaction, including bulk imports. Changes on the same day replace that day's snapshot and preserve the baseline. History stays in the Chrome profile. The Statistics page reads it through extension-page-only messages and listens for vocabulary updates.
+
+### Planned account storage
+
+Phase 10 proposes per-account IndexedDB caches and retry queues, with Firestore holding shared known-word status and the account graph. The extension background layer would handle authentication, storage and sync. The [Phase 10 plan](docs/account-sync.md) describes the proposed document grouping, conflict handling and quota controls.
 
 ## 7. Anki Integration
 

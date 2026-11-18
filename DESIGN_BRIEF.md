@@ -250,7 +250,13 @@ The toolbar opens Statistics in a new tab. **Start tracking** saves the current 
 
 The page can also show the Anki deck selected in Settings, with reviews left today, scheduled reviews for the next seven days, and the percentage of unique deck words that Korean Reader has marked known.
 
+### 3.9 Accounts and progress sync (planned)
+
+Phase 10 adds optional Google sign-in and shared known-word progress inside the extension. The account carries the known-word list and Statistics graph across Chrome profiles. The current guest workflow, local mined entries and live Anki figures continue to be available. See the [Phase 10 plan](docs/account-sync.md) for migration, offline behaviour and launch scope.
+
 ## 4. Storage and Privacy
+
+The following rules describe the initial release. Phase 10 adds an opt-in exception for account identity and known-word progress using Firebase Spark.
 
 - Store vocabulary locally.
 - Store cached dictionary results locally.
