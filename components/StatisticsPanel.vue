@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
-import AccountPrototype from './AccountPrototype.vue';
+import CloudSyncCard from './CloudSyncCard.vue';
 import { accountEnabled, type AccountView } from '@/types/account';
 import logo from '@/assets/penguin.png';
 import stars from '@/assets/stars.png';
@@ -105,7 +105,7 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
 
     <main class="mx-auto grid max-w-5xl gap-6 px-6 py-8">
 
-    <AccountPrototype v-if="accountEnabled" @update="account = $event" />
+    <CloudSyncCard v-if="accountEnabled" @update="account = $event" />
 
     <section aria-labelledby="known-words-heading" class="grid gap-4 rounded-xl border border-interface/10 bg-ink-soft p-5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">

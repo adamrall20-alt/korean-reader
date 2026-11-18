@@ -31,9 +31,9 @@ The existing unpacked installation keeps its ID and data when rebuilt and reload
 ## Test in two Chrome profiles
 
 - Use disposable profiles for test data. The prototype's stable ID gives it its own Chrome storage. For real existing test vocabulary, seed it in this build before importing. A fresh install can import an empty baseline.
-- In the first profile, select **Import this profile’s known words**. Add a test word through **Mark known**.
+- In the first profile, seed local vocabulary using the regular reader before selecting **Import this profile’s known words**.
 - In a second profile, load the same build and sign in to the same Google account. **Sync now** should show the same word count and graph. Repeating an import in the same profile should not increase the count.
-- For an offline conflict check, open Statistics in both profiles with the same starting count. Disconnect the first profile and mark a word unknown. Restart that profile while offline and check the pending count. In the second profile, mark that same word unknown, then known again. Reconnect the first profile and click **Sync now**. The newer account revision should win and the pending count should return to zero.
+- To check offline feedback, disconnect a signed-in profile and click **Sync now**. Confirm that the last successful sync and cached progress remain visible. Reconnect and click **Sync now** again. Use the automated Firestore emulator checks below for word-level conflicts.
 - Sign out and confirm that Statistics returns to the local graph. The regular reader and mining workflow still uses local progress in this milestone.
 
 ## Run automated checks
