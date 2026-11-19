@@ -67,6 +67,11 @@ If custom subtitle extraction fails, the extension should fall back to leaving Y
 
 On YouTube watch pages, the toolbar popup opens a separate transcript beside the video. The sidebar tries to load the full Korean transcript. When unavailable, it explains the fallback and collects rendered Korean captions during playback. Users can search, follow the active line, or revisit earlier lines with the seek button. Words use the shared dictionary and Known action. Mine Word seeks to the selected line before capturing media.
 
+
+The header beside **Korean transcript** shows the percentage of unique Korean lexical words marked known, rounded to one decimal (for example, `86.8% known` for 434 of 500). Hover over the percentage for the exact known/total count. Repeated words, conjugated forms and supported contraction aliases count once; standalone particles, endings, punctuation and non-Korean text are excluded. Lexical compound parts have stable counts even if a known whole compound makes them known. This is vocabulary coverage, not a comprehension score.
+
+Opening the sidebar analyses all loaded Korean subtitle lines in sequential batches, reusing cached analysis. The percentage updates when known status changes and remains based on the entire loaded transcript during search. It shows **Calculating…** until analysis completes, **No words** for an empty vocabulary, or **Coverage unavailable** on analysis failure. Collected-caption fallback shows **(partial)** and updates as lines arrive; it cannot describe subtitles YouTube has not supplied.
+
 ### 3.2 Interactive Korean Words
 
 - Split Korean subtitles into individually clickable words.

@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import SubtitleReader from '@/components/SubtitleReader.vue';
 import TranscriptRow from '@/components/TranscriptRow.vue';
 import { subtitleStyle, type InterfaceTheme, type SubtitleAppearance } from '@/types/preferences';
+import { transcriptVocabulary, vocabularyCoverage } from '@/services/korean/coverage';
+import { tokenizeLines, TOKENIZE_BATCH_LIMIT } from '@/services/korean/tokenize-client';
 import type { TokenizedSubtitleLine } from '@/types/messages';
 import type { TranscriptCue } from '@/services/youtube/transcript';
 import type { createSubtitleOverlay } from '@/services/youtube/overlay';
 import { captureVideoFrame } from '@/services/youtube/capture';
-import { findPlayer, findVideo, getYouTubeVideoId } from '@/services/youtube/captions';
+import { findPlayer, findVideo, getYouTubeVideoId, hasKorean } from '@/services/youtube/captions';
 import { seekTranscriptVideo } from '@/services/youtube/transcript';
 
 const props = defineProps<{
@@ -23,6 +25,33 @@ const props = defineProps<{
   prepareAudio: ReturnType<typeof createSubtitleOverlay>['prepareCueAudio'];
 }>();
 const emit = defineEmits<{ close: []; resize: [number]; follow: [boolean] }>();
+
+const analysedLines = new Map<string, TokenizedSubtitleLine>();
+const coverageWords = shallowRef(new Map<string, Set<string>>());
+const coverageState = ref<'loading' | 'ready' | 'error'>('loading');
+const coverage = computed(() => vocabularyCoverage(coverageWords.value, props.knownHeadwords));
+const coverageTitle = computed(() => `${coverage.value.known} of ${coverage.value.total} unique words known${props.status === 'collecting' ? ' — collected subtitles only' : ''}`);
+watch([() => props.cues, () => props.status, () => props.videoId], async (_, __, onCleanup) => {
+  let cancelled = false;
+  onCleanup(() => { cancelled = true; });
+  coverageState.value = 'loading';
+  if (props.status === 'loading') return;
+  const texts = [...new Set(props.cues.map((cue) => cue.text).filter(hasKorean))];
+  const pending = texts.filter((text) => !analysedLines.has(text));
+  try {
+    for (let start = 0; start < pending.length; start += TOKENIZE_BATCH_LIMIT) {
+      const batch = pending.slice(start, start + TOKENIZE_BATCH_LIMIT);
+      const lines = await tokenizeLines(batch);
+      if (cancelled) return;
+      lines.forEach((line, index) => analysedLines.set(batch[index]!, line));
+    }
+    if (cancelled) return;
+    coverageWords.value = transcriptVocabulary(texts.map((text) => analysedLines.get(text)!));
+    coverageState.value = 'ready';
+  } catch {
+    if (!cancelled) coverageState.value = 'error';
+  }
+}, { immediate: true });
 
 const query = ref('');
 const search = computed(() => query.value.trim().replace(/\s+/gu, ' ').normalize('NFC').toLocaleLowerCase());
@@ -131,7 +160,13 @@ function startResize(event: PointerEvent) {
       @keydown.right.prevent="emit('resize', width - 24)"
     ></div>
     <header>
-      <h2>Korean transcript</h2>
+      <div class="kr-transcript-heading">
+        <h2>Korean transcript</h2>
+        <span v-if="coverageState === 'ready' && coverage.percentage !== null" class="kr-transcript-coverage" :title="coverageTitle" :aria-label="coverageTitle">
+          {{ coverage.percentage }}% known<span v-if="status === 'collecting'"> (partial)</span>
+        </span>
+        <span v-else class="kr-transcript-coverage" role="status">{{ coverageState === 'error' ? 'Coverage unavailable' : coverageState === 'ready' ? 'No words' : 'Calculating…' }}</span>
+      </div>
       <button type="button" aria-label="Close transcript" @click="emit('close')">×</button>
     </header>
     <div class="kr-transcript-controls">

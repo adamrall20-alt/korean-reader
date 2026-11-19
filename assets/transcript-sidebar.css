@@ -152,3 +152,6 @@
 }
 
 .kr-transcript-resize:hover, .kr-transcript-resize:focus-visible { background: #16a34a; }
+
+.kr-transcript-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.kr-transcript-coverage { color: var(--muted); font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; }

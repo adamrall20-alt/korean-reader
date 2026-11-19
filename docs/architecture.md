@@ -198,3 +198,9 @@ Key Phase 1 modules:
 | `services/youtube/presenter.ts` | Show/hide timing, active-player scoping and native-caption fallback |
 | `components/SubtitleReader.vue` | Reactive subtitle line rendering |
 | `assets/subtitle-overlay.css` | Overlay positioning, font stack and legibility styling |
+
+## Transcript vocabulary coverage
+
+`services/korean/coverage.ts` builds a unique lexical headword index from Kiwi morphemes, canonicalising supported contraction aliases. Counts are independent of known status and visual compound splitting; a known whole nominal compound can satisfy its component words. `TranscriptSidebar.vue` analyses every loaded Korean cue on opening, sequentially in batches of at most 50 through the existing tokenization client. Per-component line results avoid reanalysis when live captions grow or known status changes. Analysis is local, requires no dictionary calls or new permissions, and stale async results are ignored on cue/video changes and unmount. Sidebar rows retain their existing lazy analysis and shared cache.
+
+The header displays known/total × 100 to one decimal; the exact count is available in its title and accessible label. Search does not affect coverage. Empty, loading, failure and partial collected-transcript states are explicit. Full-video coverage depends on a full transcript being available; it does not force unavailable YouTube subtitles to load.

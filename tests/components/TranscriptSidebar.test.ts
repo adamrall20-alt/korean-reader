@@ -34,6 +34,50 @@ afterEach(() => {
 });
 
 describe('transcript sidebar', () => {
+  it('analyses the entire transcript on opening and refreshes unique coverage without reanalysis', async () => {
+    sendMessage.mockImplementation(async (message) => ({ ok: true, lines: message.lines.map((text: string) => ({
+      text, tokens: [{ id: '0:0', text, start: 0, length: text.length, clickable: true, morphemes: [] }],
+    })) }));
+    const wrapper = mountSidebar();
+    await flushPromises();
+    expect(sendMessage).toHaveBeenCalledWith({ type: 'tokenize', lines: cues.map((cue) => cue.text) });
+    expect(wrapper.get('.kr-transcript-coverage').text()).toBe('0.0% known');
+    const calls = sendMessage.mock.calls.length;
+    await wrapper.setProps({ knownHeadwords: new Set(['安', cues[0]!.text]) });
+    expect(wrapper.get('.kr-transcript-coverage').text()).toBe('50.0% known');
+    expect(wrapper.get('.kr-transcript-coverage').attributes('title')).toBe('1 of 2 unique words known');
+    await wrapper.get('input[type="search"]').setValue('사과');
+    expect(wrapper.get('.kr-transcript-coverage').text()).toBe('50.0% known');
+    expect(sendMessage).toHaveBeenCalledTimes(calls);
+    await wrapper.setProps({ status: 'collecting' });
+    await flushPromises();
+    expect(wrapper.get('.kr-transcript-coverage').text()).toContain('(partial)');
+    wrapper.unmount();
+  });
+
+  it('hides stale coverage when analysis fails or the video changes', async () => {
+    sendMessage.mockRejectedValue(new Error('Worker unavailable'));
+    const wrapper = mountSidebar();
+    await flushPromises();
+    expect(wrapper.get('.kr-transcript-coverage').text()).toBe('Coverage unavailable');
+    await wrapper.setProps({ status: 'loading', cues: [], videoId: 'other' });
+    expect(wrapper.get('.kr-transcript-coverage').text()).toBe('Calculating…');
+    wrapper.unmount();
+  });
+
+  it('discards an old video result and handles an empty transcript without a percentage', async () => {
+    let finish!: (value: unknown) => void;
+    sendMessage.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    const wrapper = mountSidebar();
+    await flushPromises();
+    await wrapper.setProps({ videoId: 'new-video', cues: [], status: 'full' });
+    expect(wrapper.get('.kr-transcript-coverage').text()).toBe('No words');
+    finish({ ok: true, lines: cues.map(({ text }) => ({ text, tokens: [] })) });
+    await flushPromises();
+    expect(wrapper.get('.kr-transcript-coverage').text()).toBe('No words');
+    wrapper.unmount();
+  });
+
   it('highlights the active cue, filters by phrase and exposes seek and follow controls', async () => {
     const video = document.createElement('video');
     document.body.append(video);

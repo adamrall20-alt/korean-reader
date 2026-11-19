@@ -75,6 +75,11 @@ The toolbar's **Open Sidebar** button appears below the Anki controls. The panel
 
 The seek button combines an arrow and timestamp. Clicking a Korean word pauses the video and opens the existing dictionary popup without seeking. Auto-scroll starts enabled and pauses while searching or reviewing a definition.
 
+
+The header beside **Korean transcript** shows the percentage of unique Korean lexical words marked known, rounded to one decimal (for example, `86.8% known` for 434 of 500). Hover over the percentage for the exact known/total count. Repeated words, conjugated forms and supported contraction aliases count once; standalone particles, endings, punctuation and non-Korean text are excluded. Lexical compound parts have stable counts even if a known whole compound makes them known. This is vocabulary coverage, not a comprehension score.
+
+Opening the sidebar analyses all loaded Korean subtitle lines in sequential batches, reusing cached analysis. The percentage updates when known status changes and remains based on the entire loaded transcript during search. It shows **Calculating…** until analysis completes, **No words** for an empty vocabulary, or **Coverage unavailable** on analysis failure. Collected-caption fallback shows **(partial)** and updates as lines arrive; it cannot describe subtitles YouTube has not supplied.
+
 ## 4. Dictionary Popup
 
 The dictionary popup is one of the primary interface components.

@@ -104,6 +104,11 @@ On a YouTube watch page, choose **Open Sidebar** in the Korean Reader toolbar po
 
 When YouTube does not provide the full Korean transcript, enable Korean captions and play the video to collect lines. Collected lines remain available if you close and reopen the sidebar on the same video in that tab. The panel overlays theatre or narrow layouts and hides while fullscreen is active.
 
+
+The header beside **Korean transcript** shows the percentage of unique Korean lexical words marked known, rounded to one decimal (for example, `86.8% known` for 434 of 500). Hover over the percentage for the exact known/total count. Repeated words, conjugated forms and supported contraction aliases count once; standalone particles, endings, punctuation and non-Korean text are excluded. Lexical compound parts have stable counts even if a known whole compound makes them known. This is vocabulary coverage, not a comprehension score.
+
+Opening the sidebar analyses all loaded Korean subtitle lines in sequential batches, reusing cached analysis. The percentage updates when known status changes and remains based on the entire loaded transcript during search. It shows **Calculating…** until analysis completes, **No words** for an empty vocabulary, or **Coverage unavailable** on analysis failure. Collected-caption fallback shows **(partial)** and updates as lines arrive; it cannot describe subtitles YouTube has not supplied.
+
 ## Current Status
 
 **Current release: v1.0.0 — 19 November 2026.** The original YouTube-to-Anki workflow is implemented, alongside the transcript sidebar, statistics, word frequency and performance improvements. Optional Google account sync remains a configured prototype, not a completed public service. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verification limits and [ROADMAP.md](ROADMAP.md) for optional work after v1.0.
