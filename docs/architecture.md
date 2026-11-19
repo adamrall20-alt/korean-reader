@@ -83,6 +83,8 @@ Toolbar popup
 
 ### IndexedDB
 
+`services/storage/database.ts` caches and reuses a single shared `IDBDatabase` connection across storage callers within a background service worker lifecycle, clearing and releasing it automatically on `versionchange` or `close` events (while still reopening transparently if the MV3 service worker restarts).
+
 Object stores:
 
 - `vocabulary` — one record per normalized dictionary headword. IndexedDB schema version 2 adds this store and preserves the existing dictionary cache.

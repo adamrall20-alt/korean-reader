@@ -325,3 +325,9 @@ Verification: 108 tests passed with one Firestore emulator test skipped; type ch
 Fixed repeat imports from an already-imported Chrome profile silently skipping newly known words. **Sync now** also merges local known words into an existing account snapshot before refreshing it. Imports remain idempotent, preserve the original account history, and use word revisions to preserve account-side unknown statuses. The Cloud sync card reports completion with the refreshed account total; failed requests retain the previous successful-sync time. In the reported case, syncing the eight new words should update the account from 13,307 to 13,315.
 
 Verification: 108 tests passed and one Firestore emulator test was skipped; type checking and the Chrome production build passed. The emulator could not start because the installed Java version is below 21. Live verification in the signed-in Chrome profile remains pending. Local Known actions are not automatically queued; the pending counter currently tracks explicit account edits only. Automatic vocabulary integration, local unknown-status propagation and full account/guest separation remain incomplete Phase 10 work.
+
+## IndexedDB connection reuse — 19 November 2026
+
+`services/storage/database.ts` now caches and reuses a single shared `IDBDatabase` connection across `vocabulary`, `statistics`, and `dictionaryCache` operations instead of opening and closing the database on every request. The cached handle clears automatically on open failures, `versionchange`, or `close` events, and exposes `closeDatabase()` for explicit teardown. Storage callers in `services/storage/vocabulary.ts`, `services/storage/statistics.ts`, and `services/dictionary/cache.ts` no longer close the shared connection after individual transactions.
+
+Verification: 115 tests passed (one Firestore emulator test skipped), type checking passed, and the Chrome production build passed.

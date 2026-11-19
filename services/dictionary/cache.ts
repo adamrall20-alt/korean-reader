@@ -26,7 +26,7 @@ export async function getCachedDictionaryEntry(
       resolve((request.result as DictionaryCacheRecord | undefined)?.entry);
     request.onerror = () =>
       reject(request.error ?? new Error('Could not read the dictionary cache.'));
-  }).finally(() => database.close());
+  });
 }
 
 export async function cacheDictionaryEntry(key: string, entry: DictionaryEntry): Promise<void> {
@@ -43,7 +43,7 @@ export async function cacheDictionaryEntry(key: string, entry: DictionaryEntry):
     transaction.oncomplete = () => resolve();
     transaction.onabort = () =>
       reject(transaction.error ?? new Error('Could not write the dictionary cache.'));
-  }).finally(() => database.close());
+  });
 }
 
 export async function clearDictionaryCache(): Promise<void> {
@@ -56,5 +56,5 @@ export async function clearDictionaryCache(): Promise<void> {
     transaction.oncomplete = () => resolve();
     transaction.onabort = () =>
       reject(transaction.error ?? new Error('Could not clear the dictionary cache.'));
-  }).finally(() => database.close());
+  });
 }

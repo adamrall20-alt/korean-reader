@@ -7,15 +7,11 @@ const normalizeHeadword = (headword: string) => headword.trim().normalize('NFC')
 
 async function readVocabulary<T>(read: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   const database = await openDatabase();
-  try {
-    return await new Promise<T>((resolve, reject) => {
-      const request = read(database.transaction(VOCABULARY_STORE).objectStore(VOCABULARY_STORE));
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  } finally {
-    database.close();
-  }
+  return new Promise<T>((resolve, reject) => {
+    const request = read(database.transaction(VOCABULARY_STORE).objectStore(VOCABULARY_STORE));
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 }
 
 async function updateVocabulary<T>(
@@ -23,28 +19,24 @@ async function updateVocabulary<T>(
   update: (store: IDBObjectStore, entry: VocabularyEntry | undefined, transaction: IDBTransaction) => T,
 ): Promise<T> {
   const database = await openDatabase();
-  try {
-    return await new Promise<T>((resolve, reject) => {
-      const transaction = database.transaction([VOCABULARY_STORE, STATISTICS_STORE], 'readwrite');
-      const store = transaction.objectStore(VOCABULARY_STORE);
-      const request = store.get(headword);
-      let result: T;
-      let updateError: unknown;
-      request.onsuccess = () => {
-        try {
-          result = update(store, request.result as VocabularyEntry | undefined, transaction);
-        } catch (error) {
-          updateError = error;
-          transaction.abort();
-        }
-      };
-      transaction.oncomplete = () => resolve(result);
-      transaction.onabort = () =>
-        reject(updateError ?? transaction.error ?? new Error('Could not save vocabulary.'));
-    });
-  } finally {
-    database.close();
-  }
+  return new Promise<T>((resolve, reject) => {
+    const transaction = database.transaction([VOCABULARY_STORE, STATISTICS_STORE], 'readwrite');
+    const store = transaction.objectStore(VOCABULARY_STORE);
+    const request = store.get(headword);
+    let result: T;
+    let updateError: unknown;
+    request.onsuccess = () => {
+      try {
+        result = update(store, request.result as VocabularyEntry | undefined, transaction);
+      } catch (error) {
+        updateError = error;
+        transaction.abort();
+      }
+    };
+    transaction.oncomplete = () => resolve(result);
+    transaction.onabort = () =>
+      reject(updateError ?? transaction.error ?? new Error('Could not save vocabulary.'));
+  });
 }
 
 export function getVocabulary(headword: string): Promise<VocabularyEntry | undefined> {
@@ -57,37 +49,33 @@ export function listVocabulary(): Promise<VocabularyEntry[]> {
 
 export async function markHeadwordsKnown(words: string[]): Promise<number> {
   const database = await openDatabase();
-  try {
-    return await new Promise<number>((resolve, reject) => {
-      const transaction = database.transaction([VOCABULARY_STORE, STATISTICS_STORE], 'readwrite');
-      const store = transaction.objectStore(VOCABULARY_STORE);
-      const now = new Date().toISOString();
-      let marked = 0;
-      transaction.oncomplete = () => resolve(marked);
-      transaction.onabort = () => reject(transaction.error ?? new Error('Could not mark words as known.'));
+  return new Promise<number>((resolve, reject) => {
+    const transaction = database.transaction([VOCABULARY_STORE, STATISTICS_STORE], 'readwrite');
+    const store = transaction.objectStore(VOCABULARY_STORE);
+    const now = new Date().toISOString();
+    let marked = 0;
+    transaction.oncomplete = () => resolve(marked);
+    transaction.onabort = () => reject(transaction.error ?? new Error('Could not mark words as known.'));
 
-      const headwords = new Set(words.map(normalizeHeadword).filter(Boolean));
-      let remaining = headwords.size;
-      for (const headword of headwords) {
-        const request = store.get(headword);
-        request.onsuccess = () => {
-          const existing = request.result as VocabularyEntry | undefined;
-          if (existing?.status !== 'known') {
-            const entry: VocabularyEntry = existing ? { ...existing, status: 'known', updatedAt: now } : {
-              headword, originalForm: headword, definitions: [], koreanDefinitions: [], examples: [],
-              contexts: [], status: 'known', createdAt: now, updatedAt: now,
-            };
-            store.put(entry);
-            marked += 1;
-          }
-          remaining -= 1;
-          if (!remaining && marked) recordKnownWordCount(transaction);
-        };
-      }
-    });
-  } finally {
-    database.close();
-  }
+    const headwords = new Set(words.map(normalizeHeadword).filter(Boolean));
+    let remaining = headwords.size;
+    for (const headword of headwords) {
+      const request = store.get(headword);
+      request.onsuccess = () => {
+        const existing = request.result as VocabularyEntry | undefined;
+        if (existing?.status !== 'known') {
+          const entry: VocabularyEntry = existing ? { ...existing, status: 'known', updatedAt: now } : {
+            headword, originalForm: headword, definitions: [], koreanDefinitions: [], examples: [],
+            contexts: [], status: 'known', createdAt: now, updatedAt: now,
+          };
+          store.put(entry);
+          marked += 1;
+        }
+        remaining -= 1;
+        if (!remaining && marked) recordKnownWordCount(transaction);
+      };
+    }
+  });
 }
 
 export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word' }>) {

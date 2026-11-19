@@ -27,31 +27,27 @@ export function recordKnownWordCount(transaction: IDBTransaction) {
 
 export async function readKnownWordHistory(start: boolean): Promise<KnownWordHistory | null> {
   const database = await openDatabase();
-  try {
-    return await new Promise<KnownWordHistory | null>((resolve, reject) => {
-      const transaction = start
-        ? database.transaction([VOCABULARY_STORE, STATISTICS_STORE], 'readwrite')
-        : database.transaction(STATISTICS_STORE);
-      const store = transaction.objectStore(STATISTICS_STORE);
-      const request = store.getAll();
-      let history: KnownWordHistory | null = null;
-      request.onsuccess = () => {
-        const [baseline, ...days] = request.result as KnownWordPoint[];
-        if (baseline) {
-          history = { baseline, days: days.sort((a, b) => a.at - b.at) };
-        } else if (start) {
-          const count = countKnown(transaction);
-          count.onsuccess = () => {
-            const point = { at: Date.now(), count: count.result };
-            store.add(point, BASELINE);
-            history = { baseline: point, days: [] };
-          };
-        }
-      };
-      transaction.oncomplete = () => resolve(history);
-      transaction.onabort = () => reject(transaction.error ?? new Error('Could not access known-word history.'));
-    });
-  } finally {
-    database.close();
-  }
+  return new Promise<KnownWordHistory | null>((resolve, reject) => {
+    const transaction = start
+      ? database.transaction([VOCABULARY_STORE, STATISTICS_STORE], 'readwrite')
+      : database.transaction(STATISTICS_STORE);
+    const store = transaction.objectStore(STATISTICS_STORE);
+    const request = store.getAll();
+    let history: KnownWordHistory | null = null;
+    request.onsuccess = () => {
+      const [baseline, ...days] = request.result as KnownWordPoint[];
+      if (baseline) {
+        history = { baseline, days: days.sort((a, b) => a.at - b.at) };
+      } else if (start) {
+        const count = countKnown(transaction);
+        count.onsuccess = () => {
+          const point = { at: Date.now(), count: count.result };
+          store.add(point, BASELINE);
+          history = { baseline: point, days: [] };
+        };
+      }
+    };
+    transaction.oncomplete = () => resolve(history);
+    transaction.onabort = () => reject(transaction.error ?? new Error('Could not access known-word history.'));
+  });
 }
