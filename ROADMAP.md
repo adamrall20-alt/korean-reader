@@ -314,11 +314,11 @@ Work through these updates one at a time, in order from simplest to most complex
 
 These features are outside the initial development scope.
 
-- [ ] Vocabulary frequency information.
-- [ ] Sentence-level grammar analysis.
+- [x] Vocabulary frequency information.
+- [x] Sentence-level grammar analysis.
 - [ ] Additional dictionary sources.
 - [x] Subtitle size, text colour, unknown word underline colour and font.
-- [ ] Stats and long term learning progress tracking.
+- [x] Stats and long term learning progress tracking.
 - [x] Keep the Settings navigation visible while scrolling on wider screens.
 - [x] Word frequency information in the dictionary popup.
 
