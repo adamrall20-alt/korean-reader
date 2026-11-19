@@ -5,7 +5,7 @@ import { onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import type { SettingsResponse } from '@/types/messages';
 import stars from '@/assets/stars.png';
-import logo from '@/assets/penguin-simple-transparent.png';
+import logo from '@/assets/penguin-face.png';
 import { requestPreferences } from '@/services/storage/preferences';
 import {
   DEFAULT_SUBTITLE_APPEARANCE, MAX_SUBTITLE_SIZE, MIN_SUBTITLE_SIZE, SUBTITLE_FONTS,
