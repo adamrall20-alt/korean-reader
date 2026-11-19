@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import CloudSyncCard from './CloudSyncCard.vue';
 import { accountEnabled, type AccountView } from '@/types/account';
-import logo from '@/assets/penguin.png';
+import logo from '@/assets/penguin-simple.png';
 import stars from '@/assets/stars.png';
 import type { AnkiResponse } from '@/types/anki';
 import type { AnkiDeckStatistics, HistoryResponse, KnownWordHistory } from '@/types/statistics';

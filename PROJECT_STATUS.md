@@ -378,3 +378,10 @@ Upgraded Korean morphological decomposition, sub-word splitting, and known-statu
 - **Confirmed highlighting rules:** All constituent parts (including explicit `이다` on copula forms and fused mid-character contractions like `뭔데요` or `할건데`) must be known before underlines are removed; colloquial contraction aliases (`이거`↔`이것`, `재밌다`↔`재미있다`, `거`↔`것`, `뭐`↔`무엇`, etc.) share known status across underlines, dictionary lookup ordering, and the popup Known state; unspaced compound nouns (`한국어공부`, `복싱장`) stay whole when known as a whole and otherwise split into separate clickable sub-tokens (`resolveRenderTokens`).
 
 Verification: 163 tests passed and one Firestore emulator test was skipped. Type checking and the Chrome production build passed. New unit and component tests cover multi-verb/auxiliary splitting, particle and productive-suffix stripping, `XPN`/`XSN` preservation, copula forms with suffixes/particles and explicit `이다` status, fused contractions, symmetric contraction aliases, compound-whole-vs-split rendering in both the subtitle overlay and transcript sidebar, compound `parts` ID re-indexing, and background alias lookup resolution. Live visual checking on YouTube in Chrome has not been run yet.
+
+
+## Simplified penguin logo — 19 November 2026
+
+Updated the toolbar popup, Settings and Statistics headers to use `assets/penguin-simple.png`. Regenerated all five Chrome extension icons (16, 32, 48, 96 and 128 pixels) from the same asset. The original artwork remains available but is no longer referenced by the application.
+
+Verification: 163 tests passed with one Firestore emulator test skipped; type checking and the Chrome production build passed. Confirmed the production bundle uses the simplified logo and includes the regenerated icons. Live visual verification in Chrome remains pending.

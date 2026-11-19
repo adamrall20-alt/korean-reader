@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { OPEN_TRANSCRIPT } from '@/services/youtube/transcript';
 import { browser } from 'wxt/browser';
 import { VOCABULARY_REVISION_KEY, type VocabularySummary, type VocabularyResponse } from '@/types/vocabulary';
-import logo from '@/assets/penguin.png';
+import logo from '@/assets/penguin-simple.png';
 import stars from '@/assets/stars.png';
 
 const summary = ref<VocabularySummary>();
