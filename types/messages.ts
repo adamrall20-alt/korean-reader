@@ -23,6 +23,8 @@ export interface SubtitleToken {
   length: number;
   clickable: boolean;
   morphemes: KoreanMorpheme[];
+  /** Individual clickable nominal sub-tokens for unspaced compound nouns. */
+  parts?: SubtitleToken[];
 }
 
 export interface TokenizedSubtitleLine {

@@ -18,7 +18,5 @@ defineEmits<{
     :class="{ 'kr-word-token-selected': selected, 'kr-word-token-unknown': unknown }"
     :data-token-id="tokenId"
     @click="$emit('select')"
-  >
-    {{ word }}
-  </button>
+  >{{ word }}</button>
 </template>

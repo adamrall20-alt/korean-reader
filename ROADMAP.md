@@ -304,11 +304,11 @@ Work through these updates one at a time, in order from simplest to most complex
 - [x] **11.5 Headword-level dictionary cache:** Cache KRDict entries by resolved headword/individual candidate in `services/dictionary/krdict.ts` so different conjugations of the same word reuse the cached entry without redundant API requests.
 - [x] **11.6 Batch AnkiConnect sync lookups:** Batch duplicate checks (`findNotes` / `notesInfo`) during `syncVocabulary` instead of running serial requests per headword.
 - [x] **11.7 Lighter YouTube caption monitoring:** Pause caption polling off video pages and on hidden tabs, prefer `MutationObserver` over constant 250 ms polling where reliable, and avoid repeated `getComputedStyle` / `innerText` layout checks.
-- [ ] **11.8 Kimchi Reader–style word highlighting and conjugation engine (Option B):**
+- [x] **11.8 Kimchi Reader–style word highlighting and conjugation engine (Option B):**
   - Decompose Kiwi morphemes into real lexical word units across grammatical boundaries (`EC`, `ETM`, `ETN`, `J*`, `VCP`) instead of combining multi-verb or unspaced chunks into invalid forms (e.g., `먹어봤어요` → `먹다` + `보다`, `할수있어요` → `하다` + `수` + `있다`).
   - Visually split multi-word chunks into adjacent clickable sub-word tokens (with no extra spacing) so only unknown parts are underlined and particles are not underlined; fall back to multi-headword checks on fused mid-character contractions (e.g., `할거야`, `뭔데요`).
   - Support particle stripping on adverbs (`MAG`, e.g., `아직도` → `아직`), preserve prefixes (`XPN`, e.g., `신제품`) and word-forming suffixes (`XSN`, e.g., `선생님`, `대학생`, `가능성`, `현실적`), strip productive grammatical suffixes (`들`, `쯤`, `씩`, `끼리`), and fix `이다` copula constructions with suffixes/particles (`학생들이에요`, `선생님이에요`, `집에서예요`).
-  - Confirm remaining rule preferences before implementation: whether `이다` requires explicit known status, colloquial contraction aliases (`이거`↔`이것`, `재밌다`↔`재미있다`), and unspaced compound nouns (`한국어공부`).
+  - Confirmed rule preferences: all parts (including explicit `이다`) must be known before removing the underline; colloquial contraction aliases (`이거`↔`이것`, `재밌다`↔`재미있다`, etc.) share known status; unspaced compound nouns (`한국어공부`) match as a whole first and otherwise split into separate clickable parts.
 
 ## Future Enhancements
 

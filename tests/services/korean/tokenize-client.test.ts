@@ -71,6 +71,50 @@ describe('shared tokenization client', () => {
     expect(singleB[0]!.tokens[0]!.id).toBe('0:0');
   });
 
+  it('re-indexes compound part IDs across multi-line cached results', async () => {
+    sendMessage.mockResolvedValueOnce({
+      ok: true,
+      lines: [{
+        text: '한국어공부',
+        tokens: [{
+          id: '0:0',
+          text: '한국어공부',
+          start: 0,
+          length: 5,
+          clickable: true,
+          morphemes: [
+            { text: '한국어', tag: 'NNP', position: 0, length: 3 },
+            { text: '공부', tag: 'NNG', position: 3, length: 2 },
+          ],
+          parts: [
+            {
+              id: '0:0:3',
+              text: '한국어',
+              start: 0,
+              length: 3,
+              clickable: true,
+              morphemes: [{ text: '한국어', tag: 'NNP', position: 0, length: 3 }],
+            },
+            {
+              id: '0:3:2',
+              text: '공부',
+              start: 3,
+              length: 2,
+              clickable: true,
+              morphemes: [{ text: '공부', tag: 'NNG', position: 3, length: 2 }],
+            },
+          ],
+        }],
+      }],
+    });
+
+    await tokenizeLines(['한국어공부']);
+    const multi = await tokenizeLines(['한국어공부', '한국어공부']);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(multi[1]!.tokens[0]!.id).toBe('1:0');
+    expect(multi[1]!.tokens[0]!.parts?.map((part) => part.id)).toEqual(['1:0:3', '1:3:2']);
+  });
+
   it('reuses cached lines on rewinds and sends only uncached lines', async () => {
     sendMessage.mockImplementation(async (message: TokenizeMessage) => ({
       ok: true,

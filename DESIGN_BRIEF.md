@@ -127,7 +127,10 @@ Known/unknown status rules:
 - A word that has not been marked before defaults to unknown.
 - Mining a word marks it as known.
 - Selecting "Known" marks the dictionary headword as known without saving a mined sentence or creating an Anki card.
-- A stored noun or pronoun can also match when it appears with particles and the plural suffix 들. For example, known 여러분 removes the underline from 여러분들의.
+- A stored noun, pronoun, adverb, or predicate can match across particles and productive grammatical suffixes (`들`, `쯤`, `씩`, `끼리`), which are rendered as plain un-underlined text. For example, known `여러분` removes the underline from `여러분` in `여러분들의`, and `들`/`의` are not underlined.
+- Multi-word chunks split visually into adjacent clickable sub-words where grammatical boundaries permit, and all constituent parts (including explicit `이다` on copula constructions or fused contractions) must be known before the underline is removed.
+- Colloquial contractions and their standard equivalents (e.g., `이거` ↔ `이것`, `재밌다` ↔ `재미있다`) share known status.
+- Unspaced compound nouns (e.g., `한국어공부`) match as a whole when known, and split into individual clickable parts otherwise.
 - The user can change the status with a known/unknown toggle.
 
 ### 3.5 Vocabulary Management

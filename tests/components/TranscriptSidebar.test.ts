@@ -180,4 +180,78 @@ describe('transcript sidebar', () => {
     expect(sendMessage).not.toHaveBeenCalled();
     wrapper.unmount();
   });
+
+  it('splits compound noun cues in the sidebar when the whole compound is not known', async () => {
+    let notify!: IntersectionObserverCallback;
+    const FakeObserver = class {
+      constructor(callback: IntersectionObserverCallback) { notify = callback; }
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    };
+    vi.stubGlobal('IntersectionObserver', FakeObserver);
+
+    sendMessage.mockResolvedValueOnce({
+      ok: true,
+      lines: [{
+        text: '한국어공부',
+        tokens: [{
+          id: '0:0',
+          text: '한국어공부',
+          start: 0,
+          length: 5,
+          clickable: true,
+          morphemes: [
+            { text: '한국어', tag: 'NNP', position: 0, length: 3 },
+            { text: '공부', tag: 'NNG', position: 3, length: 2 },
+          ],
+          parts: [
+            {
+              id: '0:0:3',
+              text: '한국어',
+              start: 0,
+              length: 3,
+              clickable: true,
+              morphemes: [{ text: '한국어', tag: 'NNP', position: 0, length: 3 }],
+            },
+            {
+              id: '0:3:2',
+              text: '공부',
+              start: 3,
+              length: 2,
+              clickable: true,
+              morphemes: [{ text: '공부', tag: 'NNG', position: 3, length: 2 }],
+            },
+          ],
+        }],
+      }],
+    });
+
+    const compoundCues = [{ start: 1, end: 3, text: '한국어공부' }];
+    const wrapper = mount(TranscriptSidebar, {
+      props: {
+        cues: compoundCues,
+        active: compoundCues[0],
+        status: 'full',
+        theme: 'dark',
+        appearance: DEFAULT_SUBTITLE_APPEARANCE,
+        knownHeadwords: new Set(['한국어']),
+        videoId: 'fixture',
+        width: 360,
+        follow: true,
+        prepareAudio: () => async () => undefined,
+      },
+    });
+
+    const row = wrapper.get('.kr-transcript-row').element;
+    notify([{ isIntersecting: true, target: row } as IntersectionObserverEntry], { unobserve: vi.fn() } as unknown as IntersectionObserver);
+    await flushPromises();
+
+    expect(wrapper.findAll('.kr-word-token').map((node) => node.text())).toEqual(['한국어', '공부']);
+    expect(wrapper.findAll('.kr-word-token-unknown').map((node) => node.text())).toEqual(['공부']);
+
+    await wrapper.setProps({ knownHeadwords: new Set(['한국어공부']) });
+    expect(wrapper.findAll('.kr-word-token').map((node) => node.text())).toEqual(['한국어공부']);
+    expect(wrapper.findAll('.kr-word-token-unknown')).toHaveLength(0);
+  });
 });

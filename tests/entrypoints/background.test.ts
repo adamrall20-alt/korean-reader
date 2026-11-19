@@ -221,4 +221,30 @@ describe('background entrypoint', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(new URL(String(fetchMock.mock.calls[0]?.[0])).searchParams.get('q')).toBe(expectedHeadword);
   });
+
+  it('checks contraction aliases when resolving copula lookup order', async () => {
+    getVocabulary.mockImplementation(async (headword: string) =>
+      headword === '이다' || headword === '무엇' ? { status: 'known', contexts: [] } : undefined,
+    );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response('<channel><item><word>이다</word><sense><definition>to be</definition></sense></item></channel>'),
+    );
+    const message = {
+      type: 'lookup',
+      word: '뭔데요',
+      morphemes: [
+        { text: '뭐', tag: 'NP', position: 0, length: 1 },
+        { text: '이', tag: 'VCP', position: 0, length: 1 },
+        { text: 'ᆫ데요', tag: 'EF', position: 0, length: 3 },
+      ],
+    };
+
+    const response = await new Promise((resolve) => {
+      listeners.message[0]!(message, { url: 'https://www.youtube.com/watch?v=abcdefghijk' }, resolve);
+    });
+
+    expect(getVocabulary).toHaveBeenCalledWith('무엇');
+    expect(response).toMatchObject({ ok: true, entry: { headword: '이다', originalForm: '뭔데요' } });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });

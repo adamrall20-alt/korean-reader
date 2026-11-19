@@ -230,4 +230,162 @@ describe('SubtitleReader', () => {
 
     expect(wrapper.find('.kr-subtitles').exists()).toBe(false);
   });
+
+  it('splits multi-word constructions and underlines only unknown sub-words without underlining particles', async () => {
+    const wrapper = mount(SubtitleReader, {
+      props: {
+        visible: true,
+        knownHeadwords: new Set(['먹다', '학생']),
+        lines: [
+          {
+            text: '먹어봤어요',
+            tokens: [
+              {
+                id: '0:0',
+                text: '먹어',
+                start: 0,
+                length: 2,
+                clickable: true,
+                morphemes: [
+                  { text: '먹', tag: 'VV', position: 0, length: 1 },
+                  { text: '어', tag: 'EC', position: 1, length: 1 },
+                ],
+              },
+              {
+                id: '0:2',
+                text: '봤어요',
+                start: 2,
+                length: 3,
+                clickable: true,
+                morphemes: [
+                  { text: '보', tag: 'VX', position: 2, length: 1 },
+                  { text: '었', tag: 'EP', position: 2, length: 1 },
+                  { text: '어요', tag: 'EF', position: 3, length: 2 },
+                ],
+              },
+            ],
+          },
+          {
+            text: '학생들이에요',
+            tokens: [
+              {
+                id: '1:0',
+                text: '학생',
+                start: 0,
+                length: 2,
+                clickable: true,
+                morphemes: [{ text: '학생', tag: 'NNG', position: 0, length: 2 }],
+              },
+              { id: '1:2', text: '들', start: 2, length: 1, clickable: false, morphemes: [] },
+              {
+                id: '1:3',
+                text: '이에요',
+                start: 3,
+                length: 3,
+                clickable: true,
+                morphemes: [
+                  { text: '이', tag: 'VCP', position: 3, length: 1 },
+                  { text: '에요', tag: 'EF', position: 4, length: 2 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(wrapper.findAll('.kr-word-token-unknown').map((node) => node.text())).toEqual(['봤어요', '이에요']);
+    expect(wrapper.findAll('.kr-word-token').map((node) => node.text())).toEqual(['먹어', '봤어요', '학생', '이에요']);
+
+    await wrapper.setProps({ knownHeadwords: new Set(['먹다', '보다', '학생', '이다']) });
+    expect(wrapper.findAll('.kr-word-token-unknown')).toHaveLength(0);
+  });
+
+  it('renders unspaced compounds whole when known as a whole and split when only parts are checked', async () => {
+    const compoundLines: TokenizedSubtitleLine[] = [{
+      text: '한국어공부',
+      tokens: [{
+        id: '0:0',
+        text: '한국어공부',
+        start: 0,
+        length: 5,
+        clickable: true,
+        morphemes: [
+          { text: '한국어', tag: 'NNP', position: 0, length: 3 },
+          { text: '공부', tag: 'NNG', position: 3, length: 2 },
+        ],
+        parts: [
+          {
+            id: '0:0:3',
+            text: '한국어',
+            start: 0,
+            length: 3,
+            clickable: true,
+            morphemes: [{ text: '한국어', tag: 'NNP', position: 0, length: 3 }],
+          },
+          {
+            id: '0:3:2',
+            text: '공부',
+            start: 3,
+            length: 2,
+            clickable: true,
+            morphemes: [{ text: '공부', tag: 'NNG', position: 3, length: 2 }],
+          },
+        ],
+      }],
+    }];
+
+    const wrapper = mount(SubtitleReader, {
+      props: {
+        lines: compoundLines,
+        visible: true,
+        knownHeadwords: new Set(['한국어']),
+      },
+    });
+
+    expect(wrapper.findAll('.kr-word-token').map((node) => node.text())).toEqual(['한국어', '공부']);
+    expect(wrapper.findAll('.kr-word-token-unknown').map((node) => node.text())).toEqual(['공부']);
+
+    await wrapper.setProps({ knownHeadwords: new Set(['한국어공부']) });
+    expect(wrapper.findAll('.kr-word-token').map((node) => node.text())).toEqual(['한국어공부']);
+    expect(wrapper.findAll('.kr-word-token-unknown')).toHaveLength(0);
+  });
+
+  it('matches colloquial contraction aliases for both underlining and popup Known state', async () => {
+    sendMessage.mockReset();
+    sendMessage.mockResolvedValueOnce({
+      ok: true,
+      entry: {
+        headword: '이거',
+        originalForm: '이거',
+        definitions: ['this thing'],
+        koreanDefinitions: [],
+        examples: [],
+      },
+    });
+
+    const wrapper = mount(SubtitleReader, {
+      props: {
+        visible: true,
+        knownHeadwords: new Set(['이것']),
+        lines: [{
+          text: '이거',
+          tokens: [{
+            id: '0:0',
+            text: '이거',
+            start: 0,
+            length: 2,
+            clickable: true,
+            morphemes: [{ text: '이거', tag: 'NP', position: 0, length: 2 }],
+          }],
+        }],
+      },
+    });
+
+    expect(wrapper.find('.kr-word-token-unknown').exists()).toBe(false);
+    await wrapper.get('.kr-word-token').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('.kr-known-button').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('.kr-known-button').text()).toBe('✓ Known');
+  });
 });

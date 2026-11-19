@@ -17,7 +17,7 @@ import type { HistoryResponse } from '@/types/statistics';
 import { getVocabulary, listKnownHeadwords, normalizeHeadword } from '@/services/storage/vocabulary';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
-import { nominalCopulaHeadwords } from '@/services/korean/dictionary-forms';
+import { headwordAliases, nominalCopulaHeadwords } from '@/services/korean/dictionary-forms';
 import type {
   GetSettingsMessage,
   LookupMessage,
@@ -160,7 +160,10 @@ export default defineBackground(() => {
         const headwords = nominalCopulaHeadwords(message.morphemes);
         const known = new Set<string>();
         if (headwords) {
-          await Promise.all(Object.values(headwords).map(async (headword) => {
+          const toCheck = [
+            ...new Set(Object.values(headwords).flatMap((headword) => [headword, ...headwordAliases(headword)])),
+          ];
+          await Promise.all(toCheck.map(async (headword) => {
             const saved = await getVocabulary(headword).catch(() => undefined);
             if (saved?.status === 'known') known.add(headword);
           }));

@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import type { TokenizedSubtitleLine, TokenizeMessage, TokenizeResponse } from '@/types/messages';
+import type { SubtitleToken, TokenizedSubtitleLine, TokenizeMessage, TokenizeResponse } from '@/types/messages';
 
 /** Most recently used lines kept in memory per tab (overlay, sidebar and rewinds share it). */
 export const TOKENIZE_CACHE_LIMIT = 500;
@@ -29,11 +29,19 @@ function cached(text: string): TokenizedSubtitleLine | undefined {
   return line;
 }
 
+function reindexToken(token: SubtitleToken, prefix: string): SubtitleToken {
+  return {
+    ...token,
+    id: token.id.replace(/^\d+:/u, prefix),
+    ...(token.parts ? { parts: token.parts.map((part) => reindexToken(part, prefix)) } : {}),
+  };
+}
+
 function withLineIndex(line: TokenizedSubtitleLine, lineIndex: number): TokenizedSubtitleLine {
   const prefix = `${lineIndex}:`;
   return {
     ...line,
-    tokens: line.tokens.map((token) => ({ ...token, id: token.id.replace(/^\d+:/u, prefix) })),
+    tokens: line.tokens.map((token) => reindexToken(token, prefix)),
   };
 }
 

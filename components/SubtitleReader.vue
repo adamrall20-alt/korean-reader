@@ -11,7 +11,7 @@ import type {
   TokenizedSubtitleLine,
 } from '@/types/messages';
 
-import { isKnownSubtitleWord } from '@/services/korean/dictionary-forms';
+import { isKnownHeadword, isKnownSubtitleWord, resolveRenderTokens } from '@/services/korean/dictionary-forms';
 import { captureVideoFrame } from '@/services/youtube/capture';
 import type { SubtitleAppearance } from '@/types/preferences';
 import type { VocabularyContext } from '@/types/vocabulary';
@@ -180,7 +180,7 @@ onBeforeUnmount(() => {
   >
     <slot :select-token="selectToken" :close-popup="closePopup" />
     <p v-for="(line, index) in lines" :key="`${index}-${line.text}`" class="kr-subtitle-line">
-      <template v-for="token in line.tokens" :key="token.id">
+      <template v-for="token in resolveRenderTokens(line.tokens, knownHeadwords)" :key="token.id">
         <WordToken
           v-if="token.clickable"
           :word="token.text"
@@ -203,7 +203,7 @@ onBeforeUnmount(() => {
       :record-audio="recordAudio"
       :prepare-mine="prepareMine"
       :saved-contexts="savedContexts"
-      :is-known="!!dictionaryEntry && knownHeadwords?.has(dictionaryEntry.headword.trim().normalize('NFC'))"
+      :is-known="!!dictionaryEntry && !!knownHeadwords && isKnownHeadword(dictionaryEntry.headword, knownHeadwords)"
       @close="closePopup"
       @resize="repositionPopup"
     />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import WordToken from '@/components/WordToken.vue';
-import { isKnownSubtitleWord } from '@/services/korean/dictionary-forms';
+import { isKnownSubtitleWord, resolveRenderTokens } from '@/services/korean/dictionary-forms';
 import { getCachedTokenizedLine, tokenizeLines } from '@/services/korean/tokenize-client';
 import { hasKorean } from '@/services/youtube/captions';
 import { formatTranscriptTime, type TranscriptCue } from '@/services/youtube/transcript';
@@ -29,6 +29,7 @@ const tokens = shallowRef<SubtitleToken[]>(
     }),
 );
 let analysis: Promise<void> | undefined = hasClickableCached ? Promise.resolve() : undefined;
+const renderedTokens = computed(() => resolveRenderTokens(tokens.value, props.knownHeadwords));
 
 function analyse() {
   if (!cueHasKorean) return Promise.resolve();
@@ -63,7 +64,7 @@ onBeforeUnmount(() => {
       <span aria-hidden="true">▶</span> {{ formatTranscriptTime(cue.start) }}
     </button>
     <span lang="ko" class="kr-transcript-text">
-      <template v-for="token in tokens" :key="token.id">
+      <template v-for="token in renderedTokens" :key="token.id">
         <WordToken
           v-if="token.clickable"
           :word="token.text"
