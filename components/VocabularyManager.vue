@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { browser } from 'wxt/browser';
 import type { VocabularyContext, VocabularyEntry, VocabularyMessage, VocabularyResponse } from '@/types/vocabulary';
 
-const entries = ref<VocabularyEntry[]>([]);
+/** Number of entries rendered per page; "Show more" reveals the next page. */
+const PAGE_SIZE = 50;
+/** Delay before a typed search is applied, so filtering does not run on every keystroke. */
+const SEARCH_DELAY_MS = 250;
+
+// Records are replaced wholesale after each request, so deep reactivity over 13,000+ entries is unnecessary.
+const entries = shallowRef<VocabularyEntry[]>([]);
 const query = ref('');
+const appliedQuery = ref('');
+const shownCount = ref(PAGE_SIZE);
 const filter = ref('all');
 const newestFirst = ref(true);
 const busy = ref(false);
@@ -13,17 +21,37 @@ const editing = ref<string>();
 const draftDefinitions = ref('');
 const pendingDeletion = ref<string>();
 
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+watch(query, (value) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { appliedQuery.value = value; }, SEARCH_DELAY_MS);
+});
+onBeforeUnmount(() => clearTimeout(searchTimer));
+
+// Lower-cased searchable text, built once per stored record rather than on every search.
+const searchText = new WeakMap<VocabularyEntry, string>();
+function searchableText(entry: VocabularyEntry): string {
+  let text = searchText.get(entry);
+  if (text === undefined) {
+    text = [entry.headword, entry.originalForm, ...entry.definitions, ...entry.koreanDefinitions,
+      ...(entry.machineDefinitions ?? []), ...entry.contexts.map((context) => context.sentence)]
+      .join('\n').toLowerCase();
+    searchText.set(entry, text);
+  }
+  return text;
+}
+
 const visibleEntries = computed(() => {
-  const term = query.value.trim().normalize('NFC').toLowerCase();
+  const term = appliedQuery.value.trim().normalize('NFC').toLowerCase();
   return entries.value
     .filter((entry) => (filter.value === 'all' || entry.status === filter.value) &&
-      [entry.headword, entry.originalForm, ...entry.definitions, ...entry.koreanDefinitions,
-        ...(entry.machineDefinitions ?? []), ...entry.contexts.map((context) => context.sentence)]
-        .some((text) => text.toLowerCase().includes(term)))
+      (!term || searchableText(entry).includes(term)))
     .sort((a, b) => newestFirst.value
       ? b.createdAt.localeCompare(a.createdAt)
       : a.createdAt.localeCompare(b.createdAt));
 });
+const pagedEntries = computed(() => visibleEntries.value.slice(0, shownCount.value));
+watch([appliedQuery, filter, newestFirst], () => { shownCount.value = PAGE_SIZE; });
 
 async function updateVocabulary(message: VocabularyMessage): Promise<boolean> {
   if (busy.value) return false;
@@ -118,8 +146,11 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
         <p v-if="!visibleEntries.length && !vocabularyError" class="py-4 text-sm text-muted" role="status">
           {{ busy ? 'Loading vocabulary…' : entries.length ? 'No matching words.' : 'Mine a word from a YouTube subtitle to save it here.' }}
         </p>
+        <p v-if="visibleEntries.length > PAGE_SIZE" class="text-xs text-muted" role="status">
+          Showing {{ pagedEntries.length.toLocaleString() }} of {{ visibleEntries.length.toLocaleString() }} words
+        </p>
         <ul v-if="visibleEntries.length" class="space-y-2">
-          <li v-for="entry in visibleEntries" :key="entry.headword" class="space-y-2 rounded-xl border border-interface/10 bg-ink-soft p-3">
+          <li v-for="entry in pagedEntries" :key="entry.headword" class="space-y-2 rounded-xl border border-interface/10 bg-ink-soft p-3">
             <div class="flex items-center gap-2">
               <h3 lang="ko" class="min-w-0 flex-1 break-words font-semibold">{{ entry.headword }}</h3>
               <button
@@ -178,6 +209,12 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
             </div>
           </li>
         </ul>
+        <button
+          v-if="pagedEntries.length < visibleEntries.length"
+          type="button"
+          class="w-full rounded-lg border border-interface/15 px-3 py-2 text-xs hover:bg-interface/10"
+          @click="shownCount += PAGE_SIZE"
+        >Show {{ Math.min(PAGE_SIZE, visibleEntries.length - pagedEntries.length) }} more</button>
       </section>
 
 </template>

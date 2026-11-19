@@ -175,8 +175,10 @@ describe('MiningPanel', () => {
     expect(wrapper.text()).toContain('No matching words.');
     await wrapper.get('select').setValue('known');
     await wrapper.get('input[type="search"]').setValue('unknown term');
+    await new Promise((resolve) => setTimeout(resolve, 300));
     expect(wrapper.text()).toContain('No matching words.');
     await wrapper.get('input[type="search"]').setValue('먹');
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     await wrapper.findAll('button').find((button) => button.text() === 'Edit')!.trigger('click');
     await wrapper.get('textarea').setValue('consume');
