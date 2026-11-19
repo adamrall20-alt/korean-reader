@@ -213,7 +213,7 @@ Visual refinements can be introduced after core functionality is reliable.
 
 ## Toolbar popup refinement
 
-The toolbar popup presents Anki connection status, vocabulary counts, and an explicit sync button. **Known words** counts all local entries marked known, including imports, even when Anki is disconnected. **New words** counts mined words absent from Anki and requires a configured Anki connection. Vocabulary management and JSON export are in Settings, as are Anki connection, deck, note type and field mapping controls. The Settings vocabulary list shows 50 entries at a time with a **Show more** button and a "Showing X of Y words" count. Search applies after a 250 ms pause in typing. The simplified penguin (`assets/penguin-simple.png`) is the header logo across the popup, Settings and Statistics and the source for all Chrome extension icon sizes; the supplied star pattern remains a subtle popup background.
+The toolbar popup presents Anki connection status, vocabulary counts, and an explicit sync button. **Known words** counts all local entries marked known, including imports, even when Anki is disconnected. **New words** counts mined words absent from Anki and requires a configured Anki connection. Vocabulary management and JSON export are in Settings, as are Anki connection, deck, note type and field mapping controls. The Settings vocabulary list shows 50 entries at a time with a **Show more** button and a "Showing X of Y words" count. Search applies after a 250 ms pause in typing. The simplified penguin (`assets/penguin-simple-transparent.png`) is the header logo across the popup, Settings and Statistics and the source for all Chrome extension icon sizes; the supplied star pattern remains a subtle popup background.
 
 ## Statistics
 

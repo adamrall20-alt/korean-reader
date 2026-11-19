@@ -385,3 +385,10 @@ Verification: 163 tests passed and one Firestore emulator test was skipped. Type
 Updated the toolbar popup, Settings and Statistics headers to use `assets/penguin-simple.png`. Regenerated all five Chrome extension icons (16, 32, 48, 96 and 128 pixels) from the same asset. The original artwork remains available but is no longer referenced by the application.
 
 Verification: 163 tests passed with one Firestore emulator test skipped; type checking and the Chrome production build passed. Confirmed the production bundle uses the simplified logo and includes the regenerated icons. Live visual verification in Chrome remains pending.
+
+
+## Transparent penguin logo — 19 November 2026
+
+Replaced the simplified logo with `assets/penguin-simple-transparent.png` in the popup, Settings and Statistics headers and regenerated all five Chrome extension icons from that transparent source. This supersedes the preceding logo update.
+
+Verification: type checking, the Chrome production build and 163 tests passed; one Firestore emulator test was skipped. Live visual verification in Chrome remains pending.
