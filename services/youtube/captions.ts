@@ -128,57 +128,99 @@ export function isKoreanTrack(track: CaptionTrack | null): boolean {
   return track.language.toLowerCase().startsWith('ko') || hasKorean(track.label);
 }
 
-function isHiddenByStyle(element: HTMLElement): boolean {
-  const view = element.ownerDocument.defaultView;
-  if (!view) {
-    return false;
-  }
-
-  const style = view.getComputedStyle(element);
-
+function hasHiddenInlineStyle(element: HTMLElement): boolean {
+  const { display, visibility, opacity } = element.style;
   return (
-    style.display === 'none' ||
-    style.visibility === 'hidden' ||
-    style.visibility === 'collapse' ||
-    Number.parseFloat(style.opacity) === 0
+    display === 'none' ||
+    visibility === 'hidden' ||
+    visibility === 'collapse' ||
+    (opacity !== '' && Number.parseFloat(opacity) === 0)
   );
 }
 
-function isVisible(element: HTMLElement): boolean {
-  if (element.hidden || element.getAttribute('aria-hidden') === 'true') {
-    return false;
+function isElementHidden(element: HTMLElement, cache: Map<HTMLElement, boolean>): boolean {
+  const cached = cache.get(element);
+  if (cached !== undefined) {
+    return cached;
   }
 
-  if (isHiddenByStyle(element)) {
+  let hidden =
+    element.hidden ||
+    element.getAttribute('aria-hidden') === 'true' ||
+    hasHiddenInlineStyle(element);
+
+  if (!hidden) {
+    const view = element.ownerDocument.defaultView;
+    if (view) {
+      const style = view.getComputedStyle(element);
+      hidden =
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        style.visibility === 'collapse' ||
+        Number.parseFloat(style.opacity) === 0;
+    }
+  }
+
+  cache.set(element, hidden);
+  return hidden;
+}
+
+function isVisible(element: HTMLElement, cache: Map<HTMLElement, boolean>): boolean {
+  if (isElementHidden(element, cache)) {
     return false;
   }
 
   const container = element.closest<HTMLElement>('.ytp-caption-window-container');
-  if (container && container !== element && (container.hidden || isHiddenByStyle(container))) {
+  if (container && container !== element && isElementHidden(container, cache)) {
     return false;
   }
 
   const player = element.closest<HTMLElement>('.html5-video-player');
-  if (player && (player.hidden || isHiddenByStyle(player))) {
+  if (player && player !== element && player !== container && isElementHidden(player, cache)) {
     return false;
   }
 
   return true;
 }
 
-function readCaptionWindowText(captionWindow: HTMLElement): string {
-  const visualLines = captionWindow.querySelectorAll<HTMLElement>('.caption-visual-line');
-  if (captionWindow.matches(ROLLING_WINDOW) && visualLines.length) {
-    return normaliseCaptionText(Array.from(visualLines, (line) => line.textContent ?? '').join('\n'));
+function readDomText(node: Node, isRoot = false): string {
+  if (node.nodeType === 3) {
+    return node.nodeValue ?? '';
+  }
+  if (node.nodeType !== 1) {
+    return '';
   }
 
-  const innerText = typeof captionWindow.innerText === 'string' ? captionWindow.innerText : '';
-  const raw = innerText.trim() ? innerText : (captionWindow.textContent ?? '');
+  const element = node as HTMLElement;
+  const tagName = element.tagName.toUpperCase();
+  if (tagName === 'BR') {
+    return '\n';
+  }
+  if (!isRoot && (element.hidden || element.getAttribute('aria-hidden') === 'true' || hasHiddenInlineStyle(element))) {
+    return '';
+  }
 
-  return normaliseCaptionText(raw);
+  let text = '';
+  for (let child = element.firstChild; child; child = child.nextSibling) {
+    text += readDomText(child, false);
+  }
+  if (!isRoot && (tagName === 'DIV' || tagName === 'P')) {
+    return `\n${text}\n`;
+  }
+  return text;
 }
 
-export function readVisibleCaptionLines(root: ParentNode): string[] {
+function readCaptionWindowText(captionWindow: HTMLElement): string {
+  const visualLines = captionWindow.querySelectorAll<HTMLElement>('.caption-visual-line');
+  if (visualLines.length) {
+    return normaliseCaptionText(Array.from(visualLines, (line) => readDomText(line, true)).join('\n'));
+  }
+
+  return normaliseCaptionText(readDomText(captionWindow, true));
+}
+
+function readVisibleCaptions(root: ParentNode): { lines: string[]; hasRollingWindow: boolean } {
+  const hiddenCache = new Map<HTMLElement, boolean>();
   let captionWindows = Array.from(root.querySelectorAll<HTMLElement>(CAPTION_WINDOW_SELECTOR));
 
   if (captionWindows.length === 0) {
@@ -187,10 +229,15 @@ export function readVisibleCaptionLines(root: ParentNode): string[] {
 
   const lines: string[] = [];
   const seen = new Set<string>();
+  let hasRollingWindow = false;
 
   for (const captionWindow of captionWindows) {
-    if (!isVisible(captionWindow)) {
+    if (!isVisible(captionWindow, hiddenCache)) {
       continue;
+    }
+
+    if (captionWindow.matches(ROLLING_WINDOW)) {
+      hasRollingWindow = true;
     }
 
     const line = readCaptionWindowText(captionWindow);
@@ -202,7 +249,11 @@ export function readVisibleCaptionLines(root: ParentNode): string[] {
     lines.push(line);
   }
 
-  return lines;
+  return { lines, hasRollingWindow };
+}
+
+export function readVisibleCaptionLines(root: ParentNode): string[] {
+  return readVisibleCaptions(root).lines;
 }
 
 export function readCaptionSnapshot(
@@ -211,7 +262,8 @@ export function readCaptionSnapshot(
 ): CaptionSnapshot {
   const player = findPlayer(doc);
   const video = findVideo(doc);
-  const lines = video?.seeking ? [] : readVisibleCaptionLines(player ?? doc);
+  const visible = video?.seeking ? { lines: [], hasRollingWindow: false } : readVisibleCaptions(player ?? doc);
+  const lines = visible.lines;
   const text = lines.join('\n');
   const activeTrack = findActiveCaptionTrack(video);
 
@@ -240,8 +292,7 @@ export function readCaptionSnapshot(
     hasNativeCaptions: lines.length > 0,
     activeTrack,
     availableTracks: readCaptionTracks(video),
-    isRolling: activeTrack?.kind === 'asr' ||
-      Array.from((player ?? doc).querySelectorAll<HTMLElement>(ROLLING_WINDOW)).some(isVisible),
+    isRolling: activeTrack?.kind === 'asr' || visible.hasRollingWindow,
   };
 }
 
@@ -281,22 +332,56 @@ export function createCaptionMonitor({
   intervalMs = 250,
   locationHref = () => doc.location?.href ?? '',
 }: CaptionMonitorOptions): CaptionMonitor {
-  let timer: ReturnType<typeof setInterval> | null = null;
+  let started = false;
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
+  let rollingTimer: ReturnType<typeof setTimeout> | null = null;
+  let captionObserver: MutationObserver | null = null;
+  let playerObserver: MutationObserver | null = null;
+  let observedContainer: HTMLElement | null = null;
+  let observedPlayer: HTMLElement | null = null;
+  let observedVideo: HTMLVideoElement | null = null;
   let lastKey: string | null = null;
 
   let rolling: { words: RollingWord[]; firstChange: number; lastChange: number; pending: CaptionSnapshot } | null = null;
   let lastVideoId: string | null = null;
 
-  const emitRolling = (now: number) => {
+  const clearRollingTimer = () => {
+    if (rollingTimer !== null) {
+      clearTimeout(rollingTimer);
+      rollingTimer = null;
+    }
+  };
+
+  const emitRolling = (now: number): boolean => {
     if (!rolling || now - rolling.lastChange < ROLLING_SETTLE_MS &&
-      now - rolling.firstChange < ROLLING_MAX_WAIT_MS) return;
-    if (rolling.firstChange === Infinity) return;
+      now - rolling.firstChange < ROLLING_MAX_WAIT_MS) return false;
+    if (rolling.firstChange === Infinity) return false;
 
     const text = rolling.words.map((word) => word.text).join(' ');
     const timing = rolling.pending.audioTiming;
     const audioTiming = timing && { ...timing, start: rolling.words[0]?.time ?? timing.start, end: undefined };
     onUpdate({ ...rolling.pending, text, lines: [text], audioTiming });
     rolling.firstChange = Infinity;
+    clearRollingTimer();
+    return true;
+  };
+
+  const scheduleRollingEmit = (now: number) => {
+    clearRollingTimer();
+    if (!started || doc.hidden || !rolling || rolling.firstChange === Infinity) return;
+    if (!getYouTubeVideoId(locationHref())) return;
+    const waitMs = Math.max(
+      0,
+      Math.min(
+        rolling.lastChange + ROLLING_SETTLE_MS - now,
+        rolling.firstChange + ROLLING_MAX_WAIT_MS - now,
+      ),
+    );
+    rollingTimer = setTimeout(() => {
+      rollingTimer = null;
+      if (!started || doc.hidden || !getYouTubeVideoId(locationHref())) return;
+      emitRolling(Date.now());
+    }, waitMs);
   };
 
   const read = () => {
@@ -314,9 +399,13 @@ export function createCaptionMonitor({
     lastKey = key;
     const changedVideo = snapshot.videoId !== lastVideoId;
     lastVideoId = snapshot.videoId;
-    if (changedVideo) rolling = null;
+    if (changedVideo) {
+      rolling = null;
+      clearRollingTimer();
+    }
     if (!snapshot.isRolling || !snapshot.isKorean || !snapshot.hasVideo || !snapshot.videoId) {
       rolling = null;
+      clearRollingTimer();
       onUpdate(snapshot);
       return;
     }
@@ -324,7 +413,10 @@ export function createCaptionMonitor({
     if (changedVideo) onUpdate({ ...snapshot, lines: [], text: '' });
     if (rolling && snapshot.timestamp !== null && rolling.pending.timestamp !== null) {
       const elapsed = snapshot.timestamp - rolling.pending.timestamp;
-      if (elapsed < 0 || elapsed > 4) rolling = null;
+      if (elapsed < 0 || elapsed > 4) {
+        rolling = null;
+        clearRollingTimer();
+      }
     }
     const incoming = snapshot.lines.join(' ').split(/\s+/u).map((text) => ({ text, time: snapshot.timestamp }));
     rolling = {
@@ -333,26 +425,177 @@ export function createCaptionMonitor({
       lastChange: now,
       pending: snapshot,
     };
-    emitRolling(now);
+    if (!emitRolling(now)) {
+      scheduleRollingEmit(now);
+    }
+  };
+
+  const onVideoSeek = () => {
+    if (started && !doc.hidden) {
+      read();
+    }
+  };
+
+  const pauseTracking = () => {
+    if (pollTimer !== null) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    clearRollingTimer();
+    captionObserver?.disconnect();
+    captionObserver = null;
+    playerObserver?.disconnect();
+    playerObserver = null;
+    observedContainer = null;
+    observedPlayer = null;
+    if (observedVideo) {
+      observedVideo.removeEventListener('seeking', onVideoSeek);
+      observedVideo.removeEventListener('seeked', onVideoSeek);
+      observedVideo = null;
+    }
+  };
+
+  const syncTracking = () => {
+    if (!started || doc.hidden || !getYouTubeVideoId(locationHref())) {
+      pauseTracking();
+      return;
+    }
+
+    const player = findPlayer(doc);
+    const container = (player ?? doc).querySelector<HTMLElement>('.ytp-caption-window-container');
+    const video = findVideo(doc);
+
+    if (video !== observedVideo) {
+      observedVideo?.removeEventListener('seeking', onVideoSeek);
+      observedVideo?.removeEventListener('seeked', onVideoSeek);
+      observedVideo = video;
+      video?.addEventListener('seeking', onVideoSeek);
+      video?.addEventListener('seeked', onVideoSeek);
+    }
+
+    if (typeof MutationObserver !== 'undefined' && container) {
+      if (pollTimer !== null) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+
+      if (container !== observedContainer || player !== observedPlayer) {
+        captionObserver?.disconnect();
+        captionObserver = new MutationObserver(() => {
+          if (!started || doc.hidden) {
+            pauseTracking();
+            return;
+          }
+          if (!getYouTubeVideoId(locationHref())) {
+            read();
+            pauseTracking();
+            return;
+          }
+          if (!observedContainer?.isConnected) {
+            syncTracking();
+          }
+          read();
+        });
+        captionObserver.observe(container, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ['style', 'class', 'hidden', 'aria-hidden'],
+        });
+
+        playerObserver?.disconnect();
+        playerObserver = null;
+        if (player && player !== container) {
+          playerObserver = new MutationObserver(() => {
+            syncTracking();
+            if (started && !doc.hidden && getYouTubeVideoId(locationHref())) {
+              read();
+            }
+          });
+          playerObserver.observe(player, {
+            childList: true,
+            attributes: true,
+            attributeFilter: ['style', 'hidden', 'aria-hidden'],
+          });
+        }
+
+        observedContainer = container;
+        observedPlayer = player;
+      }
+      return;
+    }
+
+    captionObserver?.disconnect();
+    captionObserver = null;
+    observedContainer = null;
+
+    if (typeof MutationObserver !== 'undefined' && player && player !== observedPlayer) {
+      playerObserver?.disconnect();
+      playerObserver = new MutationObserver(() => {
+        syncTracking();
+        if (started && !doc.hidden && getYouTubeVideoId(locationHref())) {
+          read();
+        }
+      });
+      playerObserver.observe(player, { childList: true });
+      observedPlayer = player;
+    } else if (!player) {
+      playerObserver?.disconnect();
+      playerObserver = null;
+      observedPlayer = null;
+    }
+
+    pollTimer ??= setInterval(() => {
+      syncTracking();
+      if (started && !doc.hidden && getYouTubeVideoId(locationHref())) {
+        read();
+      }
+    }, intervalMs);
+  };
+
+  const refresh = () => {
+    if (doc.hidden) {
+      if (started) pauseTracking();
+      return;
+    }
+    read();
+    if (started) syncTracking();
+  };
+
+  const handleVisibilityChange = () => {
+    if (!started) return;
+    if (doc.hidden) {
+      pauseTracking();
+    } else {
+      refresh();
+    }
   };
 
   return {
     start() {
-      if (timer !== null) {
+      if (started) {
         return;
       }
 
+      started = true;
       lastKey = null;
       rolling = null;
-      read();
-      timer = setInterval(read, intervalMs);
-    },
-    stop() {
-      if (timer !== null) {
-        clearInterval(timer);
-        timer = null;
+      doc.addEventListener('visibilitychange', handleVisibilityChange);
+      if (!doc.hidden) {
+        read();
+        syncTracking();
       }
     },
-    refresh: read,
+    stop() {
+      if (!started) {
+        return;
+      }
+
+      started = false;
+      doc.removeEventListener('visibilitychange', handleVisibilityChange);
+      pauseTracking();
+    },
+    refresh,
   };
 }

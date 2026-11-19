@@ -117,8 +117,8 @@ The extension hides YouTube's native caption line and renders its own interactiv
 
 Implemented behaviour (Phase 1 and Phase 2):
 
-- Captions are read from YouTube's rendered DOM every 250 ms, using `.ytp-caption-window-container .caption-window` with a fallback to `.caption-window`.
-- Polling reads whole caption exports rather than trusting `video.textTracks`, because YouTube normally manages captions internally and leaves that API empty.
+- Captions are observed primarily with `MutationObserver` on `.ytp-caption-window-container` (reading `.ytp-caption-window-container :is(.caption-window, .ytp-caption-window-rollup)` with fallback to `.caption-window, .ytp-caption-window-rollup`). Fallback 250 ms polling runs only while on an active video page before the caption container mounts, and a one-shot settle timer is used only while a roll-up phrase is pending. Monitoring pauses automatically off video pages and while the tab is hidden (`visibilitychange`).
+- Caption extraction reads DOM text nodes directly instead of `innerText` (avoiding synchronous layout recalculations) and caches visibility checks per read across shared container/player ancestors after fast-pathing inline-hidden attributes/styles. Polling/observing whole caption windows rather than trusting `video.textTracks` remains necessary because YouTube normally manages captions internally and leaves that API empty.
 - Korean is detected from Hangul Unicode ranges (`U+1100–U+11FF`, `U+3131–U+318E`, `U+AC00–U+D7A3`). Caption-track metadata is also checked when YouTube exposes it.
 - YouTube's native caption text is made transparent while the overlay is showing. The caption DOM remains in place and readable, avoiding the oscillation that `display: none` would cause.
 - Only the active `#movie_player` is marked, so miniplayers and previews keep their native captions.

@@ -21,6 +21,7 @@ function captionFixture(inner: string): void {
 describe('YouTube caption helpers', () => {
   afterEach(() => {
     document.body.innerHTML = '';
+    vi.restoreAllMocks();
   });
 
   it('detects Hangul in mixed text', () => {
@@ -116,15 +117,58 @@ describe('YouTube caption helpers', () => {
     expect(isKoreanTrack({ language: 'en', label: 'English', kind: 'subtitles' })).toBe(false);
     expect(isKoreanTrack(null)).toBe(false);
   });
+
+  it('reads line breaks from caption DOM nodes without touching innerText', () => {
+    captionFixture(`
+      <div class="caption-window" id="br-lines">첫째 줄<br>둘째 줄<span style="display: none">숨김</span></div>
+      <div class="caption-window" id="visual-lines">
+        <span class="caption-visual-line">셋째 줄</span>
+        <span class="caption-visual-line">넷째 줄</span>
+      </div>
+    `);
+
+    const innerTextGetter = vi.fn(() => 'should not be read');
+    for (const element of document.querySelectorAll<HTMLElement>('.caption-window')) {
+      Object.defineProperty(element, 'innerText', { configurable: true, get: innerTextGetter });
+    }
+
+    expect(readVisibleCaptionLines(document)).toEqual(['첫째 줄\n둘째 줄', '셋째 줄\n넷째 줄']);
+    expect(innerTextGetter).not.toHaveBeenCalled();
+  });
+
+  it('caches ancestor visibility and skips getComputedStyle for inline-hidden captions', () => {
+    document.body.innerHTML = `
+      <div id="movie_player" class="html5-video-player">
+        <video></video>
+        <div class="ytp-caption-window-container">
+          <div class="caption-window">첫 문장</div>
+          <div class="caption-window ytp-caption-window-rollup">
+            <span class="caption-visual-line">둘째 문장</span>
+          </div>
+          <div class="caption-window" style="display: none">숨김</div>
+          <div class="caption-window" aria-hidden="true">접근불가</div>
+        </div>
+      </div>
+    `;
+    const computedStyleSpy = vi.spyOn(window, 'getComputedStyle');
+
+    const snapshot = readCaptionSnapshot(document, 'https://www.youtube.com/watch?v=abc123');
+    expect(snapshot.lines).toEqual(['첫 문장', '둘째 문장']);
+    expect(snapshot.isRolling).toBe(true);
+    // Checked once each for the 2 visible windows, once for the container, and once for the player.
+    expect(computedStyleSpy).toHaveBeenCalledTimes(4);
+  });
 });
 
 describe('caption monitor', () => {
   afterEach(() => {
     document.body.innerHTML = '';
+    delete (document as unknown as Record<string, unknown>).hidden;
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
-  it('groups word-by-word roll-up captions and clears the buffer on a video switch', () => {
+  it('groups word-by-word roll-up captions and clears the buffer on a video switch', async () => {
     vi.useFakeTimers();
     document.body.innerHTML = `
       <div class="html5-video-player">
@@ -145,23 +189,23 @@ describe('caption monitor', () => {
     });
     monitor.start();
     line.textContent = '비가';
-    vi.advanceTimersByTime(250);
+    await vi.advanceTimersByTimeAsync(250);
     line.textContent = '와요.';
-    vi.advanceTimersByTime(250);
+    await vi.advanceTimersByTimeAsync(250);
     expect(updates.map(({ text }) => text)).toEqual(['']);
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
     expect(updates.at(-1)?.text).toBe('오늘은 비가 와요.');
 
     url = 'https://www.youtube.com/watch?v=second';
     line.textContent = '새 영상입니다.';
     monitor.refresh();
     expect(updates.at(-1)).toMatchObject({ videoId: 'second', text: '' });
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
     expect(updates.at(-1)?.text).toBe('새 영상입니다.');
     monitor.stop();
   });
 
-  it('publishes roll-up phrases during a continuous stream and removes overlapping words', () => {
+  it('publishes roll-up phrases during a continuous stream and removes overlapping words', async () => {
     vi.useFakeTimers();
     captionFixture('<div class="caption-window ytp-caption-window-rollup">오늘</div>');
     document.body.insertAdjacentHTML('afterbegin', '<video></video>');
@@ -174,19 +218,19 @@ describe('caption monitor', () => {
     monitor.start();
     for (const text of ['오늘 아침', '아침 일찍', '일찍 일어나서', '일어나서 밥을', '밥을 먹었어요.']) {
       window.textContent = text;
-      vi.advanceTimersByTime(250);
+      await vi.advanceTimersByTimeAsync(250);
     }
     expect(updates.at(-1)?.text).toBe('오늘 아침 일찍 일어나서 밥을 먹었어요.');
     document.querySelector('.caption-window')?.remove();
-    vi.advanceTimersByTime(250);
+    await vi.advanceTimersByTimeAsync(250);
     expect(updates.at(-1)?.text).toBe('');
     monitor.stop();
   });
 
-  it('emits when captions change and stays quiet when they do not', () => {
+  it('uses MutationObserver without constant polling when the caption container is present', async () => {
     vi.useFakeTimers();
     document.body.innerHTML = `
-      <div class="html5-video-player">
+      <div id="movie_player" class="html5-video-player">
         <video></video>
         <div class="ytp-caption-window-container">
           <div class="caption-window">안녕</div>
@@ -205,20 +249,151 @@ describe('caption monitor', () => {
     monitor.start();
     expect(updates).toHaveLength(1);
     expect(updates[0]?.lines).toEqual(['안녕']);
+    expect(vi.getTimerCount()).toBe(0);
 
-    const caption = document.querySelector('.caption-window');
-    expect(caption).not.toBeNull();
-    caption!.textContent = '잘 가';
-
-    vi.advanceTimersByTime(100);
+    const caption = document.querySelector('.caption-window')!;
+    caption.textContent = '잘 가';
+    await Promise.resolve();
     expect(updates).toHaveLength(2);
     expect(updates[1]?.lines).toEqual(['잘 가']);
 
-    vi.advanceTimersByTime(100);
+    caption.textContent = '잘 가';
+    await Promise.resolve();
+    expect(updates).toHaveLength(2);
+
+    // Player class changes (like autohide or hiding native captions) do not trigger extra reads.
+    document.getElementById('movie_player')!.classList.add('ytp-autohide');
+    await Promise.resolve();
     expect(updates).toHaveLength(2);
 
     monitor.stop();
-    vi.advanceTimersByTime(300);
+    caption.textContent = '중지됨';
+    await Promise.resolve();
     expect(updates).toHaveLength(2);
+  });
+
+  it('falls back to polling until the caption container mounts, then switches to MutationObserver', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<div id="movie_player" class="html5-video-player"><video></video></div>';
+
+    const updates: CaptionSnapshot[] = [];
+    const monitor = createCaptionMonitor({
+      document,
+      intervalMs: 250,
+      locationHref: () => 'https://www.youtube.com/watch?v=abc123',
+      onUpdate: (snapshot) => updates.push(snapshot),
+    });
+
+    monitor.start();
+    expect(updates).toHaveLength(1);
+    expect(updates[0]?.lines).toEqual([]);
+    expect(vi.getTimerCount()).toBe(1);
+
+    const container = document.createElement('div');
+    container.className = 'ytp-caption-window-container';
+    container.innerHTML = '<div class="caption-window">반가워요</div>';
+    document.getElementById('movie_player')!.append(container);
+
+    await Promise.resolve();
+    expect(updates.at(-1)?.lines).toEqual(['반가워요']);
+    expect(vi.getTimerCount()).toBe(0);
+
+    monitor.stop();
+  });
+
+  it('pauses monitoring off video pages and resumes on navigation', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = `
+      <div class="html5-video-player">
+        <video></video>
+        <div class="ytp-caption-window-container">
+          <div class="caption-window">첫 자막</div>
+        </div>
+      </div>
+    `;
+
+    let url = 'https://www.youtube.com/';
+    const updates: CaptionSnapshot[] = [];
+    const monitor = createCaptionMonitor({
+      document,
+      intervalMs: 250,
+      locationHref: () => url,
+      onUpdate: (snapshot) => updates.push(snapshot),
+    });
+
+    monitor.start();
+    expect(updates).toHaveLength(1);
+    expect(updates[0]?.videoId).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+
+    const caption = document.querySelector('.caption-window')!;
+    caption.textContent = '무시됨';
+    await Promise.resolve();
+    expect(updates).toHaveLength(1);
+
+    url = 'https://www.youtube.com/watch?v=xyz789';
+    caption.textContent = '영상 자막';
+    monitor.refresh();
+    expect(updates.at(-1)).toMatchObject({ videoId: 'xyz789', lines: ['영상 자막'] });
+
+    caption.textContent = '다음 자막';
+    await Promise.resolve();
+    expect(updates.at(-1)?.lines).toEqual(['다음 자막']);
+
+    url = 'https://www.youtube.com/';
+    monitor.refresh();
+    expect(updates.at(-1)?.videoId).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+
+    caption.textContent = '홈 화면';
+    await Promise.resolve();
+    expect(updates.at(-1)?.videoId).toBeNull();
+
+    monitor.stop();
+  });
+
+  it('pauses observers and pending rolling timers while the tab is hidden, then resumes when visible', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = `
+      <div class="html5-video-player">
+        <video></video>
+        <div class="ytp-caption-window-container">
+          <div class="ytp-caption-window-rollup">
+            <span class="caption-visual-line">숨기기</span>
+          </div>
+        </div>
+      </div>
+    `;
+    let hidden = false;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden });
+
+    const updates: CaptionSnapshot[] = [];
+    const monitor = createCaptionMonitor({
+      document,
+      intervalMs: 250,
+      locationHref: () => 'https://www.youtube.com/watch?v=hide1',
+      onUpdate: (snapshot) => updates.push(snapshot),
+    });
+
+    monitor.start();
+    expect(vi.getTimerCount()).toBe(1);
+
+    hidden = true;
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(vi.getTimerCount()).toBe(0);
+
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(updates.map(({ text }) => text)).toEqual(['']);
+
+    const container = document.querySelector('.ytp-caption-window-container')!;
+    container.innerHTML = '<div class="caption-window">보임</div>';
+    await Promise.resolve();
+    expect(updates).toHaveLength(1);
+
+    hidden = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(updates.at(-1)?.lines).toEqual(['보임']);
+
+    monitor.stop();
   });
 });
