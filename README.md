@@ -1,8 +1,8 @@
-# Korean Reader
+# Korean Reader v1.0
 
 Personal Korean language-learning and vocabulary-mining Chrome extension. It is designed for personal use and is inspired by Kimchi Reader and Yomitan.
 
-The long-term workflow is:
+The v1.0 workflow is:
 
 1. Watch a Korean video on YouTube.
 2. Read Korean subtitles with individually clickable words.
@@ -19,7 +19,7 @@ When YouTube does not provide the full Korean transcript, enable Korean captions
 
 ## Current Status
 
-**Current phase: Phase 8 — Additional Features.** Core subtitle reading, dictionary lookup, vocabulary mining, Anki sync, known-word imports, screenshot/audio capture, and selectable definitions are implemented. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verification details and remaining checks.
+**Current release: v1.0.0 — 19 November 2026.** The original YouTube-to-Anki workflow is implemented, alongside the transcript sidebar, statistics, word frequency and performance improvements. Optional Google account sync remains a configured prototype, not a completed public service. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verification limits and [ROADMAP.md](ROADMAP.md) for optional work after v1.0.
 
 Implemented:
 
@@ -58,7 +58,7 @@ Implemented:
 
 - AnkiConnect with deck and note type selection, configurable field mapping, and one-click sync for newly mined words, with a live unsynced count.
 
-Live user checks have confirmed key workflows, including live lookup, mining and a large Anki known-word import. Some Phase 8 media and CSV-import checks remain pending. A KRDict API key is needed for live dictionary lookups. See [Anki setup](docs/anki-integration.md) for connecting to your collection and [plain-English architecture](docs/architecture.md) for how the system works.
+Live user checks have confirmed key workflows, including live lookup, mining and a large Anki known-word import. Some live media, CSV-import and definition-selection checks remain unrecorded. A KRDict API key is needed for live dictionary lookups. See [Anki setup](docs/anki-integration.md) for connecting to your collection and [plain-English architecture](docs/architecture.md) for how the system works.
 
 ## Project Structure
 
@@ -211,12 +211,11 @@ After loading `.output/chrome-mv3` in Chrome:
 ### 1. Popup
 
 - Click the Korean Reader toolbar icon.
-- The popup should show **Korean Reader**, a Settings button, the connection status, and the vocabulary panel.
-- The status should change to **Connected** with the text “The background service worker is responding.”
-- The footer should show `v0.1.0`.
-- **Sync to Anki** becomes available after connecting Anki, mapping the required fields, and choosing a deck. The word list is under **Manage vocabulary**.
+- The popup should show **Korean Reader**, Statistics and Settings buttons, known/new word counts, Anki controls and **Open Sidebar**.
+- The footer should show `Version 1.0.0`.
+- **Sync to Anki** becomes available after connecting Anki, mapping the required fields, and choosing a deck. Manage vocabulary in Settings → Storage.
 
-If the status is **Unavailable**, open `chrome://extensions`, click **Errors** or the background service worker link, and check for a startup error.
+If the popup reports a connection or vocabulary error, open `chrome://extensions`, click **Errors** or the background service worker link, and check for a startup error.
 
 ### 2. Settings page
 
@@ -308,9 +307,9 @@ Captions must be enabled for extraction to work; the extension does not turn the
 ## Privacy
 
 - Vocabulary and dictionary cache data are stored locally.
-- The current build runs without accounts, analytics or usage tracking. Optional progress sync is planned for Phase 10.
-- The KRDict API key will be stored in `chrome.storage.local`, never in source control.
-- The content script will not receive API credentials.
+- Guest use requires no account and has no analytics or usage tracking. Configured builds can expose the optional Google/Firebase progress-sync prototype; it uploads known-word progress only when explicitly imported or synced. See [account sync](docs/account-sync.md) for limitations.
+- The KRDict API key is stored in `chrome.storage.local`, never in source control.
+- The content script does not receive API credentials.
 
 ## Scripts
 

@@ -1,5 +1,7 @@
 # TECH_STACK.md — Korean Reader
 
+**Release baseline:** v1.0.0 (19 November 2026). The local YouTube-to-Anki workflow is the released scope. Optional account sync remains a prototype; future proposals are tracked in ROADMAP.md.
+
 ## 1. Architecture Overview
 
 Korean Reader is a locally operated Google Chrome extension.

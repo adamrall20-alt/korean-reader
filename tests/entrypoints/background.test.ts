@@ -36,7 +36,7 @@ vi.mock('wxt/browser', () => ({
     storage: { local: { get: async () => ({ krDictApiKey: 'test-key' }), set: setStorage } },
     runtime: {
       getURL: (path: string) => `chrome-extension://test${path}`,
-      getManifest: () => ({ version: '0.1.0' }),
+      getManifest: () => ({ version: '1.0.0' }),
       onInstalled: {
         addListener: (listener: (...args: unknown[]) => void) => {
           listeners.installed.push(listener);
@@ -168,7 +168,7 @@ describe('background entrypoint', () => {
     const result = messageListener({ type: 'ping' }, {}, sendResponse);
 
     expect(result).toBe(false);
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true, version: '0.1.0' });
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true, version: '1.0.0' });
   });
 
   it('ignores messages it does not understand', () => {

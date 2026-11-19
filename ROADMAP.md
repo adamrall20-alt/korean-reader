@@ -1,5 +1,11 @@
 # ROADMAP.md — Korean Reader
 
+## v1.0.0 — 19 November 2026
+
+The product owner has designated the implemented personal YouTube-to-Anki workflow as v1.0. The original core scope and later local reading improvements form this release. The numbered phases below are the development record, not prerequisites for a public cloud service. Remaining live checks are documented in PROJECT_STATUS.md; the Phase 10 account prototype remains incomplete.
+
+New ideas below are proposals only. No subsequent milestone is approved by this version change.
+
 ## Development Philosophy
 
 Develop Korean Reader incrementally.
@@ -231,9 +237,9 @@ Tasks:
 - [x] Match known nouns and pronouns with the plural suffix 들 and particles in subtitles.
 - [x] Add a Known button beside Mine Word to update local status without mining.
 
-Phase 8 is in progress. The remaining items are live verification of captured audio on YouTube and in the user's Anki card template, live verification of the Kimchi Reader CSV import, and live verification of definition selection. See PROJECT_STATUS.md for current details.
+Phase 8 implementation is included in v1.0. The remaining recorded checks are live verification of captured audio on YouTube and in the user's Anki card template, live verification of the Kimchi Reader CSV import, and live verification of definition selection. See PROJECT_STATUS.md for current details.
 
-## Phase 9 — Interactive Transcript Sidebar (current)
+## Phase 9 — Interactive Transcript Sidebar
 
 **Goal:** Add a resizable YouTube transcript sidebar that allows users to browse subtitles, navigate video timestamps, and interact with vocabulary using existing Korean Reader functionality.
 
@@ -282,7 +288,7 @@ YouTube can serve an English transcript while the video player displays Korean c
 
 - [x] Approve and implement the first prototype milestone.
 - [x] Verify the 13,000-word import, merge, revision conflicts and account isolation in the Firestore emulator.
-- [ ] Validate live Google sign-in and two-profile sync on Firebase Spark.
+- [ ] Finish live validation of sign-in on the existing installation and two-profile sync on Firebase Spark (owner confirmed sign-in and sync in the separate test build).
 - [ ] Implement account and guest data separation, automatic merging, and offline sync.
 - [ ] Extend Statistics with account history, backdated progress and sync status.
 - [ ] Add registration capacity controls and verify account isolation and recovery before open sign-up.
@@ -315,11 +321,25 @@ Work through these updates one at a time, in order from simplest to most complex
 These features are outside the initial development scope.
 
 - [x] Vocabulary frequency information.
-- [x] Sentence-level grammar analysis.
+- [ ] Learner-facing sentence grammar explanations (Kiwi morphological analysis is implemented; a grammar explanation interface is not).
 - [ ] Additional dictionary sources.
 - [x] Subtitle size, text colour, unknown word underline colour and font.
 - [x] Stats and long term learning progress tracking.
 - [x] Keep the Settings navigation visible while scrolling on wider screens.
 - [x] Word frequency information in the dictionary popup.
 
-Future enhancements should only be considered after the minimum viable product is complete.
+### Optional work after v1.0
+
+These candidates come from gaps in the current implementation. Choose one milestone at a time; no new feature is being implemented as part of the release version update.
+
+| Priority | Candidate | User benefit and proposed scope | Effort / dependencies |
+|---|---|---|---|
+| 1 | Restorable local backups | Restore exported vocabulary, media, known status and progress history after reinstalling or moving computers. Preview conflicts and validate files before applying; exclude credentials by default. Current JSON vocabulary export is not a complete restore workflow. | Medium; local files and storage migration tests; no server |
+| 2 | Subtitle replay and shortcuts | Replay the current line, move to previous/next lines and optionally loop a line for listening practice. Ignore shortcuts while typing and retain explicit mining. | Small–medium; reliable transcript timing, graceful fallback for collected captions |
+| 3 | Video vocabulary coverage | Show how many unique headwords in a loaded Korean transcript are already known, plus a frequency-sorted unknown list. Calculate locally and label partial transcripts; avoid presenting coverage as a comprehension score. | Medium; existing tokenizer, frequency list and known-word index |
+| 4 | Public distribution and onboarding | Prepare a versioned ZIP with installation/update instructions, explain KRDict and Anki setup, and evaluate Edge compatibility. Preserve the extension ID and user data during updates. | Small–medium for packaging; browser and OAuth compatibility testing before any store release |
+| 5 | Complete optional account sync | Finish automatic local-change queueing, guest/account separation, incremental downloads, retries, account deletion and registration controls. Measure Spark usage before open sign-up. | Large; existing Phase 10 prototype, live Firebase and multi-profile verification |
+| 6 | Bring your own subtitles | Import SRT/VTT for a YouTube video with no usable Korean transcript; reuse the sidebar, dictionary and mining flow. Validate timing, file size and navigation cleanup. | Medium; local parsing and a manual subtitle/video alignment control |
+| 7 | Undo vocabulary actions | Recover accidental deletion or known/unknown changes with a short-lived undo action, including clear account-sync behaviour if enabled. | Small–medium locally; cloud conflict handling adds scope |
+
+Additional dictionary sources and learner-facing grammar explanations remain longer-term ideas. Their data licensing, accuracy and interface need separate investigation. Desktop/mobile ports and paid AI are not part of the v1.0 direction.

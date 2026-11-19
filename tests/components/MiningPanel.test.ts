@@ -19,7 +19,7 @@ vi.mock('wxt/browser', () => ({
     storage: { onChanged: { addListener: addStorageListener, removeListener: removeStorageListener } },
     runtime: {
       sendMessage,
-      getManifest: () => ({ version: '0.1.0' }),
+      getManifest: () => ({ version: '1.0.0' }),
     },
   },
 }));

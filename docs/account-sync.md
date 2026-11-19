@@ -1,6 +1,6 @@
 # Phase 10 — Accounts and progress sync
 
-Phase 10 prototype implemented for a dedicated Chrome test build. Local verification uses the Firestore emulator. Live Firebase sign-in and the two-Chrome-profile test are pending.
+Phase 10 remains an optional prototype alongside v1.0.0, not a completed public sync service. It can be enabled in configured Chrome builds. The owner confirmed live sign-in and sync in the separate test build; sign-in on the existing installation, the full two-profile workflow and Spark usage measurements remain pending. Local verification includes Firestore emulator tests.
 
 ## Agreed product behaviour
 

@@ -2,9 +2,9 @@
 
 ## Current Project State
 
-**Status:** Phase 9 implemented and verified with automated tests, a Chrome fixture and one live YouTube video. Live sidebar mining into Anki remains unverified.
+**Status:** v1.0.0 — the product owner has designated the implemented personal YouTube-to-Anki workflow as the first full release. Transcript, statistics, frequency and Phase 11 performance/highlighting improvements are included. Live sidebar mining into Anki and other recorded live checks remain unverified.
 
-**Current Phase:** Phase 9 — Interactive Transcript Sidebar
+**Current milestone:** v1.0 release version and documentation. Phase 10 cloud sync remains an optional prototype; no next feature milestone has been approved.
 
 **Last Updated:** 19 November 2026
 
@@ -89,12 +89,14 @@ Language fix verification: 95 tests passed, type checking passed, and the produc
 
 The user confirmed the Phase 2–3 workflow on a live YouTube video, including on-device definition translation.
 
-## In Progress / Verification Remaining
+## v1.0 Verification Remaining
 
 - Live verification of subtitle audio capture and playback in the user's Kimchi Sentence Mining Anki note type.
 - Live verification of the Kimchi Reader status CSV import.
 - Live verification of selectable definition mining.
-- Interface refinement while preserving the established design; visual verification of the latest refinements is pending.
+- Live visual verification of the latest interface/logo and highlighting refinements.
+- Live transcript-sidebar mining into Anki.
+- Phase 10 release readiness: full guest/account separation, automatic local edits and offline retry, account deletion, registration controls and live quota measurements remain incomplete.
 
 ## Settings and subtitle appearance — 18 November 2026
 
@@ -177,7 +179,7 @@ Verified by the user in Chrome on 16 November 2026:
 
 ## Automated Verification
 
-Latest dated automated verification recorded: 17 November 2026. Counts below are historical checkpoints, not a single combined run; see the dated Phase 8 entries for the latest feature-specific results.
+The table below preserves historical verification checkpoints. See the v1.0 entry at the end of this document for the current release checks.
 
 | Check | Command | Result |
 |---|---|---|
@@ -406,3 +408,14 @@ Verification: type checking, the Chrome production build and 163 tests passed; o
 Updated the popup, Settings and Statistics headers to use the supplied transparent `assets/New logo update.png`. Header images use contain sizing without rounded clipping to keep the complete tilted penguin and mint accents visible. Regenerated all five Chrome extension icons (16, 32, 48, 96 and 128 pixels) from the same source, preserving transparency. This supersedes the preceding penguin face logo update. UI_DESIGN.md records the current asset and rendering treatment.
 
 Verification: 163 tests passed with one Firestore emulator test skipped; type checking and the Chrome production build passed. Confirmed icon dimensions and alpha channels, the new logo in the production assets and all three header imports, and matching icon files in the production bundle. Live visual verification in Chrome remains pending.
+
+
+## v1.0.0 release baseline — 19 November 2026
+
+Designated the existing personal YouTube-to-Anki product as v1.0 at the owner's request. Updated package and lockfile versions to 1.0.0; WXT carries that version into the generated manifest and the existing popup footer. Updated the README, product/technical release baselines and roadmap, preserving unfinished account-sync work and unrecorded live checks. Corrected the grammar-analysis roadmap item to distinguish implemented morphological analysis from unimplemented learner-facing grammar explanations.
+
+Added optional future candidates with scope, benefit and effort: restorable backups, subtitle replay/shortcuts, video vocabulary coverage, public distribution/onboarding, completion of account sync, local SRT/VTT import and undo actions. These are proposals, not approved implementation milestones.
+
+Verification: 163 tests passed; one Firestore emulator test was skipped. Type checking passed. `npm run zip` rebuilt the Chrome production extension successfully and created `.output/korean-reader-1.0.0-chrome.zip` (91.27 MB; unpacked build 118.33 MB). Verified version agreement across package.json, package-lock.json, the built manifest and the ZIP manifest, and verified the popup bundle uses the manifest version. Existing Kiwi browser-externalization build warning remains non-blocking. No new live YouTube, Anki, Google sign-in or visual verification was performed for this version/documentation change.
+
+Reload the existing extension at its current folder and refresh YouTube tabs to use this build. Keep the same installation path/extension ID to retain local vocabulary and OAuth configuration. This is a local release build; no store upload, GitHub publication or remote push was performed.
