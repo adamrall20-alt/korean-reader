@@ -357,3 +357,9 @@ Verification: 138 tests passed and one Firestore emulator test was skipped. Type
 `services/dictionary/krdict.ts` now caches KRDict entries under individual headword/candidate keys (`headword-v1`) in addition to preserving candidate-list fallback caching (`exact-v4`). When looking up a word, it checks the primary candidate by headword first, then falls back to any existing `exact-v4` list entry (backfilling the headword key when hit), and checks `headword-v1` before fetching fallback candidates. Successful KRDict responses cache both the matched candidate and the normalized dictionary headword so different conjugations or particle forms reuse the cached entry without extra API calls, while restoring the clicked `originalForm`.
 
 Verification: 142 tests passed and one Firestore emulator test was skipped. Type checking and the Chrome production build passed. New tests verify cache reuse across conjugations, fallback candidate cache hits, legacy `exact-v4` backfilling, and fallback to KRDict when cache reads or writes fail. Live Chrome profiling with KRDict has not been run yet.
+
+## Batched AnkiConnect sync lookups — 19 November 2026 (Phase 11.6)
+
+`services/anki/sync.ts` now shares a 20-headword batch lookup helper (`fetchBatchNotes`) across `countUnsynced` and `syncVocabulary` so duplicate checks (`findNotes` and `notesInfo`) run in batches of up to 20 mined headwords rather than serially per word. Local vocabulary loading, existing-note conflict detection, missing-field updates, media uploads, and failed-batch error isolation remain preserved.
+
+Verification: 144 tests passed and one Firestore emulator test was skipped. Type checking and the Chrome production build passed. New tests verify single-batch lookup across mixed updated/existing/new/conflicted headwords, 20-headword batch splitting, and batch-level failure isolation. Live Anki Desktop timing has not been measured yet.

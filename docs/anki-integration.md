@@ -41,7 +41,7 @@ For Korean-only entries, clicking **Sync to Anki** attempts on-device English tr
 
 ## Duplicate handling
 
-- The worker searches across decks by the mapped focus field, the default focus field, and the saved field and note ID when available. Created notes also carry a stable headword tag so retrying after a connection error or local deletion can find the original note.
+- The worker batches duplicate lookups (`findNotes` / `notesInfo`) in groups of 20 headwords during vocabulary sync instead of querying one word at a time, searching across decks by the mapped focus field, the default focus field, and the saved field and note ID when available. Created notes also carry a stable headword tag so retrying after a connection error or local deletion can find the original note.
 - Search candidates are checked for the exact headword. If multiple notes match, or an existing match cannot be updated using the selected note type and sentence field, the word is reported as a conflict.
 - A matching note receives missing sentences and can receive missing English. Identical saved sentences are skipped, and the worker checks the updated field after writing.
 - New notes are preflighted with `canAddNotes`. AnkiConnect's duplicate protection stays enabled for creation. Bulk results are reported per word, including partial failures.

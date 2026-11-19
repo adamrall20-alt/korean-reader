@@ -10,6 +10,7 @@ function headwordTag(headword: string): string {
 }
 
 const NOTE_TAG = 'korean-reader';
+const LOOKUP_BATCH_SIZE = 20;
 const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 
 function escapeHtml(text: string): string {
@@ -75,15 +76,23 @@ function exactMatch(note: AnkiNoteInfo, entry: VocabularyEntry, settings: AnkiSe
   );
 }
 
+async function fetchBatchNotes(
+  client: AnkiClient,
+  batch: VocabularyEntry[],
+  settings: AnkiSettings,
+): Promise<AnkiNoteInfo[]> {
+  const query = [...new Set(batch.flatMap((entry) => searchTerms(entry, settings)))].join(' OR ');
+  const ids = await client.request('findNotes', { query });
+  return ids.length ? client.request('notesInfo', { notes: ids }) : [];
+}
+
 export async function countUnsynced(settings: AnkiSettings): Promise<number> {
   const client = new AnkiClient(settings);
   const entries = (await listVocabulary()).filter((entry) => entry.contexts.length);
   let count = 0;
-  for (let index = 0; index < entries.length; index += 20) {
-    const batch = entries.slice(index, index + 20);
-    const query = [...new Set(batch.flatMap((entry) => searchTerms(entry, settings)))].join(' OR ');
-    const ids = await client.request('findNotes', { query });
-    const notes = ids.length ? await client.request('notesInfo', { notes: ids }) : [];
+  for (let index = 0; index < entries.length; index += LOOKUP_BATCH_SIZE) {
+    const batch = entries.slice(index, index + LOOKUP_BATCH_SIZE);
+    const notes = await fetchBatchNotes(client, batch, settings);
     count += batch.filter((entry) => !notes.some((note) =>
       exactMatch(note, entry, settings) || note.tags?.includes(headwordTag(entry.headword)),
     )).length;
@@ -91,15 +100,11 @@ export async function countUnsynced(settings: AnkiSettings): Promise<number> {
   return count;
 }
 
-async function findExisting(
-  client: AnkiClient,
+function resolveExisting(
+  notes: AnkiNoteInfo[],
   entry: VocabularyEntry,
   settings: AnkiSettings,
-): Promise<AnkiNoteInfo | undefined> {
-  const ids = await client.request('findNotes', { query: searchTerms(entry, settings).join(' OR ') });
-  if (!ids.length) return undefined;
-
-  const notes = await client.request('notesInfo', { notes: ids });
+): AnkiNoteInfo | undefined {
   const matches = notes.filter((note) => exactMatch(note, entry, settings));
   if (!matches.length && notes.some((note) => note.tags?.includes(headwordTag(entry.headword)))) {
     throw new Error('A previously synced note exists. Check its focus word and field mapping in Anki.');
@@ -226,23 +231,44 @@ export async function syncVocabulary(settings: AnkiSettings, headwords: string[]
     await validateAnkiSettings(client, settings);
     const results: AnkiSyncResult[] = [];
     const candidates: Array<{ headword: string; note: AnkiNote; message?: string }> = [];
+    const pending: Array<{ headword: string; entry: VocabularyEntry }> = [];
     for (const headword of new Set(headwords.map((word) => word.trim().normalize('NFC')))) {
       try {
         const entry = await getVocabulary(headword);
         if (!entry) throw new Error('This word is no longer in your vocabulary.');
         if (!entry.contexts.length) continue;
-        const existing = await findExisting(client, entry, settings);
-        if (existing) {
-          const { updated, message } = await updateExistingNote(client, existing, entry, settings);
-          results.push(await saveResult(headword, updated ? 'updated' : 'existing', existing.noteId, settings.fields.word, message));
-        } else {
-          const note = buildNote(entry, settings);
-          if (settings.fields.image) note.fields[settings.fields.image] = await uploadImage(client, entry);
-          const message = await attachAudio(client, entry, settings.fields.audio, note.fields);
-          candidates.push({ headword, note, message });
-        }
+        pending.push({ headword, entry });
       } catch (error) {
         results.push({ headword, status: 'failed', message: errorMessage(error) });
+      }
+    }
+
+    for (let index = 0; index < pending.length; index += LOOKUP_BATCH_SIZE) {
+      const batch = pending.slice(index, index + LOOKUP_BATCH_SIZE);
+      let notes: AnkiNoteInfo[];
+      try {
+        notes = await fetchBatchNotes(client, batch.map(({ entry }) => entry), settings);
+      } catch (error) {
+        results.push(...batch.map(({ headword }): AnkiSyncResult =>
+          ({ headword, status: 'failed', message: errorMessage(error) })));
+        continue;
+      }
+
+      for (const { headword, entry } of batch) {
+        try {
+          const existing = resolveExisting(notes, entry, settings);
+          if (existing) {
+            const { updated, message } = await updateExistingNote(client, existing, entry, settings);
+            results.push(await saveResult(headword, updated ? 'updated' : 'existing', existing.noteId, settings.fields.word, message));
+          } else {
+            const note = buildNote(entry, settings);
+            if (settings.fields.image) note.fields[settings.fields.image] = await uploadImage(client, entry);
+            const message = await attachAudio(client, entry, settings.fields.audio, note.fields);
+            candidates.push({ headword, note, message });
+          }
+        } catch (error) {
+          results.push({ headword, status: 'failed', message: errorMessage(error) });
+        }
       }
     }
 

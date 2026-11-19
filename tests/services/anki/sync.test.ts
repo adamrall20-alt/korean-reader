@@ -270,4 +270,130 @@ describe('Anki sync', () => {
     await expect(syncVocabulary(settings, ['먹다'])).rejects.toThrow('Open Anki Desktop');
     expect(getVocabulary).not.toHaveBeenCalled();
   });
+
+  it('batches duplicate checks into one lookup across mixed existing, new, and conflicted words', async () => {
+    const wordTag = (text: string) =>
+      'kr-word-' + Array.from(text, (ch) => ch.codePointAt(0)!.toString(16)).join('-');
+    const entries: Record<string, VocabularyEntry> = {
+      먹다: word,
+      가다: { ...word, headword: '가다', originalForm: '가요', contexts: [{ ...word.contexts[0]!, sentence: '집에 가요.' }] },
+      오다: { ...word, headword: '오다', originalForm: '와요', contexts: [{ ...word.contexts[0]!, sentence: '친구가 와요.' }] },
+      보다: { ...word, headword: '보다', originalForm: '봐요', contexts: [{ ...word.contexts[0]!, sentence: '영화를 봐요.' }] },
+      자다: { ...word, headword: '자다', originalForm: '자요', contexts: [{ ...word.contexts[0]!, sentence: '일찍 자요.' }] },
+    };
+    getVocabulary.mockImplementation(async (headword: string) => entries[headword]);
+
+    let updatedSentence = '<b>기존 문장.</b>';
+    const calls = vi.fn((action: string, params: Record<string, any>) => {
+      switch (action) {
+        case 'findNotes':
+          return [101, 102, 103, 104, 105];
+        case 'notesInfo':
+          if (params.notes.length === 1 && params.notes[0] === 101) {
+            return [{
+              noteId: 101,
+              modelName: settings.modelName,
+              fields: { 'Focus Word': { value: '먹다' }, Sentence: { value: updatedSentence } },
+            }];
+          }
+          return [
+            {
+              noteId: 101,
+              modelName: settings.modelName,
+              fields: { 'Focus Word': { value: '먹다' }, Sentence: { value: updatedSentence } },
+            },
+            {
+              noteId: 102,
+              modelName: settings.modelName,
+              fields: {
+                'Focus Word': { value: '가다' },
+                Sentence: { value: '집에 가요.' },
+                Definition: { value: 'to eat' },
+              },
+            },
+            {
+              noteId: 103,
+              modelName: settings.modelName,
+              fields: { 'Focus Word': { value: '다른단어' } },
+              tags: [wordTag('보다')],
+            },
+            {
+              noteId: 104,
+              modelName: settings.modelName,
+              fields: { 'Focus Word': { value: '자다' } },
+            },
+            {
+              noteId: 105,
+              modelName: settings.modelName,
+              fields: { 'Focus Word': { value: '자다' } },
+            },
+          ];
+        case 'updateNoteFields':
+          updatedSentence = params.note.fields.Sentence;
+          return null;
+        case 'canAddNotes':
+          return [true];
+        case 'addNote':
+          return 200;
+        default:
+          throw new Error(action);
+      }
+    });
+    fakeAnki(calls);
+
+    const results = await syncVocabulary(settings, ['먹다', '가다', '오다', '보다', '자다']);
+    expect(calls.mock.calls.filter(([action]) => action === 'findNotes')).toHaveLength(1);
+    expect(calls).toHaveBeenCalledWith('notesInfo', { notes: [101, 102, 103, 104, 105] });
+    expect(results).toEqual(expect.arrayContaining([
+      { headword: '먹다', status: 'updated' },
+      { headword: '가다', status: 'existing' },
+      { headword: '오다', status: 'created' },
+      { headword: '보다', status: 'failed', message: expect.stringContaining('previously synced note') },
+      { headword: '자다', status: 'failed', message: expect.stringContaining('Multiple existing') },
+    ]));
+  });
+
+  it('splits large syncs into batches of 20 and isolates failed lookup batches', async () => {
+    const headwords = Array.from({ length: 25 }, (_, index) => `단어${index}`);
+    getVocabulary.mockImplementation(async (headword: string) => ({
+      ...word,
+      headword,
+      contexts: [{ ...word.contexts[0]!, sentence: `${headword} 문장.` }],
+    }));
+
+    let findBatch = 0;
+    const calls = vi.fn((action: string, params: Record<string, unknown>) => {
+      if (action === 'findNotes') {
+        findBatch += 1;
+        if (findBatch === 1) throw new Error('Batch lookup timeout');
+        return [];
+      }
+      if (action === 'canAddNotes') {
+        return (params.notes as unknown[]).map(() => true);
+      }
+      if (action === 'addNotes') {
+        return (params.notes as unknown[]).map((_, index) => 300 + index);
+      }
+      throw new Error(action);
+    });
+    fakeAnki(calls);
+
+    const results = await syncVocabulary(settings, headwords);
+    const findCalls = calls.mock.calls.filter(([action]) => action === 'findNotes');
+    expect(findCalls).toHaveLength(2);
+    expect(findCalls[0]![1]).toEqual({ query: expect.stringContaining('"Focus Word:단어19"') });
+    expect(findCalls[0]![1]).not.toEqual({ query: expect.stringContaining('"Focus Word:단어20"') });
+    expect(findCalls[1]![1]).toEqual({ query: expect.stringContaining('"Focus Word:단어24"') });
+
+    for (let index = 0; index < 20; index += 1) {
+      expect(results).toContainEqual({
+        headword: `단어${index}`,
+        status: 'failed',
+        message: expect.stringContaining('Could not reach AnkiConnect'),
+      });
+    }
+    for (let index = 20; index < 25; index += 1) {
+      expect(results).toContainEqual({ headword: `단어${index}`, status: 'created' });
+    }
+  });
 });

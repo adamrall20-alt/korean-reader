@@ -302,7 +302,7 @@ Work through these updates one at a time, in order from simplest to most complex
 - [x] **11.3 Paginate and debounce the Settings vocabulary list:** Render `VocabularyManager.vue` in pages (e.g., 50–100 entries with a load-more control) and debounce search filtering so 13,000+ entries do not stall the Settings page.
 - [x] **11.4 Batch and cache Kiwi tokenization:** Batch visible `TranscriptSidebar` rows into a single `tokenize` request instead of one IPC call per row, and keep an in-memory cache of recently tokenized lines shared across overlay, sidebar, and rewinds.
 - [x] **11.5 Headword-level dictionary cache:** Cache KRDict entries by resolved headword/individual candidate in `services/dictionary/krdict.ts` so different conjugations of the same word reuse the cached entry without redundant API requests.
-- [ ] **11.6 Batch AnkiConnect sync lookups:** Batch duplicate checks (`findNotes` / `notesInfo`) during `syncVocabulary` instead of running serial requests per headword.
+- [x] **11.6 Batch AnkiConnect sync lookups:** Batch duplicate checks (`findNotes` / `notesInfo`) during `syncVocabulary` instead of running serial requests per headword.
 - [ ] **11.7 Lighter YouTube caption monitoring:** Pause caption polling off video pages and on hidden tabs, prefer `MutationObserver` over constant 250 ms polling where reliable, and avoid repeated `getComputedStyle` / `innerText` layout checks.
 - [ ] **11.8 Kimchi Reader–style word highlighting and conjugation engine (Option B):**
   - Decompose Kiwi morphemes into real lexical word units across grammatical boundaries (`EC`, `ETM`, `ETN`, `J*`, `VCP`) instead of combining multi-verb or unspaced chunks into invalid forms (e.g., `먹어봤어요` → `먹다` + `보다`, `할수있어요` → `하다` + `수` + `있다`).
