@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import TranscriptSidebar from '@/components/TranscriptSidebar.vue';
+import { clearTokenizeCache, tokenizeLines } from '@/services/korean/tokenize-client';
 import { DEFAULT_SUBTITLE_APPEARANCE } from '@/types/preferences';
 
 const { sendMessage } = vi.hoisted(() => ({ sendMessage: vi.fn() }));
@@ -27,7 +28,9 @@ function mountSidebar() {
 
 afterEach(() => {
   document.body.replaceChildren();
+  clearTokenizeCache();
   sendMessage.mockReset();
+  vi.unstubAllGlobals();
 });
 
 describe('transcript sidebar', () => {
@@ -108,5 +111,73 @@ describe('transcript sidebar', () => {
     await flushPromises();
     expect(wrapper.get('[role="dialog"]').text()).toContain('Could not save the word');
     expect(sendMessage.mock.calls.every(([message]) => message.type !== 'mine-word')).toBe(true);
+  });
+
+  it('batches visible rows into one tokenize request and reuses cached lines across mounts', async () => {
+    const observed: Element[] = [];
+    let notify!: IntersectionObserverCallback;
+    const FakeObserver = class {
+      constructor(callback: IntersectionObserverCallback) { notify = callback; }
+      observe = vi.fn((element: Element) => { observed.push(element); });
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    };
+    vi.stubGlobal('IntersectionObserver', FakeObserver);
+
+    sendMessage.mockImplementation(async (message) => ({
+      ok: true,
+      lines: (message.lines as string[]).map((text, lineIndex) => ({
+        text,
+        tokens: [{
+          id: `${lineIndex}:0`,
+          text,
+          start: 0,
+          length: text.length,
+          clickable: true,
+          morphemes: [{ text, tag: 'NNG', position: 0, length: text.length }],
+        }],
+      })),
+    }));
+
+    const mixedCues = [
+      { start: 1, end: 2, text: '[Music]' },
+      { start: 2, end: 4, text: '안녕하세요.' },
+      { start: 5, end: 7, text: '안녕하세요.' },
+      { start: 8, end: 10, text: '감사합니다.' },
+    ];
+    const wrapper = mount(TranscriptSidebar, {
+      props: {
+        cues: mixedCues, active: mixedCues[1], status: 'full', theme: 'dark',
+        appearance: DEFAULT_SUBTITLE_APPEARANCE, knownHeadwords: new Set<string>(),
+        videoId: 'fixture', width: 360, follow: true, prepareAudio: () => async () => undefined,
+      },
+    });
+
+    // Non-Korean rows are skipped rather than observed for tokenization.
+    expect(observed).toHaveLength(3);
+    notify(
+      observed.map((target) => ({ isIntersecting: true, target }) as IntersectionObserverEntry),
+      { unobserve: vi.fn() } as unknown as IntersectionObserver,
+    );
+    await flushPromises();
+
+    const tokenizeCalls = sendMessage.mock.calls.filter(([message]) => message.type === 'tokenize');
+    expect(tokenizeCalls).toHaveLength(1);
+    expect(tokenizeCalls[0]![0].lines).toEqual(['안녕하세요.', '감사합니다.']);
+
+    // Reopening the sidebar or rewinding the overlay reuses the shared cache with zero IPC calls.
+    sendMessage.mockClear();
+    observed.length = 0;
+    mount(TranscriptSidebar, {
+      props: {
+        cues: mixedCues, active: mixedCues[1], status: 'full', theme: 'dark',
+        appearance: DEFAULT_SUBTITLE_APPEARANCE, knownHeadwords: new Set<string>(),
+        videoId: 'fixture', width: 360, follow: true, prepareAudio: () => async () => undefined,
+      },
+    });
+    expect(observed).toHaveLength(0);
+    await tokenizeLines(['안녕하세요.', '감사합니다.']);
+    expect(sendMessage).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 });

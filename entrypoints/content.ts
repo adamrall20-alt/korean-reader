@@ -4,8 +4,8 @@ import { OPEN_TRANSCRIPT } from '@/services/youtube/transcript';
 import { createCaptionMonitor } from '@/services/youtube/captions';
 import { createSubtitleOverlay } from '@/services/youtube/overlay';
 import { createSubtitlePresenter } from '@/services/youtube/presenter';
+import { tokenizeLines } from '@/services/korean/tokenize-client';
 import type { CaptionSnapshot } from '@/types/youtube';
-import type { TokenizeResponse } from '@/types/messages';
 import {
   VOCABULARY_REVISION_KEY, vocabularyRevisionChanges, type KnownHeadwordsMessage, type KnownHeadwordsResponse,
 } from '@/types/vocabulary';
@@ -86,12 +86,10 @@ export default defineContentScript({
           pending = undefined;
           const requestGeneration = generation;
           try {
-            const response = await browser.runtime.sendMessage({
-              type: 'tokenize', lines: snapshot.lines,
-            }) as TokenizeResponse | undefined;
+            const lines = await tokenizeLines(snapshot.lines);
             if (requestGeneration !== generation || (pending && !snapshot.isRolling)) continue;
-            if (response?.ok && response.lines?.length === snapshot.lines.length) {
-              presenter.update(snapshot, response.lines);
+            if (lines.length === snapshot.lines.length) {
+              presenter.update(snapshot, lines);
             } else {
               presenter.update(snapshot);
             }

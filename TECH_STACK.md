@@ -96,7 +96,7 @@ Full transcripts use loaded Korean browser text tracks where available, then You
 
 The modern transcript request asks for Korean in its own request context. The older transcript endpoint can provide a Korean language option that the extension follows directly. Because YouTube can still return its default language, the sidebar checks that most letters are Hangul before accepting a full transcript. This check preserves occasional foreign phrases in Korean transcripts and rejects English transcripts that contain only a few Korean names or words.
 
-The sidebar shares the background Kiwi tokenizer and the existing dictionary and vocabulary actions. It analyses rows near the viewport rather than submitting the full transcript to Kiwi at once. Mining seeks to the cue start before using the existing frame and audio capture.
+The sidebar shares the background Kiwi tokenizer and the existing dictionary and vocabulary actions. It analyses Korean rows near the viewport through `services/korean/tokenize-client.ts`, which batches visible rows into a single `tokenize` request (up to 50 unique lines per message) and shares a 500-line per-tab in-memory cache with the subtitle overlay and video rewinds rather than submitting the full transcript at once. Mining seeks to the cue start before using the existing frame and audio capture.
 
 ### Background Service Worker
 

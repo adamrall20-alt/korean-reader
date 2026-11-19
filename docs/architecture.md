@@ -157,7 +157,8 @@ The background service worker owns Kiwi initialization and tokenization:
 - `services/korean/kiwi.ts` lazily initializes one Kiwi instance and loads local assets.
 - `services/korean/tokenizer.ts` converts Kiwi morphemes into original-text-preserving
   clickable word segments.
-- The content script sends caption lines through the typed `tokenize` message.
+- `services/korean/tokenize-client.ts` batches concurrent `tokenize` requests from the content script and transcript sidebar into microtask-coalesced messages (up to 50 unique lines per message) and shares a 500-line in-memory LRU cache per YouTube tab across the overlay, sidebar, and video rewinds.
+- The content script and `TranscriptRow` send caption lines through `tokenize-client.ts` via the typed `tokenize` message (skipping non-Korean lines).
 - The subtitle overlay renders the returned segments without exposing dictionary or storage logic.
 
 The manifest includes `wasm-unsafe-eval` for extension pages. Dictionary-form candidates are

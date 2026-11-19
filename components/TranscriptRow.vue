@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
-import { browser } from 'wxt/browser';
 import WordToken from '@/components/WordToken.vue';
 import { isKnownSubtitleWord } from '@/services/korean/dictionary-forms';
+import { getCachedTokenizedLine, tokenizeLines } from '@/services/korean/tokenize-client';
 import { hasKorean } from '@/services/youtube/captions';
 import { formatTranscriptTime, type TranscriptCue } from '@/services/youtube/transcript';
-import type { SubtitleToken, TokenizeResponse } from '@/types/messages';
+import type { SubtitleToken } from '@/types/messages';
 
 const props = defineProps<{
   cue: TranscriptCue;
@@ -15,22 +15,28 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ seek: []; select: [SubtitleToken, HTMLElement] }>();
 const row = ref<HTMLElement>();
+const cueHasKorean = hasKorean(props.cue.text);
+const cachedLine = cueHasKorean ? getCachedTokenizedLine(props.cue.text) : undefined;
+const hasClickableCached = Boolean(cachedLine?.tokens.some((token) => token.clickable));
 let offset = 0;
-const tokens = shallowRef<SubtitleToken[]>(props.cue.text.split(/(\s+)/u).map((text) => {
-  const start = offset;
-  offset += text.length;
-  return { text, id: '0:' + start, start, length: text.length, clickable: hasKorean(text), morphemes: [] };
-}));
-let analysis: Promise<void> | undefined;
+const tokens = shallowRef<SubtitleToken[]>(
+  hasClickableCached
+    ? cachedLine!.tokens
+    : props.cue.text.split(/(\s+)/u).map((text) => {
+      const start = offset;
+      offset += text.length;
+      return { text, id: '0:' + start, start, length: text.length, clickable: hasKorean(text), morphemes: [] };
+    }),
+);
+let analysis: Promise<void> | undefined = hasClickableCached ? Promise.resolve() : undefined;
 
 function analyse() {
+  if (!cueHasKorean) return Promise.resolve();
   return analysis ??= (async () => {
     try {
-      const response: TokenizeResponse | undefined = await browser.runtime.sendMessage({
-        type: 'tokenize', lines: [props.cue.text],
-      });
-      if (response?.ok && response.lines?.[0]?.tokens.some((token) => token.clickable)) {
-        tokens.value = response.lines[0].tokens;
+      const [line] = await tokenizeLines([props.cue.text]);
+      if (line?.tokens.some((token) => token.clickable)) {
+        tokens.value = line.tokens;
       }
     } catch {
       // The surface words remain clickable if analysis is temporarily unavailable.
@@ -39,7 +45,7 @@ function analyse() {
 }
 
 onMounted(() => {
-  if (row.value && props.observer) {
+  if (!analysis && cueHasKorean && row.value && props.observer) {
     row.value.addEventListener('kr-analyse', analyse);
     props.observer.observe(row.value);
   }
