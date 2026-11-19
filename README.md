@@ -11,6 +11,93 @@ The v1.0 workflow is:
 5. Review saved vocabulary.
 6. Synchronise newly mined words to Anki through AnkiConnect.
 
+## Install in Chrome — start here
+
+Korean Reader is loaded manually into **Google Chrome on Mac or Windows**. It is not currently installed through the Chrome Web Store.
+
+**Use the ready-built extension ZIP supplied by Adam. You do not need Node.js, npm or a code editor for this method.** GitHub's **Code → Download ZIP** downloads the source project instead; that requires the separate build steps below.
+
+### 1. Download and keep the extension folder
+
+1. Ask Adam for the ready-built extension ZIP, for example `korean-reader-1.0.0-chrome.zip`.
+2. Extract the ZIP: double-click it on Mac, or right-click → **Extract All…** on Windows.
+3. Move the extracted folder somewhere permanent, such as `Documents/Korean Reader`. Chrome needs this folder to remain on your computer; do not delete it after installing.
+4. Open the folder and find **`manifest.json`**. This is the folder you will select in Chrome. If it is inside another folder, open that inner folder first.
+
+### 2. Add it to Chrome
+
+1. Open Chrome. If you use multiple Chrome profiles, switch to the profile where you want to use Korean Reader.
+2. Type `chrome://extensions` into the address bar and press Enter.
+3. Turn on **Developer mode** in the top-right corner.
+4. Click **Load unpacked** in the top-left corner.
+5. Select the extracted folder that directly contains **`manifest.json`**. Select the folder, not the ZIP or the manifest file itself.
+6. Check that **Korean Reader** appears and is switched on.
+7. Click Chrome's puzzle-piece **Extensions** button beside the address bar, then pin **Korean Reader** so it is easy to open.
+
+### 3. Set up dictionary lookups
+
+1. Click the Korean Reader toolbar icon, then the **Settings gear**.
+2. Open **Dictionary**.
+3. Enter your KRDict API key and click **Save**. You need a key from the [Korean Basic Dictionary](https://krdict.korean.go.kr/); contact Adam if you need help obtaining one.
+4. Wait for **KRDict API key saved locally.** Your key is saved in this Chrome profile.
+
+Google sign-in is not required for local dictionary lookup, vocabulary mining or Anki sync.
+
+### 4. Try it on YouTube
+
+1. Open a YouTube video that has Korean captions. Refresh any YouTube tabs that were already open before installation.
+2. Turn on captions using YouTube's **CC** button. In the player's **Settings → Subtitles/CC**, choose Korean, including an auto-generated Korean track if available.
+3. Play the video. Korean Reader should replace the caption text with clickable words.
+4. Click a Korean word to open its definition. Choose **Mine Word** to save it, or **Known** to mark it known without mining.
+5. For the transcript beside the video, open the Korean Reader toolbar popup and choose **Open Sidebar**.
+
+### 5. Connect Anki (optional)
+
+1. Install **Anki Desktop** and the **AnkiConnect** add-on, then restart Anki after installing the add-on. See the [AnkiConnect installation instructions](https://foosoft.net/projects/anki-connect/).
+2. Keep Anki Desktop open whenever you want Korean Reader to connect or sync.
+3. In Korean Reader, open **Settings → Anki**, connect, choose your deck and note type, check the field mapping, and save the configuration. The extension is designed for the **Kimchi Sentence Mining** note type; if you do not have it, ask Adam for setup help. It does not create the note type for you.
+4. Open the toolbar popup and choose **Connect Anki** if needed, then **Sync to Anki** to send newly mined words.
+
+Anki sync is separate from Google cloud sync. You do not need Firebase access to send words to your local Anki collection. See the [Anki setup and troubleshooting guide](docs/anki-integration.md) for connection permissions and field details.
+
+### 6. Google sign-in and cloud sync — ask Adam for access
+
+**Google sign-in and progress sync require manual approval. Contact Adam with the Google account email you want to use; he must manually add your account to the Firebase access list before cloud sync will work.** Installing the extension does not grant access automatically.
+
+1. Ask Adam for access and a build configured for Google sign-in. Your unpacked extension ID may differ from his, so he may also need to configure Google sign-in for your installation.
+2. If Adam asks you to attempt sign-in first, open Korean Reader **Statistics** using the graph icon, then choose **Sign in with Google**. This creates the Firebase user record he needs to approve. A permission error at this stage can mean your access is still awaiting approval.
+3. Once Adam confirms approval, choose **Sync now**, or complete sign-in again if needed.
+4. On your first use, choose **Import this profile’s known words** to upload this profile's known words and progress history. Later, use **Sync now** to merge newly known local words and refresh account progress.
+
+If the Google sign-in option is unavailable, contact Adam; your build may not have cloud sync configured. If Google blocks sign-in or sync reports a permissions error, send Adam the error text and your Google account email. Never send your password or sign-in tokens.
+
+Cloud sync is currently an optional prototype with manual import/sync controls. It shares known-word progress and its history, not your complete mined collection, screenshots, audio, dictionary key or settings. Automatic syncing of local changes and full account/guest separation are unfinished. You can use the local reader while waiting for approval. See [account sync limitations](docs/account-sync.md).
+
+## Update an existing installation
+
+**Keep the same extension installed and use the same folder. Do not remove it from Chrome or load each update from a newly named folder.** Local vocabulary and settings belong to the installed extension; changing its identity can leave that data behind.
+
+1. In **Settings → Storage → Known words and vocabulary**, use **Export JSON** to save a copy of your vocabulary. This is a vocabulary export, not a complete restorable backup of all settings and history.
+2. Download and extract the new ready-built ZIP into a temporary folder.
+3. Replace the old extension files with the new files **inside the original installation folder**, keeping `manifest.json` directly in that folder. Do not put the new folder inside the old one.
+4. Open `chrome://extensions`, find the existing **Korean Reader** entry and click its **Reload** button (the circular arrow).
+5. Refresh your YouTube tabs, then open the toolbar popup and check the version at the bottom.
+
+Do not move or delete the permanent extension folder while you are using it.
+
+## Installation troubleshooting
+
+| Problem | What to check |
+|---|---|
+| No **Load unpacked** button | Turn on **Developer mode** at `chrome://extensions`. |
+| Chrome cannot find or read the manifest | Extract the ZIP first, then select the folder directly containing `manifest.json`. A source-code ZIP must be built before it can be loaded. |
+| Dictionary asks for a key or lookup fails | Save your own KRDict key under **Settings → Dictionary** and check your internet connection. |
+| Captions are visible but words are not clickable | Select Korean captions, confirm the extension is enabled, reload the extension and refresh the YouTube tab. |
+| No full transcript appears | Some videos do not expose a full transcript. Leave Korean captions on and play the video to collect lines. |
+| Anki will not connect | Keep Anki Desktop open with AnkiConnect installed. Check **Settings → Anki** and the [connection guide](docs/anki-integration.md). |
+| Google sign-in or cloud sync fails | Ask Adam to confirm your Firebase approval and Google sign-in configuration. Local use does not require cloud access. |
+| Words disappear after an update | Check that you reloaded the original extension rather than installing a second copy from another folder or Chrome profile. Keep the original installation; contact Adam before removing anything. |
+
 ## YouTube transcript sidebar
 
 On a YouTube watch page, choose **Open Sidebar** in the Korean Reader toolbar popup. Drag its left edge to resize, search for a word or phrase, or turn off **Auto-scroll** to browse independently. The arrow and timestamp next to a line seek to its start. Click a Korean word to open the dictionary, then choose **Mine Word** to jump to that line and save it.
@@ -126,7 +213,11 @@ korean-reader/
         └── youtube/
 ```
 
-## Requirements
+## Build from source — developer setup
+
+Skip this section if you installed the ready-built ZIP above. These steps are for building the extension yourself from the source project. A source build does not automatically include Google sign-in configuration or grant Firebase access.
+
+### Build requirements
 
 - Node.js 24.12 or newer.
 - npm.
@@ -134,7 +225,9 @@ korean-reader/
 
 Anki Desktop with AnkiConnect is needed for synchronisation and Anki imports. A KRDict API key is needed for dictionary lookups and is stored locally in extension settings.
 
-## Install
+### Install dependencies
+
+Open a terminal in the extracted or cloned `korean-reader` project folder, then run:
 
 ```bash
 npm install
@@ -142,7 +235,7 @@ npm install
 
 `npm install` runs `wxt prepare` automatically to generate WXT types.
 
-## Development
+### Development
 
 Start the WXT development server:
 
@@ -152,7 +245,7 @@ npm run dev
 
 WXT generates a development build and can launch a Chrome profile with the extension loaded. The development build is written to `.output/chrome-mv3-dev`.
 
-## Build
+### Production build
 
 ```bash
 npm run build
@@ -164,17 +257,13 @@ The production extension is written to:
 .output/chrome-mv3
 ```
 
-## Load the extension in Chrome
+### Load your source build
 
-1. Open `chrome://extensions`.
-2. Enable **Developer mode**.
-3. Select **Load unpacked**.
-4. Choose the `korean-reader/.output/chrome-mv3` folder.
-5. Pin **Korean Reader** to the toolbar if desired.
+Follow [Add it to Chrome](#2-add-it-to-chrome), selecting the generated `.output/chrome-mv3` folder inside your project. On Mac, if `.output` is hidden in the folder picker, press **Command + Shift + .** to show hidden files and folders.
 
 For development, use `.output/chrome-mv3-dev` after running `npm run dev`.
 
-If captions appear as plain text with no clickable words, check the **Loaded from** path for Korean Reader in `chrome://extensions`. If it points to `.output/chrome-mv3`, click **Reload** on that entry and refresh the YouTube tab. If it points to another folder, check that folder before replacing the installation. Chrome stores vocabulary under the installed extension ID, which can change when you load from a different folder.
+For updates, rebuild in the same project location, click **Reload** on the existing extension at `chrome://extensions`, and refresh YouTube. Do not remove and reinstall the extension. Google sign-in setup for source builds is documented in [account sync setup](docs/account-sync-setup.md) and still requires Adam's Firebase approval.
 
 ## Automated Checks
 
