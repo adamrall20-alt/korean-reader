@@ -5,7 +5,7 @@ import { onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import type { SettingsResponse } from '@/types/messages';
 import stars from '@/assets/stars.png';
-import logo from '@/assets/penguin-face.png';
+import logo from '@/assets/New logo update.png';
 import { requestPreferences } from '@/services/storage/preferences';
 import {
   DEFAULT_SUBTITLE_APPEARANCE, MAX_SUBTITLE_SIZE, MIN_SUBTITLE_SIZE, SUBTITLE_FONTS,
@@ -152,7 +152,7 @@ const sections = [
   <div class="min-h-screen bg-cover bg-center bg-fixed text-paper" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
     <header class="relative z-10 border-b border-interface/10 bg-ink">
       <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-4">
-        <img :src="logo" alt="" class="size-9 rounded-xl object-cover" />
+        <img :src="logo" alt="" class="size-9 object-contain" />
         <div>
           <p class="text-sm font-semibold tracking-tight">Korean Reader</p>
           <p class="text-xs text-muted">Settings</p>

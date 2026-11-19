@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { OPEN_TRANSCRIPT } from '@/services/youtube/transcript';
 import { browser } from 'wxt/browser';
 import { VOCABULARY_REVISION_KEY, type VocabularySummary, type VocabularyResponse } from '@/types/vocabulary';
-import logo from '@/assets/penguin-face.png';
+import logo from '@/assets/New logo update.png';
 import stars from '@/assets/stars.png';
 
 const summary = ref<VocabularySummary>();
@@ -55,7 +55,7 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
   <main class="flex min-h-[280px] flex-col bg-ink text-paper">
     <header class="border-b border-interface/10 px-5 py-4">
       <div class="flex items-center gap-3">
-        <img :src="logo" alt="" class="size-9 rounded-xl object-cover" />
+        <img :src="logo" alt="" class="size-9 object-contain" />
         <h1 class="min-w-0 truncate text-base font-semibold tracking-tight">Korean Reader</h1>
         <div class="ml-auto flex shrink-0 items-center gap-1.5">
           <button type="button" class="grid size-8 place-items-center rounded-lg border border-interface/10 text-accent hover:bg-accent/10" aria-label="Open Statistics" title="Open Statistics" @click="browser.tabs.create({ url: browser.runtime.getURL('/statistics.html') })">

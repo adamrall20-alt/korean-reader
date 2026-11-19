@@ -399,3 +399,10 @@ Verification: type checking, the Chrome production build and 163 tests passed; o
 Updated the popup, Settings and Statistics headers to use `assets/penguin-face.png` and regenerated all five Chrome extension icons (16, 32, 48, 96 and 128 pixels) from that image. This supersedes the transparent penguin logo update. Updated UI_DESIGN.md to reflect the current asset.
 
 Verification: type checking, the Chrome production build and 163 tests passed; one Firestore emulator test was skipped. Confirmed the production build includes the penguin face asset and regenerated icons. Live visual verification in Chrome remains pending.
+
+
+## Selected concept 04 logo — 19 November 2026
+
+Updated the popup, Settings and Statistics headers to use the supplied transparent `assets/New logo update.png`. Header images use contain sizing without rounded clipping to keep the complete tilted penguin and mint accents visible. Regenerated all five Chrome extension icons (16, 32, 48, 96 and 128 pixels) from the same source, preserving transparency. This supersedes the preceding penguin face logo update. UI_DESIGN.md records the current asset and rendering treatment.
+
+Verification: 163 tests passed with one Firestore emulator test skipped; type checking and the Chrome production build passed. Confirmed icon dimensions and alpha channels, the new logo in the production assets and all three header imports, and matching icon files in the production bundle. Live visual verification in Chrome remains pending.
