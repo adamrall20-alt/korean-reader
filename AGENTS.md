@@ -108,6 +108,6 @@ Do not proceed to subsequent milestones without user approval.
 
 Preserve working functionality between milestones.
 
-Use Git commits at meaningful development checkpoints.
+Use local Git commits at meaningful development checkpoints. Do not run `git push` — the user pushes manually from GitHub Desktop because their CLI/VS Code Git credentials use a separate student account from the personal GitHub account that owns this repository.
 
 The priority is a reliable, functional Korean vocabulary mining extension.

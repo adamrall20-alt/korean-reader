@@ -291,6 +291,25 @@ See the [Phase 10 plan](docs/account-sync.md) for decisions, scope and verificat
 
 Repeat imports and **Sync now** merge newly known local vocabulary into an existing account snapshot. Imports are idempotent and preserve account-side removals. Automated checks cover this merge; see [PROJECT_STATUS.md](PROJECT_STATUS.md). Local Known actions are not yet automatically queued.
 
+## Phase 11 — Performance Optimisations and Korean Highlighting
+
+**Goal:** Improve responsiveness for large vocabularies (13,000+ known words) and upgrade Korean word highlighting to match Kimchi Reader–style sub-word splitting and conjugation/affix handling.
+
+Work through these updates one at a time, in order from simplest to most complex:
+
+- [x] **11.1 IndexedDB connection reuse:** Cache and reuse a single `IDBDatabase` connection in `services/storage/database.ts` (releasing on `versionchange`/`close`) instead of opening and closing on every call.
+- [ ] **11.2 Fast known-word index lookup and lightweight popup summary:** Read known headwords via the IndexedDB `status` index (`getAllKeys('known')`) instead of loading all full records with images/audio, add a lightweight summary endpoint for the toolbar popup, and avoid resending all 13,000+ headwords to YouTube tabs on single-word updates.
+- [ ] **11.3 Paginate and debounce the Settings vocabulary list:** Render `VocabularyManager.vue` in pages (e.g., 50–100 entries with a load-more control) and debounce search filtering so 13,000+ entries do not stall the Settings page.
+- [ ] **11.4 Batch and cache Kiwi tokenization:** Batch visible `TranscriptSidebar` rows into a single `tokenize` request instead of one IPC call per row, and keep an in-memory cache of recently tokenized lines shared across overlay, sidebar, and rewinds.
+- [ ] **11.5 Headword-level dictionary cache:** Cache KRDict entries by resolved headword/individual candidate in `services/dictionary/krdict.ts` so different conjugations of the same word reuse the cached entry without redundant API requests.
+- [ ] **11.6 Batch AnkiConnect sync lookups:** Batch duplicate checks (`findNotes` / `notesInfo`) during `syncVocabulary` instead of running serial requests per headword.
+- [ ] **11.7 Lighter YouTube caption monitoring:** Pause caption polling off video pages and on hidden tabs, prefer `MutationObserver` over constant 250 ms polling where reliable, and avoid repeated `getComputedStyle` / `innerText` layout checks.
+- [ ] **11.8 Kimchi Reader–style word highlighting and conjugation engine (Option B):**
+  - Decompose Kiwi morphemes into real lexical word units across grammatical boundaries (`EC`, `ETM`, `ETN`, `J*`, `VCP`) instead of combining multi-verb or unspaced chunks into invalid forms (e.g., `먹어봤어요` → `먹다` + `보다`, `할수있어요` → `하다` + `수` + `있다`).
+  - Visually split multi-word chunks into adjacent clickable sub-word tokens (with no extra spacing) so only unknown parts are underlined and particles are not underlined; fall back to multi-headword checks on fused mid-character contractions (e.g., `할거야`, `뭔데요`).
+  - Support particle stripping on adverbs (`MAG`, e.g., `아직도` → `아직`), preserve prefixes (`XPN`, e.g., `신제품`) and word-forming suffixes (`XSN`, e.g., `선생님`, `대학생`, `가능성`, `현실적`), strip productive grammatical suffixes (`들`, `쯤`, `씩`, `끼리`), and fix `이다` copula constructions with suffixes/particles (`학생들이에요`, `선생님이에요`, `집에서예요`).
+  - Confirm remaining rule preferences before implementation: whether `이다` requires explicit known status, colloquial contraction aliases (`이거`↔`이것`, `재밌다`↔`재미있다`), and unspaced compound nouns (`한국어공부`).
+
 ## Future Enhancements
 
 These features are outside the initial development scope.
