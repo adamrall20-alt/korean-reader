@@ -144,6 +144,27 @@ async function addEntryDetails(
   if (examples.length) entry.examples = [...new Set(examples)];
 }
 
+function headwordCacheKey(headword: string): string {
+  return JSON.stringify(['headword-v1', headword]);
+}
+
+async function readCache(key: string): Promise<DictionaryEntry | undefined> {
+  try {
+    return await getCachedDictionaryEntry(key);
+  } catch (error: unknown) {
+    console.warn('[Korean Reader] Dictionary cache read failed.', error);
+    return undefined;
+  }
+}
+
+async function writeCache(key: string, entry: DictionaryEntry): Promise<void> {
+  try {
+    await cacheDictionaryEntry(key, entry);
+  } catch (error: unknown) {
+    console.warn('[Korean Reader] Dictionary cache write failed.', error);
+  }
+}
+
 export async function lookupKoreanWord(
   word: string,
   morphemes: KoreanMorpheme[],
@@ -151,16 +172,42 @@ export async function lookupKoreanWord(
   known?: ReadonlySet<string>,
 ): Promise<DictionaryEntry> {
   const candidates = dictionaryCandidates(word, morphemes, known);
-  const cacheKey = JSON.stringify(['exact-v4', ...candidates]);
-
-  try {
-    const cachedEntry = await getCachedDictionaryEntry(cacheKey);
-    if (cachedEntry) return { ...cachedEntry, originalForm: word };
-  } catch (error: unknown) {
-    console.warn('[Korean Reader] Dictionary cache read failed.', error);
+  if (!candidates.length) {
+    throw new Error(`No dictionary entry was found for “${word}”.`);
   }
 
-  for (const candidate of candidates) {
+  const cachedFirst = await readCache(headwordCacheKey(candidates[0]!));
+  if (cachedFirst) {
+    return { ...cachedFirst, originalForm: word };
+  }
+
+  const listCacheKey = JSON.stringify(['exact-v4', ...candidates]);
+  const cachedList = await readCache(listCacheKey);
+  if (cachedList) {
+    const normalizedHeadword = cachedList.headword.trim().normalize('NFC');
+    if (normalizedHeadword) {
+      await writeCache(headwordCacheKey(normalizedHeadword), {
+        ...cachedList,
+        originalForm: normalizedHeadword,
+      });
+    }
+    return { ...cachedList, originalForm: word };
+  }
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index]!;
+    if (index > 0) {
+      const cachedCandidate = await readCache(headwordCacheKey(candidate));
+      if (cachedCandidate) {
+        const normalizedHeadword = cachedCandidate.headword.trim().normalize('NFC');
+        await writeCache(listCacheKey, {
+          ...cachedCandidate,
+          originalForm: normalizedHeadword || candidate,
+        });
+        return { ...cachedCandidate, originalForm: word };
+      }
+    }
+
     const params = new URLSearchParams({
       key: apiKey,
       q: candidate,
@@ -188,10 +235,14 @@ export async function lookupKoreanWord(
       }
       if (!entry.definitions.length && !entry.koreanDefinitions.length) continue;
 
-      try {
-        await cacheDictionaryEntry(cacheKey, entry);
-      } catch (error: unknown) {
-        console.warn('[Korean Reader] Dictionary cache write failed.', error);
+      const normalizedHeadword = entry.headword.trim().normalize('NFC');
+      const entryToCache: DictionaryEntry = { ...entry, originalForm: normalizedHeadword || candidate };
+      await writeCache(headwordCacheKey(candidate), entryToCache);
+      if (normalizedHeadword && normalizedHeadword !== candidate) {
+        await writeCache(headwordCacheKey(normalizedHeadword), entryToCache);
+      }
+      if (index > 0) {
+        await writeCache(listCacheKey, entryToCache);
       }
       return entry;
     }

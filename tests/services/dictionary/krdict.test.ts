@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as dictionaryCache from '@/services/dictionary/cache';
 import { lookupKoreanWord } from '@/services/dictionary/krdict';
+import type { DictionaryEntry } from '@/types/messages';
 
 describe('KRDict lookup', () => {
   afterEach(() => {
@@ -156,5 +158,135 @@ describe('KRDict lookup', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 503 }));
     await expect(lookupKoreanWord('나무', [], 'test-key')).rejects.toThrow('HTTP 503');
   });
+});
 
+describe('headword-level dictionary cache', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function installMemoryCache() {
+    const store = new Map<string, DictionaryEntry>();
+    vi.spyOn(dictionaryCache, 'getCachedDictionaryEntry').mockImplementation(async (key) => store.get(key));
+    vi.spyOn(dictionaryCache, 'cacheDictionaryEntry').mockImplementation(async (key, entry) => {
+      store.set(key, entry);
+    });
+    return store;
+  }
+
+  it('reuses a cached headword across different conjugations without repeating API calls', async () => {
+    installMemoryCache();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(`
+        <channel>
+          <item>
+            <word>먹다</word>
+            <sense>
+              <definition>음식을 입에 넣어서 씹고 삼키다.</definition>
+              <translation><trans_dfn>to eat</trans_dfn></translation>
+            </sense>
+          </item>
+        </channel>
+      `),
+    );
+
+    const first = await lookupKoreanWord(
+      '먹어요',
+      [{ text: '먹', tag: 'VV', position: 0, length: 1 }],
+      'test-key',
+    );
+    const second = await lookupKoreanWord(
+      '먹었어요',
+      [
+        { text: '먹', tag: 'VV', position: 0, length: 1 },
+        { text: '었', tag: 'EP', position: 1, length: 1 },
+      ],
+      'test-key',
+    );
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(first.headword).toBe('먹다');
+    expect(first.originalForm).toBe('먹어요');
+    expect(second.headword).toBe('먹다');
+    expect(second.originalForm).toBe('먹었어요');
+    expect(second.definitions).toEqual(['to eat']);
+  });
+
+  it('reuses a cached fallback candidate by headword and caches the fallback candidate list', async () => {
+    const store = installMemoryCache();
+    store.set(JSON.stringify(['headword-v1', '가요']), {
+      headword: '가요',
+      originalForm: '가요',
+      koreanDefinitions: ['노래.'],
+      definitions: ['song'],
+      examples: [],
+    });
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('<channel></channel>'));
+
+    const first = await lookupKoreanWord(
+      '가요',
+      [{ text: '가', tag: 'VV', position: 0, length: 1 }],
+      'test-key',
+    );
+    expect(first).toMatchObject({ headword: '가요', originalForm: '가요', definitions: ['song'] });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(new URL(String(fetchMock.mock.calls[0]?.[0])).searchParams.get('q')).toBe('가다');
+
+    const second = await lookupKoreanWord(
+      '가요',
+      [{ text: '가', tag: 'VV', position: 0, length: 1 }],
+      'test-key',
+    );
+    expect(second).toMatchObject({ headword: '가요', originalForm: '가요', definitions: ['song'] });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('hits pre-existing exact-v4 cache entries and backfills the headword key', async () => {
+    const store = installMemoryCache();
+    store.set(JSON.stringify(['exact-v4', '먹다', '먹어요']), {
+      headword: '먹다',
+      originalForm: '먹어요',
+      koreanDefinitions: ['음식을 먹다.'],
+      definitions: ['to eat'],
+      examples: [],
+    });
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+    const first = await lookupKoreanWord(
+      '먹어요',
+      [{ text: '먹', tag: 'VV', position: 0, length: 1 }],
+      'test-key',
+    );
+    const second = await lookupKoreanWord(
+      '먹고',
+      [
+        { text: '먹', tag: 'VV', position: 0, length: 1 },
+        { text: '고', tag: 'EC', position: 1, length: 1 },
+      ],
+      'test-key',
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(first.originalForm).toBe('먹어요');
+    expect(second.originalForm).toBe('먹고');
+    expect(store.get(JSON.stringify(['headword-v1', '먹다']))?.headword).toBe('먹다');
+  });
+
+  it('falls back cleanly to KRDict when cache reads or writes fail', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(dictionaryCache, 'getCachedDictionaryEntry').mockRejectedValue(new Error('Read failed'));
+    vi.spyOn(dictionaryCache, 'cacheDictionaryEntry').mockRejectedValue(new Error('Write failed'));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<channel><item><word>나무</word><sense><translation><trans_dfn>tree</trans_dfn></translation></sense></item></channel>'),
+    );
+
+    await expect(lookupKoreanWord('나무', [], 'test-key')).resolves.toMatchObject({
+      headword: '나무',
+      definitions: ['tree'],
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalled();
+  });
 });
