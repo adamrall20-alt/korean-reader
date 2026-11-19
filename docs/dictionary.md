@@ -91,3 +91,10 @@ Show a useful message in the dictionary popup rather than failing silently.
 
 - Rate limits and request throttling.
 - Context-based selection among homonyms with the same headword.
+
+## Planned Phase 12 — Kimchi Reader Format & STDICT Fallback
+
+Phase 12 aligns dictionary output and fallback coverage with Kimchi Reader's exact two-dictionary method:
+
+- **KRDict formatting:** Combine `<trans_word>` and `<trans_dfn>` as `trans_word: trans_dfn` in `services/dictionary/krdict.ts` (falling back to whichever is present) and bump the IndexedDB cache key version so existing cached entries refresh.
+- **STDICT fallback:** Add the National Institute of Korean Language's **STDICT** (표준국어대사전, `https://stdict.korean.go.kr/`) Open API as a monolingual fallback when KRDict has no entry, paired with Chrome's on-device `Translator` API when English is needed.

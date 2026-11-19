@@ -39,6 +39,10 @@ Sentence text is HTML-escaped. The original subtitle form and dictionary headwor
 
 For Korean-only entries, clicking **Sync to Anki** attempts on-device English translation in Chrome and stores the result in local vocabulary before sending it to Anki. If Chrome cannot translate, the Korean is still synced and the popup shows a notice. Sync can fill in a blank definition or add English to an existing definition that matches the saved Korean text.
 
+### Planned Phase 12 definition format
+
+In Phase 12, `definitionField()` in `services/anki/sync.ts` will be updated to match Kimchi Reader's `word = gloss: definition` format (for example, `비유 = analogy; being figurative; metaphor: An act of explaining one thing effectively by comparing it with another thing that shares similarities, or such a method of explanation.`) and omit Korean definitions from the Anki `Definition` field whenever English definitions are available.
+
 ## Duplicate handling
 
 - The worker batches duplicate lookups (`findNotes` / `notesInfo`) in groups of 20 headwords during vocabulary sync instead of querying one word at a time, searching across decks by the mapped focus field, the default focus field, and the saved field and note ID when available. Created notes also carry a stable headword tag so retrying after a connection error or local deletion can find the original note.
