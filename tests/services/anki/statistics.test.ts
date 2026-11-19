@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readDeckStatistics } from '@/services/anki/statistics';
-import { listVocabulary } from '@/services/storage/vocabulary';
+import { listKnownHeadwords } from '@/services/storage/vocabulary';
 import { DEFAULT_ANKI_SETTINGS } from '@/types/anki';
 
-vi.mock('@/services/storage/vocabulary', () => ({ listVocabulary: vi.fn() }));
+vi.mock('@/services/storage/vocabulary', () => ({ listKnownHeadwords: vi.fn() }));
 
 describe('selected Anki deck statistics', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -17,7 +17,7 @@ describe('selected Anki deck statistics', () => {
       findNotes: [1, 2, 3],
       notesInfo: ['먹다', '<b>먹다</b>', '학생'].map((value) => ({ fields: { 'Focus Word': { value } } })),
     };
-    vi.mocked(listVocabulary).mockResolvedValue([{ headword: '먹다', status: 'known' }] as Awaited<ReturnType<typeof listVocabulary>>);
+    vi.mocked(listKnownHeadwords).mockResolvedValue(['먹다']);
     const requests = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
       const { action, params } = JSON.parse(String(init?.body)) as { action: keyof typeof replies; params: unknown };
       if (action === 'getDeckStats') expect(params).toEqual({ decks: [deckName] });

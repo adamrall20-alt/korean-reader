@@ -6,7 +6,9 @@ import { createSubtitleOverlay } from '@/services/youtube/overlay';
 import { createSubtitlePresenter } from '@/services/youtube/presenter';
 import type { CaptionSnapshot } from '@/types/youtube';
 import type { TokenizeResponse } from '@/types/messages';
-import { VOCABULARY_REVISION_KEY, type KnownHeadwordsMessage, type KnownHeadwordsResponse } from '@/types/vocabulary';
+import {
+  VOCABULARY_REVISION_KEY, vocabularyRevisionChanges, type KnownHeadwordsMessage, type KnownHeadwordsResponse,
+} from '@/types/vocabulary';
 import { browser } from 'wxt/browser';
 
 export default defineContentScript({
@@ -30,7 +32,14 @@ export default defineContentScript({
     };
     browser.runtime.onMessage.addListener(onMessage);
     const presenter = createSubtitlePresenter({ document, overlay });
+    let knownHeadwords = new Set<string>();
+    let knownLoaded = false;
     let vocabularyGeneration = 0;
+    let settledGeneration = 0;
+    const publishKnownWords = () => {
+      overlay.setKnownHeadwords(knownHeadwords);
+      sidebar.setKnownHeadwords(knownHeadwords);
+    };
     const refreshKnownWords = async () => {
       const generation = ++vocabularyGeneration;
       try {
@@ -38,15 +47,27 @@ export default defineContentScript({
           type: 'get-known-headwords',
         } satisfies KnownHeadwordsMessage);
         if (generation === vocabularyGeneration && response?.ok) {
-          overlay.setKnownHeadwords(response.headwords);
-          sidebar.setKnownHeadwords(response.headwords);
+          knownHeadwords = new Set(response.headwords);
+          knownLoaded = true;
+          publishKnownWords();
         }
       } catch {
         // Captions remain usable if the background is temporarily unavailable.
+      } finally {
+        if (generation === vocabularyGeneration) settledGeneration = generation;
       }
     };
     const onStorageChanged: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, area) => {
-      if (area === 'local' && VOCABULARY_REVISION_KEY in changes) void refreshKnownWords();
+      if (area !== 'local' || !(VOCABULARY_REVISION_KEY in changes)) return;
+      const delta = vocabularyRevisionChanges(changes[VOCABULARY_REVISION_KEY]?.newValue);
+      if (!delta || !knownLoaded) return void refreshKnownWords();
+
+      // Patch the cached set instead of re-fetching every known headword for a single-word change.
+      for (const headword of delta.known) knownHeadwords.add(headword);
+      for (const headword of delta.unknown) knownHeadwords.delete(headword);
+      publishKnownWords();
+      // A full load already in flight may have read storage before this change; replace it.
+      if (settledGeneration !== vocabularyGeneration) void refreshKnownWords();
     };
     browser.storage.onChanged.addListener(onStorageChanged);
     void refreshKnownWords();

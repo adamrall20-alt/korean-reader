@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { previewKnownWords } from '@/services/anki/import';
 import { DEFAULT_ANKI_SETTINGS } from '@/types/anki';
-import { listVocabulary } from '@/services/storage/vocabulary';
+import { listKnownHeadwords } from '@/services/storage/vocabulary';
 
-vi.mock('@/services/storage/vocabulary', () => ({ listVocabulary: vi.fn() }));
+vi.mock('@/services/storage/vocabulary', () => ({ listKnownHeadwords: vi.fn() }));
 
 describe('Anki known word preview', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -14,10 +14,7 @@ describe('Anki known word preview', () => {
       deckName: 'Sync deck',
       fields: { ...DEFAULT_ANKI_SETTINGS.fields, word: 'Korean' },
     };
-    vi.mocked(listVocabulary).mockResolvedValue([
-      { headword: '먹다', status: 'known' },
-      { headword: '학생', status: 'unknown' },
-    ] as Awaited<ReturnType<typeof listVocabulary>>);
+    vi.mocked(listKnownHeadwords).mockResolvedValue(['먹다']);
     const note = (field: string, value: string, modelName = settings.modelName) =>
       ({ fields: { [field]: { value } }, modelName });
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {

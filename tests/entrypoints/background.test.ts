@@ -1,8 +1,11 @@
 import { DEFAULT_SUBTITLE_APPEARANCE } from '@/types/preferences';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-const { listeners, getVocabulary, markHeadwordsKnown, setStorage } = vi.hoisted(() => ({
+const { listeners, getVocabulary, markHeadwordsKnown, setStorage, listKnownHeadwords, changeVocabulary, listVocabulary } = vi.hoisted(() => ({
   getVocabulary: vi.fn(),
+  listKnownHeadwords: vi.fn(),
+  changeVocabulary: vi.fn(),
+  listVocabulary: vi.fn(),
   markHeadwordsKnown: vi.fn(),
   setStorage: vi.fn().mockResolvedValue(undefined),
   listeners: {
@@ -15,6 +18,9 @@ vi.mock('@/services/storage/vocabulary', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/services/storage/vocabulary')>(),
   getVocabulary,
   markHeadwordsKnown,
+  listKnownHeadwords,
+  changeVocabulary,
+  listVocabulary,
 }));
 
 vi.mock('@/services/dictionary/frequency', () => ({ frequencyRank: vi.fn().mockResolvedValue(undefined) }));
@@ -72,7 +78,9 @@ describe('background entrypoint', () => {
       expect(messageListener(message, sender, resolve)).toBe(true);
     });
     expect(markHeadwordsKnown).toHaveBeenCalledExactlyOnceWith(['여러분']);
-    expect(setStorage).toHaveBeenCalledExactlyOnceWith({ vocabularyRevision: expect.any(String) });
+    expect(setStorage).toHaveBeenCalledExactlyOnceWith({
+      vocabularyRevision: { id: expect.any(String), known: ['여러분'], unknown: [] },
+    });
     expect(response).toEqual({ ok: true });
 
     setStorage.mockClear();
@@ -104,6 +112,49 @@ describe('background entrypoint', () => {
     await expect(request(update)).resolves.toEqual({ ok: false });
     await expect(request(update)).resolves.toMatchObject({ ok: true, theme: 'light' });
     expect(setStorage).toHaveBeenLastCalledWith({ interfaceTheme: 'light' });
+  });
+
+  it('serves known headwords from the status index to YouTube tabs', async () => {
+    const listener = listeners.message[0]!;
+    const youtube = { url: 'https://www.youtube.com/watch?v=abcdefghijk' };
+    listKnownHeadwords.mockResolvedValueOnce(['먹다', '학생']);
+    await expect(new Promise((resolve) => listener({ type: 'get-known-headwords' }, youtube, resolve)))
+      .resolves.toEqual({ ok: true, headwords: ['먹다', '학생'] });
+    listKnownHeadwords.mockRejectedValueOnce(new Error('Storage unavailable'));
+    await expect(new Promise((resolve) => listener({ type: 'get-known-headwords' }, youtube, resolve)))
+      .resolves.toEqual({ ok: false });
+    expect(listener({ type: 'get-known-headwords' }, { url: 'https://example.com/' }, vi.fn())).toBe(false);
+  });
+
+  it('sends only the changed headword to YouTube tabs and keeps the summary private to extension pages', async () => {
+    const listener = listeners.message[0]!;
+    const options = { url: 'chrome-extension://test/options.html' };
+    changeVocabulary.mockResolvedValue(undefined);
+    listVocabulary.mockResolvedValue([]);
+    const request = (message: object) => new Promise((resolve) => listener(message, options, resolve));
+
+    await expect(request({ type: 'set-vocabulary-status', headword: ' 먹다 ', status: 'unknown' }))
+      .resolves.toEqual({ ok: true, entries: [] });
+    expect(setStorage).toHaveBeenLastCalledWith({
+      vocabularyRevision: { id: expect.any(String), known: [], unknown: ['먹다'] },
+    });
+    await request({ type: 'set-vocabulary-status', headword: '학생', status: 'known' });
+    expect(setStorage).toHaveBeenLastCalledWith({
+      vocabularyRevision: { id: expect.any(String), known: ['학생'], unknown: [] },
+    });
+    await request({ type: 'delete-vocabulary', headword: '학생' });
+    expect(setStorage).toHaveBeenLastCalledWith({
+      vocabularyRevision: { id: expect.any(String), known: [], unknown: ['학생'] },
+    });
+
+    setStorage.mockClear();
+    await request({ type: 'edit-vocabulary', headword: '학생', definitions: ['student'] });
+    expect(setStorage).not.toHaveBeenCalled();
+
+    const youtube = { url: 'https://www.youtube.com/watch?v=abcdefghijk' };
+    expect(listener({ type: 'get-vocabulary-summary' }, youtube, vi.fn())).toBe(false);
+    changeVocabulary.mockReset();
+    listVocabulary.mockReset();
   });
 
   it('registers the install and message listeners', () => {

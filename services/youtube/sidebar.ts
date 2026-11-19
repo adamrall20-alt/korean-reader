@@ -231,7 +231,7 @@ export function createTranscriptSidebar(prepareAudio: ReturnType<typeof createSu
     open,
     refresh,
     update,
-    setKnownHeadwords(headwords: string[]) { state.knownHeadwords = new Set(headwords); },
+    setKnownHeadwords(headwords: Iterable<string>) { state.knownHeadwords = new Set(headwords); },
     setTheme(theme: InterfaceTheme) { state.theme = theme; },
     setAppearance(appearance: SubtitleAppearance) { state.appearance = appearance; },
     destroy() {

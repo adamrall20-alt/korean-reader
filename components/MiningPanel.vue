@@ -3,13 +3,13 @@ import AnkiPanel from '@/components/AnkiPanel.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { OPEN_TRANSCRIPT } from '@/services/youtube/transcript';
 import { browser } from 'wxt/browser';
-import { VOCABULARY_REVISION_KEY, type VocabularyEntry, type VocabularyResponse } from '@/types/vocabulary';
+import { VOCABULARY_REVISION_KEY, type VocabularySummary, type VocabularyResponse } from '@/types/vocabulary';
 import logo from '@/assets/penguin.png';
 import stars from '@/assets/stars.png';
 
-const entries = ref<VocabularyEntry[]>();
-const minedEntries = computed(() => entries.value?.filter((entry) => entry.contexts.length) ?? []);
-const knownCount = computed(() => entries.value?.filter((entry) => entry.status === 'known').length);
+const summary = ref<VocabularySummary>();
+const minedEntries = computed(() => summary.value?.minedEntries ?? []);
+const knownCount = computed(() => summary.value?.knownCount);
 const error = ref('');
 const sidebarError = ref('');
 async function openSidebar() {
@@ -29,10 +29,12 @@ let loadGeneration = 0;
 async function loadVocabulary() {
   const generation = ++loadGeneration;
   try {
-    const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({ type: 'list-vocabulary' });
+    const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({
+      type: 'get-vocabulary-summary',
+    });
     if (generation !== loadGeneration) return;
     if (!response?.ok) throw new Error(response?.error ?? 'Could not access saved vocabulary.');
-    entries.value = response.entries ?? [];
+    summary.value = response.summary ?? { knownCount: 0, minedEntries: [] };
     error.value = '';
   } catch (failure) {
     if (generation !== loadGeneration) return;

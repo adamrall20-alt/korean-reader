@@ -1,6 +1,6 @@
 import { AnkiClient } from '@/services/anki/client';
 import { plainText } from '@/services/anki/fields';
-import { listVocabulary } from '@/services/storage/vocabulary';
+import { listKnownHeadwords } from '@/services/storage/vocabulary';
 import { ANKI_DEFAULT_FIELDS, type AnkiImportPreview, type AnkiSettings } from '@/types/anki';
 
 export function deckSearch(deckName: string): string {
@@ -25,8 +25,7 @@ export async function previewKnownWords(settings: AnkiSettings, deckName: string
   }
 
   if (!words.size) return { headwords: [], alreadyKnown: 0, skipped, total: 0 };
-  const entries = await listVocabulary();
-  const known = new Set(entries.filter((entry) => entry.status === 'known').map((entry) => entry.headword));
+  const known = new Set(await listKnownHeadwords());
   const headwords = [...words].filter((word) => !known.has(word));
   return { headwords, alreadyKnown: words.size - headwords.length, skipped, total: words.size };
 }

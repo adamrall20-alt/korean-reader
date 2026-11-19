@@ -85,7 +85,7 @@ describe('MiningPanel', () => {
     let unsynced = 1;
     sendMessage.mockImplementation(async (message) => {
       switch (message.type) {
-        case 'list-vocabulary': return { ok: true, entries: [entry, { ...entry, headword: '이다', contexts: [] }] };
+        case 'get-vocabulary-summary': return { ok: true, summary: { knownCount: 2, minedEntries: [entry] } };
         case 'get-anki-settings': return { ok: true, settings };
         case 'connect-anki': return { ok: true, decks: ['Korean'], models: [settings.modelName] };
         case 'get-anki-fields': return { ok: true, fields: Object.values(ANKI_DEFAULT_FIELDS) };
@@ -118,20 +118,16 @@ describe('MiningPanel', () => {
   });
 
   it('refreshes the known count after a large import with Anki disconnected', async () => {
-    let entries: Array<{ headword: string; contexts: []; status: string }> = [];
-    sendMessage.mockImplementation(async (message) => message.type === 'list-vocabulary'
-      ? { ok: true, entries }
+    let knownCount = 0;
+    sendMessage.mockImplementation(async (message) => message.type === 'get-vocabulary-summary'
+      ? { ok: true, summary: { knownCount, minedEntries: [] } }
       : { ok: true, settings: DEFAULT_ANKI_SETTINGS });
     const wrapper = mount(MiningPanel);
     await flushPromises();
     const counts = () => wrapper.findAll('.tabular-nums').map((item) => item.text());
     expect(counts()).toEqual(['0', '—']);
 
-    entries = Array.from({ length: 6001 }, (_, index) => ({
-      headword: `단어${index}`,
-      contexts: [],
-      status: index === 6000 ? 'unknown' : 'known',
-    }));
+    knownCount = 6000;
     const listener = addStorageListener.mock.calls[0]![0];
     listener({ [VOCABULARY_REVISION_KEY]: { newValue: 'imported' } }, 'local');
     await flushPromises();

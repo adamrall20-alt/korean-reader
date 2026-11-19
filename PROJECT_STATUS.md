@@ -331,3 +331,11 @@ Verification: 108 tests passed and one Firestore emulator test was skipped; type
 `services/storage/database.ts` now caches and reuses a single shared `IDBDatabase` connection across `vocabulary`, `statistics`, and `dictionaryCache` operations instead of opening and closing the database on every request. The cached handle clears automatically on open failures, `versionchange`, or `close` events, and exposes `closeDatabase()` for explicit teardown. Storage callers in `services/storage/vocabulary.ts`, `services/storage/statistics.ts`, and `services/dictionary/cache.ts` no longer close the shared connection after individual transactions.
 
 Verification: 115 tests passed (one Firestore emulator test skipped), type checking passed, and the Chrome production build passed.
+
+## Fast known-word lookup and popup summary — 19 November 2026 (Phase 11.2)
+
+- **Known headwords:** YouTube tabs and the Anki import/deck-statistics preview now read known headwords through the IndexedDB `status` index (`getAllKeys('known')`). Full records with screenshots and audio are no longer loaded for these reads.
+- **Toolbar popup:** The popup uses a new `get-vocabulary-summary` request, limited to extension pages. It returns the known-word count, from the index, and mined entries with context screenshots and audio removed. The popup no longer receives the whole vocabulary.
+- **Single-word changes:** After Known, Mine Word, a status toggle or a delete, the background writes a `vocabularyRevision` with the changed headword. YouTube tabs update their cached known set from it and no longer reload every headword. Anki imports and older revision values still make tabs reload the full set. If a full reload is already in progress when a single-word change arrives, the tab starts a new reload so older data cannot replace the change.
+
+Verification: 126 tests passed and one Firestore emulator test was skipped. Type checking and the Chrome production build passed. New tests cover index-only reads, summary media stripping, storage failures, background change messages, summary access limits, and content-script delta handling, including out-of-order reloads and an unavailable background. Live timing with the 13,000-word vocabulary in Chrome has not been measured yet.

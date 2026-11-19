@@ -1,9 +1,11 @@
 import type { AnkiTranslation } from '@/types/anki';
-import { openDatabase, STATISTICS_STORE, VOCABULARY_STORE } from '@/services/storage/database';
+import { openDatabase, STATISTICS_STORE, VOCABULARY_STATUS_INDEX, VOCABULARY_STORE } from '@/services/storage/database';
 import { recordKnownWordCount } from './statistics';
-import { sameVocabularyContext, type VocabularyEntry, type VocabularyMessage } from '@/types/vocabulary';
+import {
+  sameVocabularyContext, type VocabularyEntry, type VocabularyMessage, type VocabularySummary,
+} from '@/types/vocabulary';
 
-const normalizeHeadword = (headword: string) => headword.trim().normalize('NFC');
+export const normalizeHeadword = (headword: string) => headword.trim().normalize('NFC');
 
 async function readVocabulary<T>(read: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   const database = await openDatabase();
@@ -45,6 +47,39 @@ export function getVocabulary(headword: string): Promise<VocabularyEntry | undef
 
 export function listVocabulary(): Promise<VocabularyEntry[]> {
   return readVocabulary((store) => store.getAll());
+}
+
+/** Reads only the keys of known entries through the status index, without loading full records. */
+export function listKnownHeadwords(): Promise<string[]> {
+  return readVocabulary((store) => store.index(VOCABULARY_STATUS_INDEX).getAllKeys('known')) as Promise<string[]>;
+}
+
+/** Known-word count plus mined entries without their screenshots and audio, for the toolbar popup. */
+export async function readVocabularySummary(): Promise<VocabularySummary> {
+  const database = await openDatabase();
+  return new Promise<VocabularySummary>((resolve, reject) => {
+    const transaction = database.transaction(VOCABULARY_STORE);
+    const store = transaction.objectStore(VOCABULARY_STORE);
+    const summary: VocabularySummary = { knownCount: 0, minedEntries: [] };
+    const count = store.index(VOCABULARY_STATUS_INDEX).count('known');
+    count.onsuccess = () => { summary.knownCount = count.result; };
+    const cursor = store.openCursor();
+    cursor.onsuccess = () => {
+      const current = cursor.result;
+      if (!current) return;
+      const entry = current.value as VocabularyEntry;
+      if (entry.contexts.length) {
+        summary.minedEntries.push({
+          ...entry,
+          contexts: entry.contexts.map(({ image: _image, audio: _audio, ...context }) => context),
+        });
+      }
+      current.continue();
+    };
+    transaction.oncomplete = () => resolve(summary);
+    transaction.onabort = () => reject(transaction.error ?? new Error('Could not read saved vocabulary.'));
+    transaction.onerror = () => reject(transaction.error ?? new Error('Could not read saved vocabulary.'));
+  });
 }
 
 export async function markHeadwordsKnown(words: string[]): Promise<number> {

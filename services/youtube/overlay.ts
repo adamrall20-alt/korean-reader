@@ -18,7 +18,7 @@ export interface SubtitleOverlay {
     player: HTMLElement | null,
     lines?: TokenizedSubtitleLine[] | null,
   ): void;
-  setKnownHeadwords(headwords: string[]): void;
+  setKnownHeadwords(headwords: Iterable<string>): void;
   setTheme(theme: InterfaceTheme): void;
   setAppearance(appearance: SubtitleAppearance): void;
   hide(): void;

@@ -9,10 +9,12 @@ import { handleAnkiMessage, isAnkiMessage } from '@/services/anki/messages';
 import { frequencyRank } from '@/services/dictionary/frequency';
 import { lookupKoreanWord } from '@/services/dictionary/krdict';
 import { clearDictionaryCache } from '@/services/dictionary/cache';
-import { VOCABULARY_REVISION_KEY, type KnownHeadwordsResponse } from '@/types/vocabulary';
+import {
+  VOCABULARY_REVISION_KEY, type KnownHeadwordsResponse, type VocabularyMessage, type VocabularyRevision,
+} from '@/types/vocabulary';
 import { readKnownWordHistory } from '@/services/storage/statistics';
 import type { HistoryResponse } from '@/types/statistics';
-import { getVocabulary, listVocabulary } from '@/services/storage/vocabulary';
+import { getVocabulary, listKnownHeadwords, normalizeHeadword } from '@/services/storage/vocabulary';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
 import { nominalCopulaHeadwords } from '@/services/korean/dictionary-forms';
@@ -31,10 +33,25 @@ import type {
 
 const KRDICT_API_KEY_STORAGE = 'krDictApiKey';
 
-async function notifyVocabularyChanged() {
-  await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: crypto.randomUUID() }).catch((error) => {
+/** Without changes, YouTube tabs reload every known headword; with changes, they patch their cached set. */
+async function notifyVocabularyChanged(changes?: { known: string[]; unknown: string[] }) {
+  const revision: VocabularyRevision = { id: crypto.randomUUID(), ...changes };
+  await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: revision }).catch((error) => {
     console.warn('[Korean Reader] Could not notify subtitle tabs of vocabulary changes.', error);
   });
+}
+
+function knownStatusChanges(message: VocabularyMessage): { known: string[]; unknown: string[] } | undefined {
+  switch (message.type) {
+    case 'mine-word': return { known: [normalizeHeadword(message.entry.headword)], unknown: [] };
+    case 'mark-word-known': return { known: [normalizeHeadword(message.headword)], unknown: [] };
+    case 'delete-vocabulary': return { known: [], unknown: [normalizeHeadword(message.headword)] };
+    case 'set-vocabulary-status': {
+      const headword = normalizeHeadword(message.headword);
+      return message.status === 'known' ? { known: [headword], unknown: [] } : { known: [], unknown: [headword] };
+    }
+    default: return undefined;
+  }
 }
 
 function isPingMessage(message: unknown): message is PingMessage {
@@ -166,11 +183,8 @@ export default defineBackground(() => {
 
     if (fromYouTube && typeof message === 'object' && message !== null &&
       'type' in message && message.type === 'get-known-headwords') {
-      void listVocabulary().then(
-        (entries) => sendResponse({
-          ok: true,
-          headwords: entries.filter((entry) => entry.status === 'known').map((entry) => entry.headword),
-        } satisfies KnownHeadwordsResponse),
+      void listKnownHeadwords().then(
+        (headwords) => sendResponse({ ok: true, headwords } satisfies KnownHeadwordsResponse),
         () => sendResponse({ ok: false } satisfies KnownHeadwordsResponse),
       );
       return true;
@@ -183,7 +197,7 @@ export default defineBackground(() => {
       void handleVocabularyMessage(message).then(async (response) => {
         if (response.ok && (message.type === 'mark-word-known' || message.type === 'set-vocabulary-status' ||
           message.type === 'delete-vocabulary' || (message.type === 'mine-word' && response.outcome !== 'existing'))) {
-          await notifyVocabularyChanged();
+          await notifyVocabularyChanged(knownStatusChanges(message));
         }
         sendResponse(response);
       }).catch((error: unknown) => {

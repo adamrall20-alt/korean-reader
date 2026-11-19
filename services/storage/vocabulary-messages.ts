@@ -1,4 +1,6 @@
-import { changeVocabulary, listVocabulary, markHeadwordsKnown, mineWord } from '@/services/storage/vocabulary';
+import {
+  changeVocabulary, listVocabulary, markHeadwordsKnown, mineWord, readVocabularySummary,
+} from '@/services/storage/vocabulary';
 import { isSubtitleAudio } from '@/types/audio';
 import type { VocabularyMessage, VocabularyResponse } from '@/types/vocabulary';
 
@@ -33,7 +35,7 @@ function isMineMessage(message: Record<string, unknown>): boolean {
 
 export function isVocabularyMessage(message: unknown): message is VocabularyMessage {
   if (!isRecord(message)) return false;
-  if (message.type === 'list-vocabulary') return true;
+  if (message.type === 'list-vocabulary' || message.type === 'get-vocabulary-summary') return true;
   if (message.type === 'mine-word') return isMineMessage(message);
   if (!hasText(message.headword)) return false;
 
@@ -48,6 +50,8 @@ export async function handleVocabularyMessage(message: VocabularyMessage): Promi
     await markHeadwordsKnown([message.headword]);
     return { ok: true };
   }
+
+  if (message.type === 'get-vocabulary-summary') return { ok: true, summary: await readVocabularySummary() };
 
   if (message.type !== 'list-vocabulary') await changeVocabulary(message);
   return { ok: true, entries: await listVocabulary() };

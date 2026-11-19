@@ -75,7 +75,7 @@ Dictionary popup
                                                      └─ marks word as known
 
 Toolbar popup
-  ├─ lists vocabulary ─────────────────────────────► background / IndexedDB
+  ├─ reads vocabulary summary ─────────────────────► background / IndexedDB
   └─ Sync to Anki ─────────────────────────────────► background ──► AnkiConnect
 ```
 
@@ -87,7 +87,7 @@ Toolbar popup
 
 Object stores:
 
-- `vocabulary` — one record per normalized dictionary headword. IndexedDB schema version 2 adds this store and preserves the existing dictionary cache.
+- `vocabulary` — one record per normalized dictionary headword. IndexedDB schema version 2 adds this store and preserves the existing dictionary cache. Version 3 adds the `status` index used for known-word reads and counts.
 - `dictionaryCache` — cached KRDict results keyed by the ordered lookup candidates.
 
 ### `chrome.storage.local`
@@ -97,6 +97,7 @@ Object stores:
 - Anki note type and field mapping.
 - Subtitle appearance preferences.
 - Other small user settings.
+- `vocabularyRevision` — change notification for subtitle tabs, the toolbar popup and Statistics (see Vocabulary Model).
 
 Do not store the API key in source code, a committed `.env` file or the built bundle.
 
@@ -107,7 +108,7 @@ The stored record extends the dictionary entry with its known status, creation a
 - The normalized headword is the IndexedDB key. Adding a context uses a single read-write transaction to prevent duplicates across tabs.
 - Repeating the same subtitle text from the same video leaves the stored record as it was. A different context can be saved explicitly using **Save Sentence**.
 - Mining marks the word as known. The dictionary popup's **Known** action uses the same background storage operation as known-word imports. It preserves existing data, and a newly marked word starts with no mined contexts. Settings can toggle known status and edit English definitions.
-- Subtitle tabs read known headwords from the background and refresh when the vocabulary revision changes. Exact text, Kiwi predicate forms, and nouns or pronouns with the plural suffix 들 and particles can match a known headword. Unmatched words are underlined in red.
+- Subtitle tabs read known headwords from the background and refresh when the vocabulary revision changes. The background reads them through the `status` index (`getAllKeys('known')`), so screenshots and audio are not loaded. A revision for a single-word change (Known, Mine Word, status toggle, delete) carries `known`/`unknown` headword lists, which tabs apply to their cached set. A revision without these lists, such as after an Anki import, makes tabs reload the full set. Exact text, Kiwi predicate forms, and nouns or pronouns with the plural suffix 들 and particles can match a known headword. Unmatched words are underlined in red.
 - JSON export includes the complete vocabulary collection. Anki sync uses the stored contexts and saves the returned note ID and sync time.
 
 ## 7. Subtitle Overlay
