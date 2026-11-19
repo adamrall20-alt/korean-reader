@@ -132,7 +132,7 @@ Implemented:
 - KRDict lookup popup with definitions, pronunciation and part of speech.
 - Local KRDict API-key settings.
 - IndexedDB dictionary-result caching with a Settings clear-cache action.
-- Dictionary popup with up to three English definitions, Korean definitions as a fallback, and optional entry details.
+- Dictionary popup with up to three English definitions (`gloss: definition` when KRDict provides both), Korean definitions as a fallback, and optional entry details.
 - On-demand English translation of Korean definitions on desktop Chrome when its built-in Translator API is available.
 - YouTube playback pauses when a subtitle word is selected.
 - Red underlines for unknown Korean subtitle words. Known base forms match conjugated verbs and nouns or pronouns with particles or the plural suffix 들.
@@ -148,7 +148,7 @@ Implemented:
 - Selectable dictionary definitions when mining.
 - Component tests, type checking and production builds (see the dated verification log in PROJECT_STATUS.md).
 
-- AnkiConnect with deck and note type selection, configurable field mapping, and one-click sync for newly mined words, with a live unsynced count.
+- AnkiConnect with deck and note type selection, configurable field mapping, Kimchi Reader–style `word = gloss: definition` definitions, and one-click sync for newly mined words, with a live unsynced count.
 
 Live user checks have confirmed key workflows, including live lookup, mining and a large Anki known-word import. Some live media, CSV-import and definition-selection checks remain unrecorded. A KRDict API key is needed for live dictionary lookups. See [Anki setup](docs/anki-integration.md) for connecting to your collection and [plain-English architecture](docs/architecture.md) for how the system works.
 

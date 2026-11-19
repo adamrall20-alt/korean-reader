@@ -36,7 +36,7 @@ The user has obtained a KRDict API key.
 
 - Korean dictionary headword.
 - Original subtitle form.
-- Up to three English definitions or short English glosses. Korean definitions are shown when KRDict provides no English.
+- Up to three English definitions or short English glosses formatted as `gloss: definition` (`trans_word: trans_dfn`) when both are returned by KRDict, falling back to whichever is present. Korean definitions are shown when KRDict provides no English.
 - **Translate to English** uses the desktop Chrome Translator API for Korean definitions when exposed by the browser. The first request may download a language pack. The popup labels the local translation separately and retains the source definition.
 - Part of speech.
 - Conjugation information where available.
@@ -60,7 +60,7 @@ The analyser is responsible for:
 ## Caching
 
 - Cache dictionary results in IndexedDB.
-- Cache by the ordered, normalized candidate list so different analyses of the same spelling can resolve independently. Older cache keys are ignored and can be removed from Settings.
+- Cache dictionary results in IndexedDB using versioned headword (`headword-v2`) and ordered, normalized candidate-list (`exact-v5`) keys so different analyses of the same spelling resolve independently and stale cache versions (`headword-v1`, `exact-v4`) refresh automatically. Older cache keys are ignored and can be removed from Settings.
 - Store the original response metadata needed to render definitions and examples.
 - Avoid repeated API requests for the same lookup.
 - Provide a way to clear the cache from Settings.
@@ -92,9 +92,9 @@ Show a useful message in the dictionary popup rather than failing silently.
 - Rate limits and request throttling.
 - Context-based selection among homonyms with the same headword.
 
-## Planned Phase 12 — Kimchi Reader Format & STDICT Fallback
+## Phase 12 — Kimchi Reader Format (STDICT Fallback Deferred)
 
-Phase 12 aligns dictionary output and fallback coverage with Kimchi Reader's exact two-dictionary method:
+Phase 12.1 aligns KRDict dictionary output with Kimchi Reader's definition formatting using the user's existing KRDict key:
 
-- **KRDict formatting:** Combine `<trans_word>` and `<trans_dfn>` as `trans_word: trans_dfn` in `services/dictionary/krdict.ts` (falling back to whichever is present) and bump the IndexedDB cache key version so existing cached entries refresh.
-- **STDICT fallback:** Add the National Institute of Korean Language's **STDICT** (표준국어대사전, `https://stdict.korean.go.kr/`) Open API as a monolingual fallback when KRDict has no entry, paired with Chrome's on-device `Translator` API when English is needed.
+- **KRDict formatting (implemented):** `services/dictionary/krdict.ts` preserves `<![CDATA[...]]>` text cleanly and formats English translations as `trans_word: trans_dfn` when both `<trans_word>` and `<trans_dfn>` are present (omitting duplicate identical values case-insensitively and falling back to whichever tag exists). Both `/search` and `/view` entry lookups use this formatting, and cache keys bumped to `headword-v2` / `exact-v5` so older cached entries refresh automatically.
+- **STDICT fallback (deferred):** Integrating the National Institute of Korean Language's **STDICT** (표준국어대사전, `https://stdict.korean.go.kr/`) Open API (Task 12.3) was deferred at the product owner's request due to registration issues obtaining an STDICT API key. No additional API key is required for the current dictionary setup.

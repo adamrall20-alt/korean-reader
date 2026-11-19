@@ -6,7 +6,7 @@
 
 **Current milestone:** v1.0 release version and documentation. Phase 10 cloud sync remains an optional prototype; no next feature milestone has been approved.
 
-**Last Updated:** 19 November 2026
+**Last Updated:** 20 November 2026
 
 **Phase 10 prototype:** The opt-in Chrome test build supports Google sign-in wiring, explicit known-word and history import, and test edits with an account-specific offline queue. All 103 tests passed with the emulator, including the 13,000-word import, two-client merge and account isolation. Type checking and both Chrome builds passed. An isolated Chrome profile verified the stable extension ID, signed-out account messaging and guest history. The owner confirmed live sign-in and sync in the separate test build after Firestore tester approval. The normal unpacked build can now enable the same panel using an OAuth client for its existing extension ID. The normal build was rebuilt with its own OAuth client and checked in a clean Chrome profile under the original extension ID. Live sign-in on the existing installation and Firebase Spark usage measurements remain pending. Account deletion and launch registration controls remain open. See the [prototype setup and test steps](docs/account-sync-setup.md).
 
@@ -96,6 +96,7 @@ The user confirmed the Phase 2–3 workflow on a live YouTube video, including o
 - Live verification of selectable definition mining.
 - Live visual verification of the latest interface/logo and highlighting refinements.
 - Live transcript-sidebar mining into Anki.
+- Live verification of Phase 12 KRDict `gloss: definition` display and Anki `word = gloss: definition` rendering in the `Kimchi Sentence Mining` note type.
 - Phase 10 release readiness: full guest/account separation, automatic local edits and offline retry, account deletion, registration controls and live quota measurements remain incomplete.
 
 ## Settings and subtitle appearance — 18 November 2026
@@ -428,3 +429,12 @@ The sidebar header now shows a one-decimal known percentage beside **Korean tran
 Opening the sidebar analyses all loaded Korean transcript lines in sequential batches of up to 50 using the existing Kiwi client/cache. The header updates from current known status without retokenizing, and search never changes its scope. It labels collected-only results as partial, handles empty/error/loading states and discards stale analysis after navigation or unmount. There are no new permissions, dictionary calls or cloud dependencies.
 
 Verification: 169 tests passed with one Firestore emulator test skipped. Type checking and the Chrome production build passed. New tests cover ten repeats counting once, 434/500 rounding, conjugations/aliases, grammar exclusions, compounds/fused predicates, full-transcript analysis on opening, known-status updates, search independence, partial captions, unavailable analysis, empty results and stale navigation responses. Existing shared-cache and sidebar interaction tests also pass. Live YouTube visual verification and performance measurement on very long transcripts remain pending. Reload the existing extension and refresh YouTube to inspect the header placement.
+
+## Kimchi Reader–style dictionary and Anki definitions — 20 November 2026 (Phase 12.1 & 12.2)
+
+- **KRDict definition formatting (`services/dictionary/krdict.ts`):** Added `extractXmlText()` to preserve `<![CDATA[...]]>` blocks cleanly while stripping XML tags and decoding entities on non-CDATA text. Updated `englishDefinitions()` (used by both `/search` and `/view` endpoints) to combine `<trans_word>` and `<trans_dfn>` as `trans_word: trans_dfn` when both exist, deduplicate case-insensitively identical pairs, and fall back to whichever tag is present. Bumped the IndexedDB dictionary cache keys from `headword-v1` / `exact-v4` to `headword-v2` / `exact-v5` so older cached entries refresh automatically.
+- **Anki `Definition` formatting (`services/anki/sync.ts`):** Updated `definitionField()` to format English definitions as `${entry.headword} = ${definition}` (without double-prefixing) and omit `entry.koreanDefinitions` whenever English definitions are present. Retained unprefixed Korean definitions and Chrome on-device `Translator` fallback (with `${entry.headword} = ` prefix on `machineDefinitions`) when no English definition exists, preserving `updateExistingNote()` detection for upgrading Korean-only Anki notes later.
+- **Deferred scope (Phase 12.3):** STDICT (`https://stdict.korean.go.kr/`) monolingual fallback was deferred at the product owner's request because STDICT Open API key registration encountered barriers. No extra API keys or new extension permissions are required for the implemented scope.
+
+Verification: 175 automated tests passed across 27 test files with 1 Firestore emulator test skipped (`tests/services/account/cloud.test.ts`); `npm run compile` and `npm run build` passed (`.output/chrome-mv3`, 118.33 MB). New tests cover `trans_word: trans_dfn` combining with CDATA and XML entities, case-insensitive deduplication, partial/empty translation tags, `/view` detail formatting, ignoring stale `headword-v1` / `exact-v4` cache entries, Kimchi Reader–style Anki `Definition` formatting with HTML escaping and double-prefix protection, Korean omission when English is present, and upgrading unprefixed Korean-only notes once English arrives. Live KRDict and Anki card rendering verification in the `Kimchi Sentence Mining` note type remains pending. Reload the existing unpacked extension in Chrome and refresh YouTube tabs to use this build.
+

@@ -318,14 +318,14 @@ Work through these updates one at a time, in order from simplest to most complex
 
 ## Phase 12 — Kimchi Reader–Style Dictionary & Anki Definitions
 
-**Goal:** Match Kimchi Reader's exact dictionary architecture (`krdict` + `stdict`) and Anki card definition formatting (`word = gloss: definition`).
+**Goal:** Match Kimchi Reader's KRDict dictionary formatting and Anki card definition formatting (`word = gloss: definition`). STDICT fallback (12.3) is deferred due to STDICT API key registration issues; no extra API key is required for the implemented scope.
 
 Tasks:
 
-- [ ] **12.1 Format KRDict English definitions as `trans_word: trans_dfn`:** Update `englishDefinitions()` in `services/dictionary/krdict.ts` to combine `<trans_word>` and `<trans_dfn>` when both exist (e.g., `analogy; being figurative; metaphor: An act of explaining one thing effectively by comparing it with another thing that shares similarities, or such a method of explanation.`), falling back to whichever tag is present. Bump the IndexedDB dictionary cache keys (`headword-v2` / `exact-v5`) so stale cached entries refresh automatically.
-- [ ] **12.2 Format Anki `Definition` field in Kimchi Reader style:** Update `definitionField()` in `services/anki/sync.ts` to output `${entry.headword} = ${definition}` for English definitions and omit `entry.koreanDefinitions` when English definitions are available. Retain Korean definitions + Chrome on-device `Translator` fallback only when no English definition exists.
-- [ ] **12.3 Add STDICT (표준국어대사전) monolingual fallback:** Integrate the National Institute of Korean Language's STDICT Open API (`https://stdict.korean.go.kr/`) as a secondary fallback when KRDict returns no entry (matching Kimchi Reader's `krdict` primary + `stdict` larger monolingual fallback), with Settings support for the STDICT API key if required and on-device Chrome `Translator` support for English glosses.
-- [ ] **12.4 Tests and live verification:** Update unit tests for `krdict.ts`, `sync.ts`, and the STDICT fallback; run `npm run test:run`, `npm run compile`, and `npm run build`; and verify live Anki card rendering in the `Kimchi Sentence Mining` note type.
+- [x] **12.1 Format KRDict English definitions as `trans_word: trans_dfn`:** Updated `englishDefinitions()` and CDATA-safe XML text extraction in `services/dictionary/krdict.ts` to combine `<trans_word>` and `<trans_dfn>` when both exist (e.g., `analogy; being figurative; metaphor: An act of explaining one thing effectively by comparing it with another thing that shares similarities, or such a method of explanation.`), deduplicate identical gloss/definition pairs case-insensitively, and fall back to whichever tag is present. Bumped the IndexedDB dictionary cache keys (`headword-v2` / `exact-v5`) so stale cached entries refresh automatically.
+- [x] **12.2 Format Anki `Definition` field in Kimchi Reader style:** Updated `definitionField()` in `services/anki/sync.ts` to output `${entry.headword} = ${definition}` for English definitions (without double-prefixing) and omit `entry.koreanDefinitions` when English definitions are available. Retained unprefixed Korean definitions + Chrome on-device `Translator` fallback when no English definition exists, preserving the existing upgrade path for previously synced Korean-only notes.
+- [ ] **12.3 Add STDICT (표준국어대사전) monolingual fallback (deferred):** Skipped at the product owner's request because obtaining an STDICT Open API key encountered registration issues. Revisit only if STDICT access becomes available or an alternative offline dictionary is chosen.
+- [ ] **12.4 Tests and live verification:** Added unit tests for `krdict.ts` and `sync.ts`; `npm run test:run` (175 passed, 1 skipped), `npm run compile`, and `npm run build` passed. Live Anki card rendering verification in the `Kimchi Sentence Mining` note type remains pending.
 
 ## Future Enhancements
 

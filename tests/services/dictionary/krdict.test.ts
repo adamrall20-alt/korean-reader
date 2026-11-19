@@ -158,6 +158,85 @@ describe('KRDict lookup', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 503 }));
     await expect(lookupKoreanWord('나무', [], 'test-key')).rejects.toThrow('HTTP 503');
   });
+
+  it('combines trans_word and trans_dfn with CDATA and XML entities', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`
+      <channel>
+        <item>
+          <word>비유</word>
+          <sense>
+            <definition>사물의 현상을 비슷한 다른 것에 빗대어 설명하는 일.</definition>
+            <translation>
+              <trans_lang>영어</trans_lang>
+              <trans_word><![CDATA[analogy; being figurative; metaphor]]></trans_word>
+              <trans_dfn><![CDATA[An act of explaining one thing effectively by comparing it with another thing that shares similarities, or such a method of explanation.]]></trans_dfn>
+            </translation>
+          </sense>
+          <sense>
+            <definition>예시.</definition>
+            <translation>
+              <trans_lang>영어</trans_lang>
+              <trans_word>a &amp; b</trans_word>
+              <trans_dfn>&lt;detail&gt;</trans_dfn>
+            </translation>
+          </sense>
+          <example><![CDATA[비유를 들어 설명하다.]]></example>
+        </item>
+      </channel>
+    `));
+
+    await expect(lookupKoreanWord('비유', [], 'test-key')).resolves.toMatchObject({
+      headword: '비유',
+      definitions: [
+        'analogy; being figurative; metaphor: An act of explaining one thing effectively by comparing it with another thing that shares similarities, or such a method of explanation.',
+        'a & b: <detail>',
+      ],
+      examples: ['비유를 들어 설명하다.'],
+    });
+  });
+
+  it('avoids duplicating identical trans_word and trans_dfn and handles partial or empty tags', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`
+      <channel>
+        <item>
+          <word>사과</word>
+          <sense><translation><trans_word>Apple</trans_word><trans_dfn>apple</trans_dfn></translation></sense>
+          <sense><translation><trans_word>apology</trans_word></translation></sense>
+          <sense><translation><trans_dfn>to excuse oneself</trans_dfn></translation></sense>
+          <sense><translation><trans_word></trans_word><trans_dfn /></translation></sense>
+        </item>
+      </channel>
+    `));
+
+    await expect(lookupKoreanWord('사과', [], 'test-key')).resolves.toMatchObject({
+      definitions: ['apple', 'apology', 'to excuse oneself'],
+    });
+  });
+
+  it('formats trans_word and trans_dfn from entry details when search has only Korean', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(`
+        <channel><item><word>비유</word><target_code>456</target_code>
+          <sense><definition>비슷한 것에 빗대어 설명함.</definition></sense>
+        </item></channel>
+      `))
+      .mockResolvedValueOnce(new Response(`
+        <channel><item><word_info><word>비유</word>
+          <sense_info>
+            <translation>
+              <trans_lang>English</trans_lang>
+              <trans_word><![CDATA[metaphor]]></trans_word>
+              <trans_dfn><![CDATA[A figure of speech.]]></trans_dfn>
+            </translation>
+          </sense_info>
+        </word_info></item></channel>
+      `));
+
+    await expect(lookupKoreanWord('비유', [], 'test-key')).resolves.toMatchObject({
+      definitions: ['metaphor: A figure of speech.'],
+      koreanDefinitions: ['비슷한 것에 빗대어 설명함.'],
+    });
+  });
 });
 
 describe('headword-level dictionary cache', () => {
@@ -214,7 +293,7 @@ describe('headword-level dictionary cache', () => {
 
   it('reuses a cached fallback candidate by headword and caches the fallback candidate list', async () => {
     const store = installMemoryCache();
-    store.set(JSON.stringify(['headword-v1', '가요']), {
+    store.set(JSON.stringify(['headword-v2', '가요']), {
       headword: '가요',
       originalForm: '가요',
       koreanDefinitions: ['노래.'],
@@ -243,9 +322,9 @@ describe('headword-level dictionary cache', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it('hits pre-existing exact-v4 cache entries and backfills the headword key', async () => {
+  it('hits pre-existing exact-v5 cache entries and backfills the headword key', async () => {
     const store = installMemoryCache();
-    store.set(JSON.stringify(['exact-v4', '먹다', '먹어요']), {
+    store.set(JSON.stringify(['exact-v5', '먹다', '먹어요']), {
       headword: '먹다',
       originalForm: '먹어요',
       koreanDefinitions: ['음식을 먹다.'],
@@ -271,7 +350,31 @@ describe('headword-level dictionary cache', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(first.originalForm).toBe('먹어요');
     expect(second.originalForm).toBe('먹고');
-    expect(store.get(JSON.stringify(['headword-v1', '먹다']))?.headword).toBe('먹다');
+    expect(store.get(JSON.stringify(['headword-v2', '먹다']))?.headword).toBe('먹다');
+  });
+
+  it('ignores stale headword-v1 and exact-v4 cache entries and refreshes them into headword-v2', async () => {
+    const store = installMemoryCache();
+    const staleEntry: DictionaryEntry = {
+      headword: '비유',
+      originalForm: '비유',
+      koreanDefinitions: ['옛 정의.'],
+      definitions: ['old definition'],
+      examples: [],
+    };
+    store.set(JSON.stringify(['headword-v1', '비유']), staleEntry);
+    store.set(JSON.stringify(['exact-v4', '비유']), staleEntry);
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`
+      <channel><item><word>비유</word><sense>
+        <translation><trans_word>analogy</trans_word><trans_dfn>A comparison.</trans_dfn></translation>
+      </sense></item></channel>
+    `));
+
+    const result = await lookupKoreanWord('비유', [], 'test-key');
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result.definitions).toEqual(['analogy: A comparison.']);
+    expect(store.get(JSON.stringify(['headword-v2', '비유']))?.definitions).toEqual(['analogy: A comparison.']);
   });
 
   it('falls back cleanly to KRDict when cache reads or writes fail', async () => {

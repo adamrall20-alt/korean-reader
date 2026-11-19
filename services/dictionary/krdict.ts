@@ -15,10 +15,22 @@ function decodeXml(value: string): string {
     .replace(/&amp;/g, '&');
 }
 
+function extractXmlText(raw: string): string {
+  return raw
+    .split(/(<!\[CDATA\[[\s\S]*?\]\]>)/g)
+    .map((part) => {
+      const cdata = part.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
+      return cdata ? cdata[1]! : decodeXml(part.replace(/<[^>]+>/g, ''));
+    })
+    .join('')
+    .trim();
+}
+
 function readTag(source: string, tag: string): string | undefined {
   const match = source.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, 'i'));
-  const value = match?.[1]?.replace(/<[^>]+>/g, '').trim();
-  return value ? decodeXml(value) : undefined;
+  if (!match?.[1]) return undefined;
+  const value = extractXmlText(match[1]);
+  return value || undefined;
 }
 
 function readBlocks(source: string, tag: string): string[] {
@@ -54,7 +66,12 @@ function englishDefinitions(senses: string[]): string[] {
       const language = readTag(translation, 'trans_lang');
       if (language && !/^(영어|english|en|1)$/i.test(language)) return [];
 
-      const meaning = readTag(translation, 'trans_dfn') ?? readTag(translation, 'trans_word');
+      const gloss = readTag(translation, 'trans_word');
+      const definition = readTag(translation, 'trans_dfn');
+      if (gloss && definition) {
+        return [gloss.toLowerCase() === definition.toLowerCase() ? definition : `${gloss}: ${definition}`];
+      }
+      const meaning = definition ?? gloss;
       return meaning ? [meaning] : [];
     }),
   );
@@ -84,7 +101,7 @@ function parseResponse(xmlText: string, candidate: string, originalForm: string)
     partOfSpeech: readTag(item, 'pos'),
     pronunciation: readTag(item, 'pronunciation'),
     examples: readBlocks(item, 'example')
-      .map((example) => decodeXml(example.replace(/<[^>]+>/g, '').trim()))
+      .map((example) => extractXmlText(example))
       .filter((example) => example.length > 0),
   };
   return { entry, targetCode: readTag(item, 'target_code') };
@@ -145,7 +162,7 @@ async function addEntryDetails(
 }
 
 function headwordCacheKey(headword: string): string {
-  return JSON.stringify(['headword-v1', headword]);
+  return JSON.stringify(['headword-v2', headword]);
 }
 
 async function readCache(key: string): Promise<DictionaryEntry | undefined> {
@@ -181,7 +198,7 @@ export async function lookupKoreanWord(
     return { ...cachedFirst, originalForm: word };
   }
 
-  const listCacheKey = JSON.stringify(['exact-v4', ...candidates]);
+  const listCacheKey = JSON.stringify(['exact-v5', ...candidates]);
   const cachedList = await readCache(listCacheKey);
   if (cachedList) {
     const normalizedHeadword = cachedList.headword.trim().normalize('NFC');

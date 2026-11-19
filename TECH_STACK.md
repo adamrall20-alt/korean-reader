@@ -256,7 +256,7 @@ Implement configurable field mapping if necessary.
 |---|---|
 | Focus Word | Korean dictionary headword |
 | Sentence | Original YouTube subtitle sentence, plus additional saved sentences separated by newlines |
-| Definition | English dictionary definition |
+| Definition | Kimchi Reader–style `headword = gloss: definition` for English definitions (omitting Korean when English exists); Korean definitions + on-device translation fallback when absent |
 | Pronunciation | Dictionary pronunciation |
 | Image | Video frame saved locally when mining; uploaded to Anki when synchronising |
 | Audio | Captured subtitle audio where available; existing non-empty fields are preserved |

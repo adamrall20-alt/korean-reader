@@ -38,8 +38,15 @@ function sentenceFields(entry: VocabularyEntry): Map<string, string> {
 }
 
 function definitionField(entry: VocabularyEntry): string {
-  const english = entry.definitions.length ? entry.definitions : entry.machineDefinitions ?? [];
-  return [...english, ...entry.koreanDefinitions].map(escapeHtml).join('<br>');
+  const prefix = `${entry.headword} = `;
+  const formatEnglish = (definition: string) =>
+    definition.startsWith(prefix) ? definition : `${prefix}${definition}`;
+
+  if (entry.definitions.length) {
+    return entry.definitions.map((definition) => escapeHtml(formatEnglish(definition))).join('<br>');
+  }
+  const machine = (entry.machineDefinitions ?? []).map(formatEnglish);
+  return [...machine, ...entry.koreanDefinitions].map(escapeHtml).join('<br>');
 }
 
 function buildNote(entry: VocabularyEntry, settings: AnkiSettings): AnkiNote {

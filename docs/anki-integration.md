@@ -30,7 +30,7 @@ The dictionary popup's **Known** button also saves a word's status locally. A wo
 |---|---|
 | Focus Word | Dictionary headword |
 | Sentence | Saved subtitle text in order, separated by HTML line breaks |
-| Definition | Edited or dictionary English or a saved machine translation, followed by the Korean definition when available |
+| Definition | Kimchi Reader–style `${headword} = ${definition}` for English definitions (omitting Korean definitions when English is available), or unprefixed Korean definitions (paired with saved Chrome machine translations when available) only when no English definition exists |
 | Pronunciation | Dictionary pronunciation when available |
 | Image | First captured video frame, if available; existing non-empty images are preserved |
 | Audio | First available subtitle recording as an Anki sound reference. An existing note receives it only if the mapped field is empty. |
@@ -39,9 +39,12 @@ Sentence text is HTML-escaped. The original subtitle form and dictionary headwor
 
 For Korean-only entries, clicking **Sync to Anki** attempts on-device English translation in Chrome and stores the result in local vocabulary before sending it to Anki. If Chrome cannot translate, the Korean is still synced and the popup shows a notice. Sync can fill in a blank definition or add English to an existing definition that matches the saved Korean text.
 
-### Planned Phase 12 definition format
+### Definition formatting (Phase 12)
 
-In Phase 12, `definitionField()` in `services/anki/sync.ts` will be updated to match Kimchi Reader's `word = gloss: definition` format (for example, `비유 = analogy; being figurative; metaphor: An act of explaining one thing effectively by comparing it with another thing that shares similarities, or such a method of explanation.`) and omit Korean definitions from the Anki `Definition` field whenever English definitions are available.
+`definitionField()` in `services/anki/sync.ts` formats Anki `Definition` values in Kimchi Reader style:
+
+- When `entry.definitions` is non-empty, each English definition is prefixed with `${entry.headword} = ` (unless already prefixed), HTML-escaped, and joined with `<br>` (for example, `비유 = analogy; being figurative; metaphor: An act of explaining one thing effectively by comparing it with another thing that shares similarities, or such a method of explanation.`), and `entry.koreanDefinitions` is omitted.
+- When no English definition exists, any saved `machineDefinitions` are prefixed with `${entry.headword} = ` and followed by unprefixed `entry.koreanDefinitions`, keeping previously synced Korean-only notes detectable for later English upgrades.
 
 ## Duplicate handling
 

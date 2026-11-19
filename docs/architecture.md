@@ -88,7 +88,7 @@ Toolbar popup
 Object stores:
 
 - `vocabulary` — one record per normalized dictionary headword. IndexedDB schema version 2 adds this store and preserves the existing dictionary cache. Version 3 adds the `status` index used for known-word reads and counts.
-- `dictionaryCache` — cached KRDict results keyed by individual resolved headword/candidate (`headword-v1`) so different conjugations of a word reuse the cached entry without repeating requests, with fallback/legacy candidate-list (`exact-v4`) entries backfilled on hit.
+- `dictionaryCache` — cached KRDict results keyed by individual resolved headword/candidate (`headword-v2`) so different conjugations of a word reuse the cached entry without repeating requests, with fallback/legacy candidate-list (`exact-v5`) entries backfilled on hit.
 
 ### `chrome.storage.local`
 

@@ -63,7 +63,7 @@ describe('Anki sync', () => {
         fields: {
           'Focus Word': '먹다',
           Sentence: '밥을 &lt;<span style="color: #f59e0b">먹어요</span>&gt; &amp; 물을 마셔요.',
-          Definition: 'to eat',
+          Definition: '먹다 = to eat',
           Pronunciation: '',
           Audio: '',
           Image: '',
@@ -226,8 +226,89 @@ describe('Anki sync', () => {
 
     await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'updated' }]);
     expect(calls).toHaveBeenCalledWith('updateNoteFields', {
-      note: { id: 21, fields: { Definition: 'to eat<br>음식을 먹다.' } },
+      note: { id: 21, fields: { Definition: '먹다 = to eat<br>음식을 먹다.' } },
     });
+  });
+
+  it('formats English definitions in Kimchi Reader style, omits Korean definitions, escapes HTML, and avoids double prefixing', async () => {
+    getVocabulary.mockResolvedValueOnce({
+      ...word,
+      headword: '비유',
+      originalForm: '비유',
+      definitions: [
+        'analogy; being figurative; metaphor: An act of explaining one thing effectively by comparing it with another thing that shares similarities, or such a method of explanation.',
+        '비유 = already <prefixed> & safe"',
+      ],
+      koreanDefinitions: ['사물의 현상을 비슷한 다른 것에 빗대어 설명하는 일.'],
+      contexts: [{ ...word.contexts[0]!, originalForm: '비유', sentence: '비유를 사용하다.' }],
+    });
+    const calls = vi.fn((action: string) => {
+      switch (action) {
+        case 'findNotes': return [];
+        case 'canAddNotes': return [true];
+        case 'addNote': return 42;
+        default: throw new Error(action);
+      }
+    });
+    fakeAnki(calls);
+
+    await expect(syncVocabulary(settings, ['비유'])).resolves.toEqual([{ headword: '비유', status: 'created' }]);
+    expect(calls).toHaveBeenCalledWith('addNote', {
+      note: expect.objectContaining({
+        fields: expect.objectContaining({
+          'Focus Word': '비유',
+          Definition:
+            '비유 = analogy; being figurative; metaphor: An act of explaining one thing effectively by comparing it with another thing that shares similarities, or such a method of explanation.<br>비유 = already &lt;prefixed&gt; &amp; safe&quot;',
+        }),
+      }),
+    });
+  });
+
+  it('keeps Korean-only definitions unprefixed when no English exists and upgrades the note once English is available', async () => {
+    getVocabulary.mockResolvedValueOnce({
+      ...word,
+      definitions: [],
+      machineDefinitions: [],
+      koreanDefinitions: ['음식을 먹다.'],
+    });
+    let definition = '';
+    let existingId: number[] = [];
+    const calls = vi.fn((action: string, params: Record<string, any>) => {
+      switch (action) {
+        case 'findNotes': return existingId;
+        case 'canAddNotes': return [true];
+        case 'addNote':
+          definition = params.note.fields.Definition;
+          existingId = [21];
+          return 21;
+        case 'notesInfo':
+          return [{
+            noteId: 21,
+            modelName: settings.modelName,
+            fields: {
+              'Focus Word': { value: '먹다' },
+              Sentence: { value: '밥을 &lt;<span style="color: #f59e0b">먹어요</span>&gt; &amp; 물을 마셔요.' },
+              Definition: { value: definition },
+            },
+          }];
+        case 'updateNoteFields':
+          definition = params.note.fields.Definition;
+          return null;
+        default: throw new Error(action);
+      }
+    });
+    fakeAnki(calls);
+
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'created' }]);
+    expect(definition).toBe('음식을 먹다.');
+
+    getVocabulary.mockResolvedValueOnce({
+      ...word,
+      definitions: ['to eat'],
+      koreanDefinitions: ['음식을 먹다.'],
+    });
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'updated' }]);
+    expect(definition).toBe('먹다 = to eat');
   });
 
   it('reports partial failures from bulk creation', async () => {
