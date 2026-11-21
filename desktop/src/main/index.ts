@@ -4,6 +4,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import {
   DESKTOP_IPC_CHANNELS,
   isSafeExternalUrl,
+  type AnkiDecksResult,
   type DeleteCardResult,
   type DesktopRuntimeInfo,
   type ImportResult,
@@ -11,6 +12,7 @@ import {
 } from '../shared/api';
 import { createSampleMinedEntry } from '../shared/fixtures';
 import { runFsrsSpike } from '../shared/fsrs-spike';
+import { importAnkiDeck, listAnkiDecks } from './anki-import';
 import { openDesktopDatabase, type DesktopDatabase } from './db';
 import { startDesktopBridge, type DesktopBridgeServer } from './bridge';
 import { importVocabularyJson } from './importer';
@@ -135,6 +137,44 @@ function registerIpcHandlers(): void {
       const { db } = ensureStorage();
       const deleted = deleteCard(db.db, cardId);
       return deleted ? { ok: true } : { ok: false, error: 'Card not found.' };
+    },
+  );
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.listAnkiDecks, async (): Promise<AnkiDecksResult> => {
+    try {
+      const decks = await listAnkiDecks();
+      return { ok: true, decks };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'Could not load Anki decks.',
+      };
+    }
+  });
+
+  ipcMain.handle(
+    DESKTOP_IPC_CHANNELS.importAnkiDeck,
+    async (event, deckName: unknown): Promise<ImportResult> => {
+      if (typeof deckName !== 'string' || !deckName.trim()) {
+        return { ok: false, error: 'Select an Anki deck first.' };
+      }
+      try {
+        const { db, media } = ensureStorage();
+        const summary = await importAnkiDeck({
+          db: db.db,
+          mediaStore: media,
+          deckName: deckName.trim(),
+          onProgress(progress) {
+            event.sender.send(DESKTOP_IPC_CHANNELS.ankiImportProgress, progress);
+          },
+        });
+        return { ok: true, fileName: `Anki: ${deckName.trim()}`, summary };
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : 'Anki import failed.',
+        };
+      }
     },
   );
 }

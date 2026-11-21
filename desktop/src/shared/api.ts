@@ -107,6 +107,18 @@ export interface DeleteCardResult {
   error?: string;
 }
 
+export interface AnkiDecksResult {
+  ok: boolean;
+  decks?: string[];
+  error?: string;
+}
+
+export interface AnkiImportProgress {
+  phase: 'fetching' | 'importing';
+  processed: number;
+  total: number;
+}
+
 export interface DesktopApi {
   getSampleEntry(): Promise<VocabularyEntry>;
   getRuntimeInfo(): Promise<DesktopRuntimeInfo>;
@@ -116,7 +128,10 @@ export interface DesktopApi {
   getCardDetail(cardId: string): Promise<DesktopCardDetail | null>;
   getLibraryStats(): Promise<DesktopLibraryStats>;
   deleteCard(cardId: string): Promise<DeleteCardResult>;
+  listAnkiDecks?(): Promise<AnkiDecksResult>;
+  importAnkiDeck?(deckName: string): Promise<ImportResult>;
   onLibraryUpdated?(callback: (summary: ImportSummary) => void): () => void;
+  onAnkiImportProgress?(callback: (progress: AnkiImportProgress) => void): () => void;
 }
 
 export const DESKTOP_IPC_CHANNELS = {
@@ -128,7 +143,10 @@ export const DESKTOP_IPC_CHANNELS = {
   getCardDetail: 'desktop:get-card-detail',
   getLibraryStats: 'desktop:get-library-stats',
   deleteCard: 'desktop:delete-card',
+  listAnkiDecks: 'desktop:list-anki-decks',
+  importAnkiDeck: 'desktop:import-anki-deck',
   libraryUpdated: 'desktop:library-updated',
+  ankiImportProgress: 'desktop:anki-import-progress',
 } as const;
 
 export function isSafeExternalUrl(rawUrl: string): boolean {

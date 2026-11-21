@@ -4,6 +4,7 @@ import logo from '@/assets/New logo update.png';
 import stars from '@/assets/stars.png';
 import {
   buildSourceLink,
+  type AnkiImportProgress,
   type DesktopCardDetail,
   type DesktopCardSummary,
   type DesktopLibraryStats,
@@ -30,6 +31,14 @@ const importError = ref('');
 const linkStatus = ref('');
 const playingContextId = ref<string | null>(null);
 const theme = ref<'dark' | 'light'>('dark');
+
+const showAnkiPanel = ref(false);
+const ankiDecks = ref<string[]>([]);
+const selectedAnkiDeck = ref('');
+const loadingAnkiDecks = ref(false);
+const importingAnki = ref(false);
+const ankiError = ref('');
+const ankiProgress = ref<AnkiImportProgress | null>(null);
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 const audioElements = new Map<string, HTMLAudioElement>();
@@ -193,7 +202,70 @@ watch(searchQuery, () => {
   }, 180);
 });
 
+async function openAnkiImport() {
+  const api = window.koreanReaderDesktop;
+  if (!api?.listAnkiDecks) return;
+  showAnkiPanel.value = !showAnkiPanel.value;
+  if (!showAnkiPanel.value) return;
+
+  loadingAnkiDecks.value = true;
+  ankiError.value = '';
+  try {
+    const result = await api.listAnkiDecks();
+    if (!result.ok || !result.decks) {
+      ankiError.value = result.error ?? 'Could not connect to AnkiConnect.';
+      ankiDecks.value = [];
+      return;
+    }
+    ankiDecks.value = result.decks;
+    if (result.decks.length > 0 && !selectedAnkiDeck.value) {
+      selectedAnkiDeck.value = result.decks[0]!;
+    }
+  } catch (error) {
+    ankiError.value = error instanceof Error ? error.message : 'Could not load Anki decks.';
+  } finally {
+    loadingAnkiDecks.value = false;
+  }
+}
+
+async function runAnkiImport() {
+  const api = window.koreanReaderDesktop;
+  if (!api?.importAnkiDeck || !selectedAnkiDeck.value || importingAnki.value) return;
+
+  importingAnki.value = true;
+  ankiError.value = '';
+  importNotice.value = '';
+  importError.value = '';
+  ankiProgress.value = { phase: 'fetching', processed: 0, total: 0 };
+
+  try {
+    const result = await api.importAnkiDeck(selectedAnkiDeck.value);
+    if (!result.ok || !result.summary) {
+      ankiError.value = result.error ?? 'Anki import failed.';
+      return;
+    }
+    const s = result.summary;
+    const parts = [
+      `${s.cardsAdded} added`,
+      `${s.cardsUpdated} updated`,
+      `${s.contextsAdded} contexts`,
+    ];
+    if (s.mediaSaved > 0) {
+      parts.push(`${s.mediaSaved} media files saved`);
+    }
+    importNotice.value = `Imported from Anki (${selectedAnkiDeck.value}): ${parts.join(' · ')}.`;
+    showAnkiPanel.value = false;
+    await refreshLibrary(false);
+  } catch (error) {
+    ankiError.value = error instanceof Error ? error.message : 'Anki import failed.';
+  } finally {
+    importingAnki.value = false;
+    ankiProgress.value = null;
+  }
+}
+
 let unsubscribeLibraryUpdates: (() => void) | null = null;
+let unsubscribeAnkiProgress: (() => void) | null = null;
 
 onMounted(() => {
   void refreshLibrary(false);
@@ -210,11 +282,18 @@ onMounted(() => {
       void refreshLibrary(true);
     });
   }
+  if (window.koreanReaderDesktop?.onAnkiImportProgress) {
+    unsubscribeAnkiProgress = window.koreanReaderDesktop.onAnkiImportProgress((progress) => {
+      ankiProgress.value = progress;
+    });
+  }
 });
 
 onBeforeUnmount(() => {
   unsubscribeLibraryUpdates?.();
   unsubscribeLibraryUpdates = null;
+  unsubscribeAnkiProgress?.();
+  unsubscribeAnkiProgress = null;
 });
 </script>
 
@@ -236,6 +315,14 @@ onBeforeUnmount(() => {
             @click="toggleTheme"
           >
             {{ theme === 'dark' ? 'Light' : 'Dark' }}
+          </button>
+          <button
+            type="button"
+            :disabled="importingAnki"
+            class="rounded-lg border border-interface/15 bg-ink-soft px-3 py-1.5 text-xs font-medium text-paper transition-colors hover:bg-ink-lift disabled:opacity-50"
+            @click="openAnkiImport"
+          >
+            {{ importingAnki ? 'Importing Anki…' : 'Import from Anki' }}
           </button>
           <button
             type="button"
@@ -271,6 +358,59 @@ onBeforeUnmount(() => {
         >
           {{ importError }}
         </div>
+
+        <section
+          v-if="showAnkiPanel"
+          aria-label="Import from Anki"
+          class="rounded-2xl border border-interface/15 bg-ink-soft p-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm font-semibold text-paper">Import Deck from Anki Desktop</h2>
+              <p class="text-xs text-muted">
+                Requires Anki Desktop open with AnkiConnect on <code>127.0.0.1:8765</code>. Imports cards, sentences, images, and audio.
+              </p>
+            </div>
+            <button
+              type="button"
+              class="rounded-lg border border-interface/15 px-2.5 py-1 text-xs text-muted hover:bg-ink-lift hover:text-paper"
+              @click="showAnkiPanel = false"
+            >
+              Close
+            </button>
+          </div>
+
+          <p v-if="ankiError" role="alert" class="mt-3 text-xs text-danger">{{ ankiError }}</p>
+
+          <div v-if="loadingAnkiDecks" class="mt-3 text-xs text-muted">Loading Anki decks…</div>
+
+          <div v-else-if="ankiDecks.length > 0" class="mt-3 flex flex-wrap items-center gap-2.5">
+            <select
+              v-model="selectedAnkiDeck"
+              aria-label="Select Anki deck"
+              :disabled="importingAnki"
+              class="min-w-[240px] flex-1 rounded-lg border border-interface/15 bg-ink px-3 py-2 text-sm text-paper"
+            >
+              <option v-for="deck in ankiDecks" :key="deck" :value="deck">{{ deck }}</option>
+            </select>
+            <button
+              type="button"
+              :disabled="importingAnki || !selectedAnkiDeck"
+              class="rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              @click="runAnkiImport"
+            >
+              {{ importingAnki ? 'Importing…' : 'Import Deck' }}
+            </button>
+          </div>
+
+          <p v-if="importingAnki && ankiProgress" class="mt-2.5 text-xs text-accent">
+            {{
+              ankiProgress.total > 0
+                ? `Importing ${ankiProgress.processed.toLocaleString()} / ${ankiProgress.total.toLocaleString()} notes (downloading media)…`
+                : 'Fetching notes from Anki…'
+            }}
+          </p>
+        </section>
 
         <div
           v-if="importNotice"

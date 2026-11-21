@@ -17,7 +17,7 @@
     "desktop:build": "node desktop/build.mjs",
     "desktop:start": "npm run desktop:build && electron .output/desktop/main/index.cjs",
     "desktop:compile": "vue-tsc -p desktop/tsconfig.json --noEmit",
-    "desktop:test": "vitest run tests/desktop-foundation.test.ts tests/desktop-d1.test.ts tests/desktop-bridge.test.ts",
+    "desktop:test": "vitest run tests/desktop-foundation.test.ts tests/desktop-d1.test.ts tests/desktop-bridge.test.ts tests/desktop-anki-import.test.ts",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
