@@ -187,4 +187,85 @@ export function runMigrations(db: DatabaseSync): void {
       throw error;
     }
   }
+
+  const appliedV4 = db
+    .prepare('SELECT version FROM schema_migrations WHERE version = 4')
+    .get() as { version?: number } | undefined;
+
+  if (!appliedV4) {
+    db.exec('BEGIN');
+    try {
+      const splitGroups = db
+        .prepare(
+          `SELECT card_id, source_title, mined_at
+           FROM contexts
+           WHERE source_url = '' AND source_title LIKE 'Anki:%'
+           GROUP BY card_id, source_title, mined_at
+           HAVING COUNT(*) > 1`,
+        )
+        .all() as Array<{ card_id: string; source_title: string; mined_at: string }>;
+
+      const selectRowsStmt = db.prepare(
+        `SELECT id, sentence, image_asset_id, audio_asset_id
+         FROM contexts
+         WHERE card_id = ? AND source_title = ? AND mined_at = ? AND source_url = ''
+         ORDER BY rowid ASC`,
+      );
+      const findExistingMergedStmt = db.prepare(
+        `SELECT id FROM contexts WHERE card_id = ? AND sentence = ? AND source_url = ''`,
+      );
+      const updateCtxStmt = db.prepare(
+        `UPDATE contexts
+         SET sentence = ?,
+             image_asset_id = COALESCE(image_asset_id, ?),
+             audio_asset_id = COALESCE(audio_asset_id, ?)
+         WHERE id = ?`,
+      );
+      const deleteCtxStmt = db.prepare('DELETE FROM contexts WHERE id = ?');
+      const updatePreferredStmt = db.prepare(
+        'UPDATE cards SET preferred_context_id = ? WHERE id = ? AND preferred_context_id = ?',
+      );
+
+      for (const group of splitGroups) {
+        const rows = selectRowsStmt.all(
+          group.card_id,
+          group.source_title,
+          group.mined_at,
+        ) as Array<{
+          id: string;
+          sentence: string;
+          image_asset_id: string | null;
+          audio_asset_id: string | null;
+        }>;
+        if (rows.length < 2) continue;
+
+        const first = rows[0]!;
+        const mergedSentence = rows.map((r) => r.sentence).join('\n');
+        const imageAssetId = rows.find((r) => r.image_asset_id)?.image_asset_id ?? null;
+        const audioAssetId = rows.find((r) => r.audio_asset_id)?.audio_asset_id ?? null;
+
+        const existingMerged = findExistingMergedStmt.get(group.card_id, mergedSentence) as
+          | { id?: string }
+          | undefined;
+
+        const targetId = existingMerged?.id ?? first.id;
+        for (const row of rows) {
+          if (row.id !== targetId) {
+            updatePreferredStmt.run(targetId, group.card_id, row.id);
+            deleteCtxStmt.run(row.id);
+          }
+        }
+        updateCtxStmt.run(mergedSentence, imageAssetId, audioAssetId, targetId);
+      }
+
+      db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)').run(
+        4,
+        new Date().toISOString(),
+      );
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  }
 }

@@ -178,6 +178,13 @@ function stripHtml(input: string): string {
     .trim();
 }
 
+function extractHighlightedForm(rawHtml: string): string | null {
+  const match = /<(?:span|b|strong|mark)\b[^>]*>([\s\S]*?)<\/(?:span|b|strong|mark)>/i.exec(rawHtml);
+  if (!match?.[1]) return null;
+  const cleaned = stripHtml(match[1]).replace(/\s+/g, ' ').trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
 function normalizeFieldKey(key: string): string {
   return key.toLowerCase().replace(/[\s_-]+/g, '');
 }
@@ -364,11 +371,13 @@ export async function importAnkiDeck(options: {
       }
 
       const rawSentence = findFieldValue(fields, ['Sentence', 'Example', 'Context', 'Expression']);
-      const sentenceLines = stripHtml(rawSentence)
+      const highlightedForm = extractHighlightedForm(rawSentence) ?? headword;
+      const fullSentence = stripHtml(rawSentence)
         .split('\n')
         .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-      const sentences = sentenceLines.length > 0 ? sentenceLines : [headword];
+        .filter((line) => line.length > 0)
+        .join('\n');
+      const sentence = fullSentence.length > 0 ? fullSentence : headword;
 
       const rawDef = findFieldValue(fields, ['Definition', 'Meaning', 'Glossary', 'English', 'Back']);
       const definitions = stripHtml(rawDef)
@@ -388,15 +397,17 @@ export async function importAnkiDeck(options: {
       ]);
 
       const nowIso = new Date().toISOString();
-      const contexts = sentences.map((sentence, idx) => ({
-        sentence,
-        originalForm: headword,
-        sourceUrl: '',
-        sourceTitle: `Anki: ${deckName}`,
-        image: idx === 0 ? imageDataUrl : undefined,
-        audio: idx === 0 ? audioDataUrl : undefined,
-        minedAt: nowIso,
-      }));
+      const contexts = [
+        {
+          sentence,
+          originalForm: highlightedForm,
+          sourceUrl: '',
+          sourceTitle: `Anki: ${deckName}`,
+          image: imageDataUrl,
+          audio: audioDataUrl,
+          minedAt: nowIso,
+        },
+      ];
 
       const noteCardIds = cardIdsByNote.get(note.noteId) ?? [];
       const noteCards = noteCardIds

@@ -71,11 +71,14 @@ const reviewAudioDataUrl = computed(() => {
 });
 
 function splitHighlight(sentence: string, originalForm: string, headword: string) {
+  const stem = headword.endsWith('다') && headword.length >= 2 ? headword.slice(0, -1) : '';
   const target = originalForm && sentence.includes(originalForm)
     ? originalForm
     : headword && sentence.includes(headword)
       ? headword
-      : '';
+      : stem && sentence.includes(stem)
+        ? stem
+        : '';
   if (!target) {
     return { before: sentence, match: '', after: '' };
   }
@@ -416,7 +419,10 @@ defineExpose({
         />
 
         <!-- Sentence with orange focus-word highlight -->
-        <div v-if="primaryContext" class="max-w-2xl text-2xl leading-relaxed font-medium text-paper">
+        <div
+          v-if="primaryContext"
+          class="max-w-2xl whitespace-pre-line text-2xl leading-relaxed font-medium text-paper"
+        >
           <template
             v-for="parts in [splitHighlight(primaryContext.sentence, primaryContext.originalForm, currentCard.headword)]"
             :key="primaryContext.id"
