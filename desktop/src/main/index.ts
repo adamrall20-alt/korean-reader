@@ -1,13 +1,32 @@
+import fs from 'node:fs';
 import path from 'node:path';
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import {
   DESKTOP_IPC_CHANNELS,
   isSafeExternalUrl,
+  type DeleteCardResult,
   type DesktopRuntimeInfo,
+  type ImportResult,
   type OpenExternalResult,
 } from '../shared/api';
 import { createSampleMinedEntry } from '../shared/fixtures';
 import { runFsrsSpike } from '../shared/fsrs-spike';
+import { openDesktopDatabase, type DesktopDatabase } from './db';
+import { importVocabularyJson } from './importer';
+import { deleteCard, getCardDetail, getLibraryStats, listCards } from './library';
+import { LocalMediaStore } from './media';
+
+let database: DesktopDatabase | null = null;
+let mediaStore: LocalMediaStore | null = null;
+
+function ensureStorage(): { db: DesktopDatabase; media: LocalMediaStore } {
+  if (!database || !mediaStore) {
+    const userData = app.getPath('userData');
+    database = openDesktopDatabase(path.join(userData, 'korean-reader.sqlite'));
+    mediaStore = new LocalMediaStore(path.join(userData, 'media'));
+  }
+  return { db: database, media: mediaStore };
+}
 
 async function checkSqliteAvailable(): Promise<boolean> {
   try {
@@ -58,15 +77,74 @@ function registerIpcHandlers(): void {
       return { ok: true };
     },
   );
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.importVocabularyFile, async (): Promise<ImportResult> => {
+    const result = await dialog.showOpenDialog({
+      title: 'Import Korean Reader Vocabulary JSON',
+      properties: ['openFile'],
+      filters: [{ name: 'JSON Files', extensions: ['json'] }],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { ok: false, cancelled: true };
+    }
+
+    const filePath = result.filePaths[0]!;
+    try {
+      const rawJson = fs.readFileSync(filePath, 'utf8');
+      const { db, media } = ensureStorage();
+      const summary = importVocabularyJson(db.db, media, rawJson);
+      return {
+        ok: true,
+        fileName: path.basename(filePath),
+        summary,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        fileName: path.basename(filePath),
+        error: error instanceof Error ? error.message : 'Failed to import vocabulary file.',
+      };
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.listCards, (_event, query: unknown) => {
+    const { db } = ensureStorage();
+    return listCards(db.db, typeof query === 'string' ? query : undefined);
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getCardDetail, (_event, cardId: unknown) => {
+    if (typeof cardId !== 'string' || !cardId) return null;
+    const { db, media } = ensureStorage();
+    return getCardDetail(db.db, media, cardId);
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getLibraryStats, () => {
+    const { db } = ensureStorage();
+    return getLibraryStats(db.db);
+  });
+
+  ipcMain.handle(
+    DESKTOP_IPC_CHANNELS.deleteCard,
+    (_event, cardId: unknown): DeleteCardResult => {
+      if (typeof cardId !== 'string' || !cardId) {
+        return { ok: false, error: 'Invalid card ID.' };
+      }
+      const { db } = ensureStorage();
+      const deleted = deleteCard(db.db, cardId);
+      return deleted ? { ok: true } : { ok: false, error: 'Card not found.' };
+    },
+  );
 }
 
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 920,
-    height: 700,
-    minWidth: 640,
-    minHeight: 520,
-    title: 'Korean Reader Desktop (Phase D0)',
+    width: 1080,
+    height: 760,
+    minWidth: 760,
+    minHeight: 560,
+    title: 'Korean Reader',
+    backgroundColor: '#111111',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -81,6 +159,7 @@ function createMainWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  ensureStorage();
   registerIpcHandlers();
   createMainWindow();
 
@@ -89,6 +168,11 @@ app.whenReady().then(() => {
       createMainWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  database?.close();
+  database = null;
 });
 
 app.on('window-all-closed', () => {

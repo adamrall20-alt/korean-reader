@@ -1,6 +1,6 @@
 # Korean Reader Desktop — Architecture & Phase D0 Decisions
 
-**Status:** Phase D0 technical spike complete (21 November 2026). Ready for product owner approval before starting Phase D1.
+**Status:** Phase D0 verified; Phase D1 (SQLite database, local media store, Chrome extension JSON importer, and extension-matched library UI) implemented on 21 November 2026. Ready for owner verification before starting Phase D2.
 
 ## 1. Traced Chrome Extension Data & Mining Path
 

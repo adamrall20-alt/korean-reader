@@ -1,197 +1,461 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import type { VocabularyEntry } from '../../../types/vocabulary';
-import { buildSourceLink, type DesktopRuntimeInfo } from '../shared/api';
+import { computed, onMounted, ref, watch } from 'vue';
+import logo from '@/assets/New logo update.png';
+import stars from '@/assets/stars.png';
+import {
+  buildSourceLink,
+  type DesktopCardDetail,
+  type DesktopCardSummary,
+  type DesktopLibraryStats,
+  type ImportResult,
+} from '../shared/api';
 
-const entry = ref<VocabularyEntry | null>(null);
-const runtime = ref<DesktopRuntimeInfo | null>(null);
-const audioElement = ref<HTMLAudioElement | null>(null);
-const audioStatus = ref<string>('Ready');
-const linkStatus = ref<string>('');
-const loadError = ref<string>('');
-
-const primaryContext = computed(() => entry.value?.contexts[0] ?? null);
-
-const sentenceParts = computed(() => {
-  const ctx = primaryContext.value;
-  if (!ctx) return { before: '', match: '', after: '' };
-  const idx = ctx.sentence.indexOf(ctx.originalForm);
-  if (idx < 0) return { before: ctx.sentence, match: '', after: '' };
-  return {
-    before: ctx.sentence.slice(0, idx),
-    match: ctx.originalForm,
-    after: ctx.sentence.slice(idx + ctx.originalForm.length),
-  };
+const cards = ref<DesktopCardSummary[]>([]);
+const selectedCardId = ref<string | null>(null);
+const selectedCard = ref<DesktopCardDetail | null>(null);
+const stats = ref<DesktopLibraryStats>({
+  totalCards: 0,
+  totalContexts: 0,
+  newCards: 0,
+  dueCards: 0,
+  mediaAssets: 0,
 });
 
-const sourceHref = computed(() => {
-  const ctx = primaryContext.value;
-  if (!ctx) return '';
-  return buildSourceLink(ctx.sourceUrl, ctx.timestamp);
-});
+const searchQuery = ref('');
+const loading = ref(false);
+const importing = ref(false);
+const loadError = ref('');
+const importNotice = ref('');
+const importError = ref('');
+const linkStatus = ref('');
+const playingContextId = ref<string | null>(null);
+const theme = ref<'dark' | 'light'>('dark');
 
-async function playAudio() {
-  if (!audioElement.value) return;
-  try {
-    audioElement.value.currentTime = 0;
-    audioStatus.value = 'Playing...';
-    await audioElement.value.play();
-  } catch (err) {
-    audioStatus.value = err instanceof Error ? `Playback failed: ${err.message}` : 'Playback failed';
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+const audioElements = new Map<string, HTMLAudioElement>();
+
+const hasCards = computed(() => stats.value.totalCards > 0);
+
+function setAudioRef(contextId: string, el: unknown) {
+  if (el instanceof HTMLAudioElement) {
+    audioElements.set(contextId, el);
+  } else {
+    audioElements.delete(contextId);
   }
 }
 
-function onAudioEnded() {
-  audioStatus.value = 'Played';
+function toggleTheme() {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark';
+  if (theme.value === 'light') {
+    document.documentElement.dataset.theme = 'light';
+  } else {
+    delete document.documentElement.dataset.theme;
+  }
 }
 
-async function openSource() {
-  if (!sourceHref.value || !window.koreanReaderDesktop) return;
-  linkStatus.value = 'Opening in default browser...';
-  const result = await window.koreanReaderDesktop.openExternalUrl(sourceHref.value);
-  linkStatus.value = result.ok ? 'Opened in default browser' : (result.error ?? 'Could not open link');
+function splitHighlight(sentence: string, originalForm: string) {
+  const idx = originalForm ? sentence.indexOf(originalForm) : -1;
+  if (idx < 0) {
+    return { before: sentence, match: '', after: '' };
+  }
+  return {
+    before: sentence.slice(0, idx),
+    match: originalForm,
+    after: sentence.slice(idx + originalForm.length),
+  };
 }
 
-onMounted(async () => {
+async function refreshLibrary(preserveSelection = true) {
   const api = window.koreanReaderDesktop;
   if (!api) {
     loadError.value = 'Desktop bridge unavailable. Launch this window through Electron.';
     return;
   }
+  loading.value = true;
+  loadError.value = '';
   try {
-    const [sample, info] = await Promise.all([api.getSampleEntry(), api.getRuntimeInfo()]);
-    entry.value = sample;
-    runtime.value = info;
-  } catch (err) {
-    loadError.value = err instanceof Error ? err.message : 'Failed to load desktop fixture.';
+    const [nextCards, nextStats] = await Promise.all([
+      api.listCards(searchQuery.value),
+      api.getLibraryStats(),
+    ]);
+    cards.value = nextCards;
+    stats.value = nextStats;
+
+    if (nextCards.length === 0) {
+      selectedCardId.value = null;
+      selectedCard.value = null;
+    } else if (
+      preserveSelection &&
+      selectedCardId.value &&
+      nextCards.some((card) => card.id === selectedCardId.value)
+    ) {
+      await loadCardDetail(selectedCardId.value);
+    } else {
+      await loadCardDetail(nextCards[0]!.id);
+    }
+  } catch (error) {
+    loadError.value = error instanceof Error ? error.message : 'Failed to load local library.';
+  } finally {
+    loading.value = false;
   }
+}
+
+async function loadCardDetail(cardId: string) {
+  const api = window.koreanReaderDesktop;
+  if (!api) return;
+  selectedCardId.value = cardId;
+  linkStatus.value = '';
+  try {
+    selectedCard.value = await api.getCardDetail(cardId);
+  } catch (error) {
+    loadError.value = error instanceof Error ? error.message : 'Failed to load card details.';
+  }
+}
+
+async function importJson() {
+  const api = window.koreanReaderDesktop;
+  if (!api || importing.value) return;
+
+  importing.value = true;
+  importNotice.value = '';
+  importError.value = '';
+  try {
+    const result: ImportResult = await api.importVocabularyFile();
+    if (result.cancelled) {
+      return;
+    }
+    if (!result.ok || !result.summary) {
+      importError.value = result.error ?? 'Could not import vocabulary file.';
+      return;
+    }
+    const s = result.summary;
+    const parts = [
+      `${s.cardsAdded} added`,
+      `${s.cardsUpdated} updated`,
+      `${s.contextsAdded} contexts`,
+    ];
+    if (s.skippedKnownOnly > 0) {
+      parts.push(`${s.skippedKnownOnly} known-only skipped`);
+    }
+    if (s.mediaSaved > 0) {
+      parts.push(`${s.mediaSaved} media files saved`);
+    }
+    importNotice.value = `Imported ${result.fileName ?? 'vocabulary'}: ${parts.join(' · ')}.`;
+    await refreshLibrary(false);
+  } catch (error) {
+    importError.value = error instanceof Error ? error.message : 'Import failed.';
+  } finally {
+    importing.value = false;
+  }
+}
+
+async function playContextAudio(contextId: string) {
+  const el = audioElements.get(contextId);
+  if (!el) return;
+  try {
+    el.currentTime = 0;
+    playingContextId.value = contextId;
+    await el.play();
+  } catch {
+    playingContextId.value = null;
+  }
+}
+
+function onAudioEnded(contextId: string) {
+  if (playingContextId.value === contextId) {
+    playingContextId.value = null;
+  }
+}
+
+async function openSource(sourceUrl: string, timestamp?: number) {
+  const api = window.koreanReaderDesktop;
+  if (!api || !sourceUrl) return;
+  const target = buildSourceLink(sourceUrl, timestamp);
+  const result = await api.openExternalUrl(target);
+  linkStatus.value = result.ok ? 'Opened in browser' : (result.error ?? 'Could not open link');
+}
+
+async function removeSelectedCard() {
+  const api = window.koreanReaderDesktop;
+  if (!api || !selectedCard.value) return;
+  const result = await api.deleteCard(selectedCard.value.id);
+  if (result.ok) {
+    await refreshLibrary(false);
+  } else {
+    loadError.value = result.error ?? 'Could not delete card.';
+  }
+}
+
+watch(searchQuery, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    void refreshLibrary(true);
+  }, 180);
+});
+
+onMounted(() => {
+  void refreshLibrary(false);
 });
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-6 py-8">
-    <header class="flex items-center justify-between border-b border-slate-800 pb-4">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-wider text-amber-400">Phase D0 — Foundation Spike</p>
-        <h1 class="mt-1 text-2xl font-bold text-slate-50">Korean Reader Desktop</h1>
-      </div>
-      <span
-        v-if="runtime"
-        class="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300"
-      >
-        {{ runtime.platform }} / {{ runtime.arch }}
-      </span>
-    </header>
-
-    <div
-      v-if="loadError"
-      class="rounded-xl border border-rose-500/40 bg-rose-950/40 p-4 text-sm text-rose-200"
-    >
-      {{ loadError }}
-    </div>
-
-    <section
-      v-if="entry && primaryContext"
-      aria-label="Sample mined card"
-      class="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg"
-    >
-      <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <div class="flex items-baseline gap-3">
-          <h2 class="text-3xl font-bold text-amber-400">{{ entry.headword }}</h2>
-          <span v-if="entry.pronunciation" class="text-sm text-slate-400">[{{ entry.pronunciation }}]</span>
-          <span v-if="entry.partOfSpeech" class="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
-            {{ entry.partOfSpeech }}
-          </span>
+  <div class="flex min-h-screen flex-col bg-ink text-paper">
+    <header class="sticky top-0 z-10 border-b border-interface/10 bg-ink px-6 py-3.5">
+      <div class="mx-auto flex max-w-6xl items-center gap-3">
+        <img :src="logo" alt="" class="size-9 shrink-0 object-contain" />
+        <div class="min-w-0">
+          <h1 class="truncate text-base font-semibold tracking-tight text-paper">Korean Reader</h1>
+          <p class="text-xs text-muted">Desktop Library</p>
         </div>
-        <span v-if="entry.frequencyRank" class="text-xs text-slate-400">
-          #{{ entry.frequencyRank.toLocaleString() }}
-        </span>
-      </div>
 
-      <p class="mt-5 rounded-xl bg-slate-950/70 p-4 text-xl leading-relaxed text-slate-100">
-        <span>{{ sentenceParts.before }}</span>
-        <mark
-          v-if="sentenceParts.match"
-          class="rounded bg-amber-500/20 px-1 font-semibold text-amber-300"
-        >{{ sentenceParts.match }}</mark>
-        <span>{{ sentenceParts.after }}</span>
-      </p>
-
-      <ul class="mt-4 list-disc space-y-1.5 pl-5 text-sm text-slate-300">
-        <li v-for="(def, idx) in entry.definitions" :key="idx">{{ def }}</li>
-      </ul>
-
-      <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-800 pt-4">
-        <button
-          type="button"
-          class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
-          @click="playAudio"
-        >
-          Play Captured Audio
-        </button>
-        <span class="text-xs text-slate-400">{{ audioStatus }}</span>
-        <audio
-          v-if="primaryContext.audio"
-          ref="audioElement"
-          :src="primaryContext.audio"
-          @ended="onAudioEnded"
-        />
-
-        <div class="ml-auto flex items-center gap-3">
-          <span v-if="linkStatus" class="text-xs text-slate-400">{{ linkStatus }}</span>
+        <div class="ml-auto flex items-center gap-2.5">
           <button
             type="button"
-            class="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
-            @click="openSource"
+            class="rounded-lg border border-interface/15 bg-ink-soft px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-ink-lift hover:text-paper"
+            :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+            @click="toggleTheme"
           >
-            Open Source in Browser
+            {{ theme === 'dark' ? 'Light' : 'Dark' }}
+          </button>
+          <button
+            type="button"
+            :disabled="importing"
+            class="rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            @click="importJson"
+          >
+            {{ importing ? 'Importing…' : 'Import JSON' }}
           </button>
         </div>
       </div>
+    </header>
 
-      <p class="mt-3 text-xs text-slate-500">
-        Source: {{ primaryContext.sourceTitle }} ({{ sourceHref }})
-      </p>
-    </section>
-
-    <section
-      v-if="runtime"
-      aria-label="Runtime verification"
-      class="rounded-2xl border border-slate-800 bg-slate-900/50 p-5"
+    <main
+      class="flex-1 bg-cover bg-fixed bg-center px-6 py-5"
+      :style="{
+        backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})`,
+      }"
     >
-      <h3 class="text-sm font-semibold text-slate-200">Runtime &amp; Storage Verification</h3>
-      <dl class="mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-3">
-        <div class="rounded-lg bg-slate-950/60 p-3">
-          <dt class="text-slate-400">Electron</dt>
-          <dd class="mt-1 font-mono text-slate-100">{{ runtime.electron }}</dd>
+      <div class="mx-auto flex max-w-6xl flex-col gap-4">
+        <div
+          v-if="loadError"
+          role="alert"
+          class="rounded-xl border border-danger/30 bg-ink-soft px-4 py-3 text-sm text-danger"
+        >
+          {{ loadError }}
         </div>
-        <div class="rounded-lg bg-slate-950/60 p-3">
-          <dt class="text-slate-400">Node / Chromium</dt>
-          <dd class="mt-1 font-mono text-slate-100">{{ runtime.node }} / {{ runtime.chrome }}</dd>
-        </div>
-        <div class="rounded-lg bg-slate-950/60 p-3">
-          <dt class="text-slate-400">SQLite (node:sqlite)</dt>
-          <dd class="mt-1 font-semibold" :class="runtime.sqliteAvailable ? 'text-emerald-400' : 'text-rose-400'">
-            {{ runtime.sqliteAvailable ? 'Verified' : 'Unavailable' }}
-          </dd>
-        </div>
-      </dl>
 
-      <div v-if="runtime.fsrsVerified" class="mt-4">
-        <p class="text-xs text-slate-400">
-          ts-fsrs verified (initial intervals for a new card):
-        </p>
-        <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div
-            v-for="item in runtime.fsrsPreview"
-            :key="item.rating"
-            class="rounded-lg border border-slate-800 bg-slate-950/60 p-2.5 text-xs"
-          >
-            <div class="font-semibold text-slate-200">{{ item.rating }}</div>
-            <div class="mt-0.5 text-slate-400">{{ item.state }} ({{ item.scheduledDays }}d)</div>
-          </div>
+        <div
+          v-if="importError"
+          role="alert"
+          class="rounded-xl border border-danger/30 bg-ink-soft px-4 py-3 text-sm text-danger"
+        >
+          {{ importError }}
         </div>
+
+        <div
+          v-if="importNotice"
+          role="status"
+          class="rounded-xl border border-accent/40 bg-ink-soft px-4 py-3 text-sm text-paper"
+        >
+          <span class="font-semibold text-accent">✓</span> {{ importNotice }}
+        </div>
+
+        <section
+          aria-label="Library statistics"
+          class="grid grid-cols-2 gap-3 sm:grid-cols-4"
+        >
+          <div class="rounded-xl border border-interface/10 bg-ink-soft px-4 py-3">
+            <p class="text-xs text-muted">Study cards</p>
+            <p class="mt-1 text-xl font-semibold text-paper">{{ stats.totalCards.toLocaleString() }}</p>
+          </div>
+          <div class="rounded-xl border border-interface/10 bg-ink-soft px-4 py-3">
+            <p class="text-xs text-muted">New cards</p>
+            <p class="mt-1 text-xl font-semibold text-accent">{{ stats.newCards.toLocaleString() }}</p>
+          </div>
+          <div class="rounded-xl border border-interface/10 bg-ink-soft px-4 py-3">
+            <p class="text-xs text-muted">Mined contexts</p>
+            <p class="mt-1 text-xl font-semibold text-paper">{{ stats.totalContexts.toLocaleString() }}</p>
+          </div>
+          <div class="rounded-xl border border-interface/10 bg-ink-soft px-4 py-3">
+            <p class="text-xs text-muted">Local media</p>
+            <p class="mt-1 text-xl font-semibold text-paper">{{ stats.mediaAssets.toLocaleString() }}</p>
+          </div>
+        </section>
+
+        <section
+          v-if="!hasCards && !loading && !loadError"
+          class="flex flex-col items-center justify-center rounded-2xl border border-interface/10 bg-ink-soft px-6 py-14 text-center"
+        >
+          <img :src="logo" alt="" class="mb-4 size-16 object-contain" />
+          <h2 class="text-lg font-semibold text-paper">No study cards imported yet</h2>
+          <p class="mt-2 max-w-md text-sm text-muted">
+            Export <code class="rounded bg-ink-lift px-1.5 py-0.5 text-xs text-paper">korean-reader-vocabulary.json</code>
+            from the Chrome extension Settings page, then import it here. Known-only words without mined sentences are skipped automatically.
+          </p>
+          <button
+            type="button"
+            :disabled="importing"
+            class="mt-6 rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            @click="importJson"
+          >
+            {{ importing ? 'Importing…' : 'Import Vocabulary JSON' }}
+          </button>
+        </section>
+
+        <section
+          v-else-if="hasCards"
+          class="grid gap-4 lg:grid-cols-[340px_1fr]"
+        >
+          <aside class="flex flex-col gap-3 rounded-2xl border border-interface/10 bg-ink-soft p-4">
+            <input
+              v-model="searchQuery"
+              type="search"
+              placeholder="Search headword, definition, or sentence…"
+              aria-label="Search study cards"
+              class="w-full rounded-lg border border-interface/15 bg-ink px-3 py-2 text-sm text-paper placeholder:text-muted"
+            />
+
+            <p v-if="cards.length === 0" class="py-8 text-center text-xs text-muted">
+              No cards match "{{ searchQuery }}".
+            </p>
+
+            <ul v-else class="flex max-h-[560px] flex-col gap-1.5 overflow-y-auto pr-1">
+              <li v-for="card in cards" :key="card.id">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border px-3.5 py-2.5 text-left transition-colors"
+                  :class="
+                    card.id === selectedCardId
+                      ? 'border-accent/60 bg-ink-lift'
+                      : 'border-transparent bg-ink/40 hover:border-interface/15 hover:bg-ink-lift/60'
+                  "
+                  @click="loadCardDetail(card.id)"
+                >
+                  <div class="flex items-baseline justify-between gap-2">
+                    <span class="truncate text-base font-semibold text-paper">{{ card.headword }}</span>
+                    <span v-if="card.frequencyRank" class="shrink-0 text-xs font-medium text-accent">
+                      #{{ card.frequencyRank.toLocaleString() }}
+                    </span>
+                  </div>
+                  <p class="mt-0.5 truncate text-xs text-muted">
+                    {{ card.definitions[0] ?? card.koreanDefinitions[0] ?? card.primarySentence }}
+                  </p>
+                  <div class="mt-1.5 flex items-center gap-2 text-[11px] text-muted">
+                    <span v-if="card.partOfSpeech">{{ card.partOfSpeech }}</span>
+                    <span class="ml-auto">{{ card.contextCount }} {{ card.contextCount === 1 ? 'context' : 'contexts' }}</span>
+                  </div>
+                </button>
+              </li>
+            </ul>
+          </aside>
+
+          <article
+            v-if="selectedCard"
+            aria-label="Selected study card"
+            class="flex flex-col gap-5 rounded-2xl border border-interface/10 bg-ink-soft p-6"
+          >
+            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-interface/10 pb-4">
+              <div>
+                <div class="flex flex-wrap items-baseline gap-2.5">
+                  <h2 class="text-3xl font-bold tracking-tight text-paper">{{ selectedCard.headword }}</h2>
+                  <span v-if="selectedCard.pronunciation" class="text-sm text-muted">
+                    [{{ selectedCard.pronunciation }}]
+                  </span>
+                  <span
+                    v-if="selectedCard.partOfSpeech"
+                    class="rounded-md border border-interface/15 bg-ink-lift px-2 py-0.5 text-xs text-muted"
+                  >
+                    {{ selectedCard.partOfSpeech }}
+                  </span>
+                </div>
+                <p v-if="selectedCard.frequencyRank" class="mt-1 text-xs font-medium text-accent">
+                  Frequency #{{ selectedCard.frequencyRank.toLocaleString() }}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                class="rounded-lg border border-interface/15 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-danger/40 hover:text-danger"
+                @click="removeSelectedCard"
+              >
+                Delete Card
+              </button>
+            </div>
+
+            <div v-if="selectedCard.definitions.length > 0 || selectedCard.koreanDefinitions.length > 0">
+              <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Definitions</h3>
+              <ul class="mt-2 list-disc space-y-1.5 pl-5 text-sm text-paper">
+                <li
+                  v-for="(def, idx) in selectedCard.definitions.length > 0
+                    ? selectedCard.definitions
+                    : selectedCard.koreanDefinitions"
+                  :key="idx"
+                >
+                  {{ def }}
+                </li>
+              </ul>
+            </div>
+
+            <div class="flex flex-col gap-3">
+              <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">
+                Mined Contexts ({{ selectedCard.contexts.length }})
+              </h3>
+
+              <div
+                v-for="ctx in selectedCard.contexts"
+                :key="ctx.id"
+                class="rounded-xl border border-interface/10 bg-ink p-4"
+              >
+                <p class="text-lg leading-relaxed text-paper">
+                  <span>{{ splitHighlight(ctx.sentence, ctx.originalForm).before }}</span>
+                  <mark
+                    v-if="splitHighlight(ctx.sentence, ctx.originalForm).match"
+                    class="rounded bg-transparent px-0.5 font-bold text-[#f59e0b]"
+                  >{{ splitHighlight(ctx.sentence, ctx.originalForm).match }}</mark>
+                  <span>{{ splitHighlight(ctx.sentence, ctx.originalForm).after }}</span>
+                </p>
+
+                <img
+                  v-if="ctx.imageDataUrl"
+                  :src="ctx.imageDataUrl"
+                  :alt="ctx.sourceTitle"
+                  class="mt-3 max-h-56 w-auto rounded-lg border border-interface/10 object-contain"
+                />
+
+                <div class="mt-3 flex flex-wrap items-center gap-2.5">
+                  <button
+                    v-if="ctx.audioDataUrl"
+                    type="button"
+                    class="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                    @click="playContextAudio(ctx.id)"
+                  >
+                    {{ playingContextId === ctx.id ? 'Playing…' : 'Play Audio' }}
+                  </button>
+                  <audio
+                    v-if="ctx.audioDataUrl"
+                    :ref="(el) => setAudioRef(ctx.id, el)"
+                    :src="ctx.audioDataUrl"
+                    @ended="onAudioEnded(ctx.id)"
+                  />
+
+                  <button
+                    v-if="ctx.sourceUrl"
+                    type="button"
+                    class="rounded-lg border border-interface/15 bg-ink-soft px-3 py-1.5 text-xs font-medium text-paper transition-colors hover:bg-ink-lift"
+                    @click="openSource(ctx.sourceUrl, ctx.timestamp)"
+                  >
+                    Open Source
+                  </button>
+
+                  <span class="truncate text-xs text-muted">{{ ctx.sourceTitle }}</span>
+                </div>
+              </div>
+
+              <p v-if="linkStatus" class="text-xs text-muted">{{ linkStatus }}</p>
+            </div>
+          </article>
+        </section>
       </div>
-    </section>
-  </main>
+    </main>
+  </div>
 </template>

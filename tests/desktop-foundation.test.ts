@@ -5,9 +5,40 @@ import { createSampleMinedEntry, createSampleWavDataUrl } from '../desktop/src/s
 import { runFsrsSpike } from '../desktop/src/shared/fsrs-spike';
 import App from '../desktop/src/renderer/App.vue';
 
+function createMockDesktopApi(overrides: Partial<DesktopApi> = {}): DesktopApi {
+  const sample = createSampleMinedEntry();
+  return {
+    getSampleEntry: vi.fn().mockResolvedValue(sample),
+    getRuntimeInfo: vi.fn().mockResolvedValue({
+      electron: '45.4.1',
+      chrome: '138.0.0.0',
+      node: '24.14.0',
+      platform: 'darwin',
+      arch: 'arm64',
+      sqliteAvailable: true,
+      fsrsVerified: true,
+      fsrsPreview: runFsrsSpike(new Date('2026-11-21T00:00:00.000Z')),
+    }),
+    openExternalUrl: vi.fn().mockResolvedValue({ ok: true }),
+    importVocabularyFile: vi.fn().mockResolvedValue({ ok: false, cancelled: true }),
+    listCards: vi.fn().mockResolvedValue([]),
+    getCardDetail: vi.fn().mockResolvedValue(null),
+    getLibraryStats: vi.fn().mockResolvedValue({
+      totalCards: 0,
+      totalContexts: 0,
+      newCards: 0,
+      dueCards: 0,
+      mediaAssets: 0,
+    }),
+    deleteCard: vi.fn().mockResolvedValue({ ok: true }),
+    ...overrides,
+  };
+}
+
 describe('Phase D0 desktop foundation', () => {
   afterEach(() => {
     delete window.koreanReaderDesktop;
+    delete document.documentElement.dataset.theme;
     vi.restoreAllMocks();
   });
 
@@ -49,41 +80,16 @@ describe('Phase D0 desktop foundation', () => {
     expect(preview[3]!.scheduledDays).toBeGreaterThanOrEqual(preview[2]!.scheduledDays);
   });
 
-  it('renders the sample Korean sentence, plays audio, and opens the source link via IPC', async () => {
-    const sample = createSampleMinedEntry();
-    const openExternalUrl = vi.fn().mockResolvedValue({ ok: true });
-    const mockApi: DesktopApi = {
-      getSampleEntry: vi.fn().mockResolvedValue(sample),
-      getRuntimeInfo: vi.fn().mockResolvedValue({
-        electron: '45.4.1',
-        chrome: '138.0.0.0',
-        node: '24.14.0',
-        platform: 'darwin',
-        arch: 'arm64',
-        sqliteAvailable: true,
-        fsrsVerified: true,
-        fsrsPreview: runFsrsSpike(new Date('2026-11-21T00:00:00.000Z')),
-      }),
-      openExternalUrl,
-    };
-    window.koreanReaderDesktop = mockApi;
-
-    const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
-
+  it('renders empty state and toggles dark/light theme', async () => {
+    window.koreanReaderDesktop = createMockDesktopApi();
     const wrapper = mount(App);
     await flushPromises();
 
-    expect(wrapper.text()).toContain(sample.headword);
-    expect(wrapper.find('mark').text()).toBe(sample.originalForm);
-    expect(wrapper.text()).toContain('Verified');
-
-    await wrapper.findAll('button')[0]!.trigger('click');
-    expect(playSpy).toHaveBeenCalledTimes(1);
-
-    await wrapper.findAll('button')[1]!.trigger('click');
-    expect(openExternalUrl).toHaveBeenCalledWith(
-      'https://www.youtube.com/watch?v=KTIByn_rIWM&t=84s',
-    );
+    expect(wrapper.text()).toContain('No study cards imported yet');
+    const themeBtn = wrapper.find('button[aria-label="Switch to light theme"]');
+    expect(themeBtn.exists()).toBe(true);
+    await themeBtn.trigger('click');
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 
   it('shows a clear error when launched without the Electron preload bridge', async () => {
