@@ -401,7 +401,12 @@ defineExpose({
       class="flex flex-1 flex-col justify-between gap-6 rounded-2xl border border-interface/15 bg-ink-soft p-6 shadow-sm"
     >
       <!-- Card Front -->
-      <div class="flex flex-col items-center gap-5 text-center">
+      <div class="flex flex-col items-center gap-4 text-center">
+        <!-- Focus word heading -->
+        <div class="text-base font-semibold tracking-wide text-accent">
+          {{ currentCard.headword }}
+        </div>
+
         <!-- Audio -->
         <div v-if="reviewAudioDataUrl" class="flex items-center gap-2">
           <audio
