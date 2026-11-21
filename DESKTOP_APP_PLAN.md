@@ -24,7 +24,7 @@ The desktop home screen should answer two questions at a glance. How many cards 
 - **Study identity.** Default to one scheduled card per NFC-normalised headword, with multiple saved contexts and one preferred sentence. Preserve imported contexts and alternate meanings. Use stable source IDs and content matching to merge confirmed overlaps. Preview uncertain matches and let the user keep them distinct. Later imports must preserve learned schedules and user edits.
 - **Local storage.** Evaluate SQLite for structured data and managed local files for attachments. Commit each review event and its next due date together. Store attachment references and load media when a card is opened. Version imports, backups and schema migrations.
 - **Scheduling.** Evaluate the TypeScript FSRS implementation against the desktop runtime. Keep a review log so updates, undo and restored data can be verified. Use a consistent local study day when building daily queues.
-- **Scope.** The first two platform releases use local storage, local question generation and Chrome for mining. Cross-computer sync of cards, media and review progress, mobile, and mining directly inside the desktop app require separate product decisions. The [existing Firebase prototype](docs/account-sync.md) covers known words and progress history. [Google Drive is the preferred option to explore](docs/desktop-sync-options.md).
+- **Scope.** The first two platform releases use local storage, local question generation and Chrome for mining. Cross-computer sync of cards, media and review progress, mobile, and mining directly inside the desktop app require separate product decisions. [Google Drive is the preferred option to explore](docs/desktop-sync-options.md).
 
 ## Phase D0 — Desktop Foundation and Feasibility
 
@@ -81,7 +81,7 @@ Tasks:
 
 - [x] Add **Quick practice** with a suggested default of 10 questions. Weight selection toward recently mined words and words the user struggled with during recall. Save practice results separately from FSRS ratings.
 - [x] Start with meaning in context. Show the mined sentence and ask for the meaning of the highlighted form. Use a single saved glossary entry, including a definition chosen when mining. Skip cards with multiple distinct glosses.
-- [x] Add sentence completion once the app can identify the chosen occurrence. Use the exact form from the saved sentence, including relevant conjugation. Show the headword as the cue. Skip repeated matches and forms that cannot be identified as a complete occurrence.
+- [x] Limit practice to meaning-in-context questions. Skip repeated matches and forms that cannot be identified as a complete occurrence.
 - [x] Generate three distinct wrong options from eligible local vocabulary. Match part of speech or answer type where reliable. Reject duplicate glosses, overlapping glossary words and incompatible known parts of speech. Option selection uses local lexical heuristics. Skip a question when four sound options are unavailable.
 - [x] Shuffle answer positions, accept A/B/C/D and 1–4 shortcuts, give immediate feedback and reveal the original sentence, meaning and available media. Show missed words at the end.
 - [x] Check that small libraries get a shorter session or a useful empty state. Test synonym cases, missing definitions, missing audio, conjugation, repeated tokens and files from both import sources.
@@ -105,7 +105,7 @@ Tasks:
 
 - [x] Deliver newly mined cards and their saved media through the loopback HTTP bridge while Desktop is running.
 - [x] Backfill missing mined headwords on extension startup or after a successful live delivery. Ignore known-only entries for card creation.
-- [x] Deliver the Chrome profile's known-word count history separately for desktop Stats. Retry the history on extension startup, popup open or a vocabulary change.
+- [x] Deliver the Chrome profile's known-word count history separately for desktop Stats. Retry the history on extension startup, popup open or a vocabulary change. Acknowledge successful delivery and refresh Desktop Stats automatically. Support local file transfer when the bridge is unavailable.
 - [ ] Verify live delivery after reloading Chrome and with the owner's current library. The current bridge has origin filtering and deduplicated imports. Pairing, a durable outbox, and replay of changed contexts on existing headwords after an outage remain open.
 
 ## Phase D6 — First Mac Release

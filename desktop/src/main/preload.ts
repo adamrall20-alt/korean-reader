@@ -8,6 +8,12 @@ import {
 } from '../shared/api';
 
 const desktopApi: DesktopApi = {
+  importKnownHistory: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.importKnownHistory),
+  onKnownHistoryUpdated: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on(DESKTOP_IPC_CHANNELS.knownHistoryUpdated, listener);
+    return () => ipcRenderer.removeListener(DESKTOP_IPC_CHANNELS.knownHistoryUpdated, listener);
+  },
   getStudyStats: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getStudyStats),
   startPractice: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.startPractice),
   answerPractice: (id, choice) => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.answerPractice, id, choice),

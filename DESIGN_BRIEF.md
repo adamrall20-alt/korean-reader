@@ -166,7 +166,7 @@ Required functionality:
 
 The desktop companion receives mined vocabulary from Chrome on the same computer and imports Korean Reader JSON or Anki .apkg deck packages. It stores sentences, images and audio locally and keeps one schedule per headword. The package importer carries across current scheduling when the export includes it, while retaining existing Korean Reader reviews. The Chrome settings accept text-based known-word imports for reading coverage.
 
-Desktop Review uses FSRS and configurable daily limits. Quick practice shows meaning and sentence completion questions based on saved examples. The app records quiz answers separately from due dates and review ratings.
+Desktop Review uses FSRS and configurable daily limits. Quick practice asks what a highlighted word means in its saved sentence. The app records quiz answers separately from due dates and review ratings.
 
 ### 3.7 Settings
 
@@ -183,11 +183,11 @@ Desktop Stats shows the Chrome profile's known-word count and how it changes ove
 
 ### 3.9 Accounts and progress sync
 
-The configured Chrome extension keeps its optional Google/Firebase prototype under Settings → Google account. The desktop app studies locally. See the [account sync plan](docs/account-sync.md) and [desktop sync options](docs/desktop-sync-options.md).
+Chrome and Desktop keep study data on the device. See [desktop sync options](docs/desktop-sync-options.md) for possible future hosting.
 
 ## 4. Storage and Privacy
 
-The following rules describe the initial release. Phase 10 adds an opt-in exception for account identity and known-word progress using Firebase Spark.
+The following rules apply to Chrome and Desktop.
 
 - Store vocabulary locally.
 - Store cached dictionary results locally.

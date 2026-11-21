@@ -2,7 +2,7 @@
 
 ## Current Project State
 
-**Status:** Chrome mines words and sends cards to Korean Reader Desktop. Desktop handles local review, practice and Stats. Chrome’s optional Firebase prototype is available in Settings → Google account.
+**Status:** Chrome mines words and sends cards to Korean Reader Desktop. Desktop handles local review, practice and Stats. The Chrome popup shows the local known-word count. Firebase has retired.
 
 **Current milestone:** Desktop D3 implementation. The owner confirmed D2 review verification and the prior D4 and D5 feature implementation. Current D4 uses offline Anki packages. Mac packaging and backup/restore are D6.
 
@@ -10,12 +10,14 @@
 
 ## Desktop D3, study stats and Anki import update — 21 November 2026
 
-- **Practice.** Up to ten untimed four-choice questions from saved examples. Weighted selection favours recent material and words with difficult reviews. Meaning and sentence completion use saved surface forms, distinct local options, keyboard controls, answer feedback and a missed-word summary. Results stay in `practice_results` and leave SRS history and due dates intact.
+- **Practice.** Up to ten untimed four-choice questions from saved examples. Weighted selection favours recent material and words with difficult reviews. Meaning questions use highlighted saved surface forms, distinct local options, keyboard controls, answer feedback and a missed-word summary. Sentence completion was removed after owner feedback. Results stay in `practice_results` and leave SRS history and due dates intact.
 - **Stats.** Desktop charts Chrome’s known-word snapshots and shows lifetime local reviews, recorded review time, 30-day review activity, current streak, graduated cards, recall rate and practice accuracy. Older local reviews contribute to review totals. Timing begins with this update and undo subtracts the review and its time. The review-limit screen shows the penguin.
 - **Anki import.** Desktop opens modern and legacy `.apkg` files. It copies supported media, maps common note fields and preserves available schedules without changing cards already reviewed locally. Chrome imports known words from Anki notes text or Kimchi Reader CSV. AnkiConnect and the Chrome Statistics page have been removed. Earlier AnkiConnect implementation details below are historical.
-- **Delivery and sync.** The D5 bridge carries known-word snapshots as well as mined cards. The account panel moved to Chrome Settings. [Google Drive](docs/desktop-sync-options.md) is the first option to explore after portable backup/restore.
+- **Delivery and sync.** The D5 bridge carries known-word snapshots as well as mined cards. The Firebase account panel, background code, permissions and configuration were removed. Chrome now reports known-history delivery and offers a local JSON fallback. The desktop graph refreshes after accepted delivery. [Google Drive](docs/desktop-sync-options.md) is the first option to explore after portable backup/restore.
 
-**Verification:** 184 automated tests passed. The Firestore emulator test was skipped because the emulator was unavailable. Both TypeScript checks and production builds passed. Electron 45 on Apple silicon loaded SQLite and decoded Zstandard data in a runtime check.
+**Follow-up verification:** Both production builds and type checks pass. The Chrome manifest keeps the dictionary and loopback permissions and omits OAuth and Chrome Identity.
+
+**D3 baseline verification:** 184 automated tests passed before the follow-up removed the Firebase prototype and its tests. The Firestore emulator test was skipped because the emulator was unavailable. Both TypeScript checks and production builds passed. Electron 45 on Apple silicon loaded SQLite and decoded Zstandard data in a runtime check.
 
 **Live verification remaining:** Play a session with the owner’s actual cards to assess answer quality, test a real `.apkg` export in Electron, and verify Chrome-to-Desktop mining and known-count delivery after reloading Chrome. Automated bridge tests exercise HTTP request handling in-process because binding to a loopback port is restricted by the test environment.
 

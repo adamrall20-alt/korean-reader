@@ -42,19 +42,19 @@ function library(count = source.length) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Desktop practice and study statistics', () => {
-  it('generates both question types, skips ambiguous occurrences and persists only practice answers', () => {
+  it('generates meaning questions only, skips ambiguous occurrences and persists only practice answers', () => {
     const { db, media, cleanup } = library();
     try {
       const practice = createPracticeSession(db, media, () => 0.5, now);
       expect(practice.questions).toHaveLength(6);
-      expect(new Set(practice.questions.map(({ type }) => type))).toEqual(new Set(['meaning', 'cloze']));
+      expect(new Set(practice.questions.map(({ type }) => type))).toEqual(new Set(['meaning']));
       const schedules = db.prepare('SELECT * FROM schedules').all();
       for (const question of practice.questions) {
         expect(new Set(question.options).size).toBe(4);
         expect(question.options.includes('to run') && question.options.includes('run')).toBe(false);
-        if (question.type === 'cloze') expect(question.target).toBe(null);
+        expect(question.target).toBeTruthy();
         const expected = source.find(([, , sentence]) => sentence.startsWith(question.before) && sentence.endsWith(question.after))!;
-        const correct = question.options.indexOf(question.type === 'meaning' ? expected[3]! : expected[1]!);
+        const correct = question.options.indexOf(expected[3]!);
         expect(correct).toBeGreaterThanOrEqual(0);
         expect(() => practice.answer(question.id, 9)).toThrow('Invalid practice answer');
         const feedback = practice.answer(question.id, correct);
@@ -94,7 +94,7 @@ describe('Desktop practice and study statistics', () => {
   it('answers by keyboard, reveals feedback and shows missed words on the results screen', async () => {
     const answerPractice = vi.fn().mockResolvedValue({ correct: false, correctIndex: 1, headword: '먹다', sentence: '저녁을 먹었어요.', meaning: 'to eat' });
     vi.stubGlobal('koreanReaderDesktop', { answerPractice, startPractice: vi.fn().mockResolvedValue([
-      { id: 'one', type: 'meaning', before: '저녁을 ', after: '.', target: '먹었어요', focusWord: null, options: ['to drink', 'to eat', 'to run', 'to sleep'] },
+      { id: 'one', type: 'meaning', before: '저녁을 ', after: '.', target: '먹었어요', options: ['to drink', 'to eat', 'to run', 'to sleep'] },
     ]) });
     const wrapper = mount(PracticeView);
     try {
@@ -111,11 +111,21 @@ describe('Desktop practice and study statistics', () => {
   });
 
   it('renders the known-word chart and local study totals in Desktop', async () => {
-    vi.stubGlobal('koreanReaderDesktop', { getStudyStats: vi.fn().mockResolvedValue({
+    const baseline = {
       knownWords: 52, knownHistory: [{ at: +now - 86_400_000, count: 50 }, { at: +now, count: 52 }],
       totalReviews: 4, timedReviews: 2, reviewTimeMs: 72_000, streak: 2,
       recallRate: 0.75, learnedCards: 2, recentReviews: [], practiceAnswers: 4, practiceAccuracy: 0.5,
-    }) });
+    };
+    const getStudyStats = vi.fn().mockResolvedValue(baseline);
+    const importKnownHistory = vi.fn().mockResolvedValue({ ok: true });
+    let updateHistory: (() => void) | undefined;
+    vi.stubGlobal('koreanReaderDesktop', {
+      getStudyStats, importKnownHistory,
+      onKnownHistoryUpdated: (update: () => void) => {
+        updateHistory = update;
+        return () => { updateHistory = undefined; };
+      },
+    });
     const wrapper = mount(StatsView);
     try {
       await flushPromises();
@@ -123,6 +133,15 @@ describe('Desktop practice and study statistics', () => {
       expect(wrapper.text()).toContain('1 m 12 s');
       expect(wrapper.text()).toContain('2 of 4 reviews timed');
       expect(wrapper.text()).toContain('Practice accuracy');
+      getStudyStats.mockResolvedValue({ ...baseline, knownWords: 53,
+        knownHistory: [...baseline.knownHistory, { at: +now + 1000, count: 53 }] });
+      updateHistory?.();
+      await flushPromises();
+      expect(wrapper.get('svg').attributes('aria-label')).toContain('Latest count 53');
+      await wrapper.findAll('button').find((button) => button.text() === 'Import history')!.trigger('click');
+      await flushPromises();
+      expect(importKnownHistory).toHaveBeenCalledOnce();
+
       await wrapper.findAll('button').find((button) => button.text() === '30 days')!.trigger('click');
       expect(wrapper.findAll('button').find((button) => button.text() === '30 days')?.attributes('aria-pressed')).toBe('true');
     } finally { wrapper.unmount(); }

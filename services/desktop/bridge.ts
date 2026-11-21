@@ -87,10 +87,17 @@ export async function syncMissingEntriesToDesktop(
   return { synced, reachable: true };
 }
 
-export async function pushKnownHistory(history: KnownWordHistory, baseUrl = DESKTOP_BRIDGE_URL): Promise<void> {
-  await fetchWithTimeout(`${baseUrl}/known-history`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(history),
-  });
+export async function pushKnownHistory(history: KnownWordHistory, baseUrl = DESKTOP_BRIDGE_URL): Promise<boolean> {
+  try {
+    const response = await fetchWithTimeout(`${baseUrl}/known-history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(history),
+    });
+    if (!response.ok) return false;
+    const result = await response.json() as { ok?: boolean };
+    return result.ok === true;
+  } catch {
+    return false;
+  }
 }

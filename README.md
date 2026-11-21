@@ -55,22 +55,9 @@ Dictionary lookup, mining and desktop study work without a Google account.
 
 In the project checkout, install dependencies with `npm install` and run `npm run desktop:start`. Keep the desktop app open while mining in Chrome to receive cards automatically. Use **Import JSON** for an existing Korean Reader vocabulary export or **Import Anki .apkg** for an Anki deck with scheduling and media. Chrome **Settings → Import known words** accepts Anki notes text and Kimchi Reader word-status CSVs for reading coverage. See the [Anki import guide](docs/anki-integration.md).
 
-**Review** uses local FSRS. **Practice** generates up to ten A/B/C/D questions from saved sentences. **Stats** shows known-word history, review time and totals, and practice accuracy. Open the extension popup while Desktop is running to deliver its known-word history, then refresh Stats.
+**Review** uses local FSRS. **Practice** generates up to ten A/B/C/D questions from saved sentences. **Stats** shows known-word history, review time and totals, and practice accuracy. The Chrome popup shows your local known-word count and sends history to Desktop. Stats updates when it arrives. If the popup says Desktop is unavailable, choose **Retry** or **Export history**, then use **Stats → Import history** in Desktop.
 
 The desktop app currently runs from source. See the [desktop plan](DESKTOP_APP_PLAN.md) for Mac and Windows packaging.
-
-### 6. Google sign-in and cloud sync — ask Adam for access
-
-**Google sign-in and progress sync require manual approval. Contact Adam with the Google account email you want to use; he must manually add your account to the Firebase access list before cloud sync will work.** Installing the extension does not grant access automatically.
-
-1. Ask Adam for access and a build configured for Google sign-in. Your unpacked extension ID may differ from his, so he may also need to configure Google sign-in for your installation.
-2. If Adam asks you to attempt sign-in first, open Chrome extension **Settings → Google account**, then choose **Sign in with Google**. This creates the Firebase user record he needs to approve. A permission error at this stage can mean your access is still awaiting approval.
-3. Once Adam confirms approval, choose **Sync now**, or complete sign-in again if needed.
-4. On your first use, choose **Import this profile’s known words** to upload this profile's known words and progress history. Later, use **Sync now** to merge newly known local words and refresh account progress.
-
-If the Google sign-in option is unavailable, contact Adam; your build may not have cloud sync configured. If Google blocks sign-in or sync reports a permissions error, send Adam the error text and your Google account email. Never send your password or sign-in tokens.
-
-Cloud sync is currently an optional prototype with manual import/sync controls. It shares known-word progress and its history, not your complete mined collection, screenshots, audio, dictionary key or settings. Automatic syncing of local changes and full account/guest separation are unfinished. You can use the local reader while waiting for approval. See [account sync limitations](docs/account-sync.md).
 
 ## Update an existing installation
 
@@ -94,7 +81,6 @@ Do not move or delete the permanent extension folder while you are using it.
 | Captions are visible but words are not clickable | Select Korean captions, confirm the extension is enabled, reload the extension and refresh the YouTube tab. |
 | No full transcript appears | Some videos do not expose a full transcript. Leave Korean captions on and play the video to collect lines. |
 | Anki import failed | Export an Anki Deck Package (.apkg). Include media and scheduling if needed, then choose **Import Anki .apkg** in Desktop. |
-| Google sign-in or cloud sync fails | Ask Adam to confirm your Firebase approval and Google sign-in configuration. Local use does not require cloud access. |
 | Words disappear after an update | Check that you reloaded the original extension rather than installing a second copy from another folder or Chrome profile. Keep the original installation; contact Adam before removing anything. |
 
 ## YouTube transcript sidebar
@@ -110,7 +96,7 @@ Opening the sidebar analyses all loaded Korean subtitle lines in sequential batc
 
 ## Current Status
 
-**Current development:** Desktop D3 practice, Stats, offline Anki import and same-computer Chrome delivery are available. Optional Google account sync remains a configured Chrome prototype. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verification and [DESKTOP_APP_PLAN.md](DESKTOP_APP_PLAN.md) for the desktop roadmap.
+**Current development:** Desktop D3 practice, Stats, offline Anki import and same-computer Chrome delivery are available. Chrome and Desktop keep study data local. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verification and [DESKTOP_APP_PLAN.md](DESKTOP_APP_PLAN.md) for the desktop roadmap.
 
 Implemented:
 
@@ -219,7 +205,7 @@ korean-reader/
 
 ## Build from source — developer setup
 
-Skip this section if you installed the ready-built ZIP above. These steps are for building the extension yourself from the source project. A source build does not automatically include Google sign-in configuration or grant Firebase access.
+Skip this section if you installed the ready-built ZIP above. These steps are for building the extension yourself from the source project.
 
 ### Build requirements
 
@@ -267,7 +253,7 @@ Follow [Add it to Chrome](#2-add-it-to-chrome), selecting the generated `.output
 
 For development, use `.output/chrome-mv3-dev` after running `npm run dev`.
 
-For updates, rebuild in the same project location, click **Reload** on the existing extension at `chrome://extensions`, and refresh YouTube. Do not remove and reinstall the extension. Google sign-in setup for source builds is documented in [account sync setup](docs/account-sync-setup.md) and still requires Adam's Firebase approval.
+For updates, rebuild in the same project location, click **Reload** on the existing extension at `chrome://extensions`, and refresh YouTube. Do not remove and reinstall the extension.
 
 ## Automated Checks
 
@@ -314,7 +300,7 @@ If the popup reports a connection or vocabulary error, open `chrome://extensions
 - Click the Settings gear in the top-right of the Korean Reader popup. The extension options
   page should open directly. The Options entry in `chrome://extensions` remains available.
 - A full-page Settings interface should open.
-- It should list **General**, **Dictionary**, **Import known words**, **Appearance** and **Storage**. Configured builds also show **Google account**.
+- It should list **General**, **Dictionary**, **Import known words**, **Appearance** and **Storage**.
 - Under Dictionary, the KRDict API key can be saved locally and the dictionary cache can be cleared.
 
 ### 3. YouTube content script
@@ -390,8 +376,6 @@ Captions must be enabled for extraction to work; the extension does not turn the
 - `ROADMAP.md` — implementation order and task tracking.
 - `PROJECT_STATUS.md` — current status and known issues.
 - `docs/architecture.md` — runtime architecture and data ownership.
-- [Phase 10 accounts and progress sync](docs/account-sync.md) — prototype behaviour, architecture and open decisions.
-- [Phase 10 prototype setup](docs/account-sync-setup.md) — Firebase configuration and the two-profile Chrome test.
 - `docs/dictionary.md` — KRDict lookup and caching behaviour.
 - `docs/anki-integration.md` — Anki deck and known-word import.
 - [Desktop architecture](docs/desktop-architecture.md) and [sync options](docs/desktop-sync-options.md).
@@ -400,7 +384,7 @@ Captions must be enabled for extraction to work; the extension does not turn the
 ## Privacy
 
 - Vocabulary and dictionary cache data are stored locally.
-- Guest use requires no account and has no analytics or usage tracking. Configured builds can expose the optional Google/Firebase progress-sync prototype; it uploads known-word progress only when explicitly imported or synced. See [account sync](docs/account-sync.md) for limitations.
+- The extension requires no account and keeps words, history and media local. Dictionary lookup uses KRDict.
 - The KRDict API key is stored in `chrome.storage.local`, never in source control.
 - The content script does not receive API credentials.
 

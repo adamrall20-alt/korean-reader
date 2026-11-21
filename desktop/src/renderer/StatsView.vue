@@ -18,13 +18,42 @@ function desktopApi() {
   return api;
 }
 
+const importing = ref(false);
+let unsubscribeHistory: (() => void) | undefined;
+let refreshPending = false;
+
+async function importHistory() {
+  const api = window.koreanReaderDesktop;
+  if (!api?.importKnownHistory || importing.value) return;
+  importing.value = true;
+  error.value = '';
+  try {
+    const result = await api.importKnownHistory();
+    if (result.ok) await load();
+    else if (!result.cancelled) error.value = result.error ?? 'Could not import known-word history.';
+  } catch (failure) {
+    error.value = failure instanceof Error ? failure.message : 'Could not import known-word history.';
+  } finally {
+    importing.value = false;
+  }
+}
+
 async function load() {
-  if (loading.value) return;
+  if (loading.value) {
+    refreshPending = true;
+    return;
+  }
   loading.value = true;
   error.value = '';
   try { stats.value = await desktopApi().getStudyStats(); }
   catch (failure) { error.value = failure instanceof Error ? failure.message : 'Could not load stats.'; }
-  finally { loading.value = false; }
+  finally {
+    loading.value = false;
+    if (refreshPending) {
+      refreshPending = false;
+      void load();
+    }
+  }
 }
 
 const points = computed(() => {
@@ -80,8 +109,15 @@ function trackPoint(event: PointerEvent) {
   if (activePoint.value < 0) activePoint.value = 0;
 }
 
-onMounted(() => { void load(); window.addEventListener('focus', load); });
-onBeforeUnmount(() => window.removeEventListener('focus', load));
+onMounted(() => {
+  unsubscribeHistory = window.koreanReaderDesktop?.onKnownHistoryUpdated?.(load);
+  void load();
+  window.addEventListener('focus', load);
+});
+onBeforeUnmount(() => {
+  unsubscribeHistory?.();
+  window.removeEventListener('focus', load);
+});
 </script>
 
 <template>
@@ -114,6 +150,7 @@ onBeforeUnmount(() => window.removeEventListener('focus', load));
           </div>
         </div>
         <template v-if="selected">
+          <p v-if="stats.knownHistory.length === 1" class="mt-3 text-xs text-muted">First snapshot saved. The chart fills in as later days are recorded.</p>
           <p class="my-3 text-sm text-muted"><strong class="tabular-nums text-paper">{{ number.format(selected.count) }}</strong> known · {{ date.format(selected.at) }}</p>
           <svg viewBox="0 0 600 160" class="block w-full text-accent" role="img"
             :aria-label="`Known words from ${date.format(graph.start)} to ${date.format(graph.end)}. Latest count ${stats.knownWords}.`"
@@ -125,7 +162,10 @@ onBeforeUnmount(() => window.removeEventListener('focus', load));
           </svg>
           <div class="mt-2 flex justify-between text-xs text-muted"><span>{{ date.format(graph.start) }}</span><span>{{ date.format(graph.end) }}</span></div>
         </template>
-        <p v-else class="mt-4 text-sm text-muted">Open the Korean Reader extension popup while the desktop app is running, then refresh to see your known-word history.</p>
+        <p v-else class="mt-4 text-sm text-muted">Open the Korean Reader Chrome popup to send your known-word history. If Desktop is unavailable there, choose Export history and import the file here.</p>
+        <button type="button" :disabled="importing" class="mt-3 text-xs text-accent hover:underline" @click="importHistory">
+          {{ importing ? 'Importing…' : 'Import history' }}
+        </button>
       </section>
       <section class="rounded-xl border border-interface/15 bg-ink-soft p-5" aria-labelledby="review-activity">
         <h3 id="review-activity" class="font-semibold">Reviews in the last 30 days</h3>

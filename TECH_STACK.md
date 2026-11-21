@@ -1,12 +1,12 @@
 # TECH_STACK.md — Korean Reader
 
-**Current scope:** Chrome handles mining and dictionary lookups. The desktop app handles review, practice, stats and Anki file import. Optional account sync remains a Chrome prototype.
+**Current scope:** Chrome handles mining and dictionary lookups. The desktop app handles review, practice, stats and Anki file import. Study data stays local.
 
 ## 1. Architecture Overview
 
 Korean Reader is a locally operated Google Chrome extension.
 
-Chrome uses local storage and KRDict for dictionary data. Desktop uses local SQLite, managed attachment files and FSRS. Phase 10 uses Firebase Authentication and Firestore Lite for optional Google sign-in and progress sync on Spark. See the [Phase 10 plan](docs/account-sync.md).
+Chrome uses local storage and KRDict for dictionary data. Desktop uses local SQLite, managed attachment files and FSRS.
 
 Its main responsibilities are:
 
@@ -185,10 +185,6 @@ IndexedDB access is centralised in the background service worker. Content script
 ### Known-word history
 
 The IndexedDB statistics store keeps a baseline and the latest known-word count for each date. Chrome snapshots are delivered to Desktop over the loopback bridge and stored in SQLite. The Stats page lives in Desktop.
-
-### Planned account storage
-
-An account-enabled Chrome build uses the extension background worker for Chrome Identity, Firebase Authentication, and Firestore Lite. It stores the Firebase session in IndexedDB and the per-user cache and queue in extension-local storage. Firestore holds shared known-word status and progress history. The [Phase 10 plan](docs/account-sync.md) describes the proposed document grouping, conflict handling and quota controls.
 
 ## 7. Desktop study and Anki package import
 

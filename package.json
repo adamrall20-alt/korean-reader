@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "fflate": "^0.8.3",
-    "firebase": "^13.4.0",
     "kiwi-nlp": "^0.24.1",
     "ts-fsrs": "^6.0.0",
     "vue": "^3.5.45"

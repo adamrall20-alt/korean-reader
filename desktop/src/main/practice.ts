@@ -103,35 +103,27 @@ function questionsFromLibrary(db: DatabaseSync, random: () => number, now: Date)
     const fallback = row.part_of_speech ? pools.get(`${language}:`) ?? [] : taggedByLanguage.get(language) ?? [];
     const compatible = [...exact, ...fallback];
     if (compatible.length < 4) continue;
-    const preferredType = questions.length % 2 === 0 ? 'meaning' : 'cloze';
-    for (const type of [preferredType, preferredType === 'meaning' ? 'cloze' : 'meaning'] as const) {
-      const answer = type === 'meaning' ? answerMeaning : occurrence.form;
-      const distractors = new Map<string, string>();
-      const usedGlossTokens = new Set(tokens);
-      for (const other of compatible) {
-        const option = type === 'meaning' ? other.meaning[0]! : other.occurrence?.form;
-        if (other === candidate || !option || other.tokens.some((token) => usedGlossTokens.has(token)) || (type === 'cloze' && (row.sentence.includes(option) ||
-          row.headword.startsWith(other.row.headword.replace(/다$/, '')) ||
-          other.row.headword.startsWith(row.headword.replace(/다$/, ''))))) continue;
-        const key = option.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
-        if (key && !distractors.has(key)) {
-          distractors.set(key, option);
-          other.tokens.forEach((token) => usedGlossTokens.add(token));
-        }
-        if (distractors.size === 3) break;
+    const distractors = new Map<string, string>();
+    const usedGlossTokens = new Set(tokens);
+    for (const other of compatible) {
+      if (other === candidate || other.tokens.some((token) => usedGlossTokens.has(token))) continue;
+      const option = other.meaning[0]!;
+      const key = option.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+      if (key && !distractors.has(key)) {
+        distractors.set(key, option);
+        other.tokens.forEach((token) => usedGlossTokens.add(token));
       }
-      if (distractors.size < 3) continue;
-      questions.push({
-        question: {
-          id: randomUUID(), type, before: occurrence.before, after: occurrence.after,
-          target: type === 'meaning' ? occurrence.form : null,
-          focusWord: type === 'cloze' ? row.headword : null,
-          options: shuffled([answer, ...distractors.values()], random),
-        },
-        cardId: row.id, contextId: row.context_id, answer, meaning: answerMeaning,
-      });
-      break;
+      if (distractors.size === 3) break;
     }
+    if (distractors.size < 3) continue;
+    questions.push({
+      question: {
+        id: randomUUID(), type: 'meaning', before: occurrence.before, after: occurrence.after,
+        target: occurrence.form,
+        options: shuffled([answerMeaning, ...distractors.values()], random),
+      },
+      cardId: row.id, contextId: row.context_id, answer: answerMeaning, meaning: answerMeaning,
+    });
     if (questions.length >= 10) break;
   }
   return questions;
@@ -155,7 +147,7 @@ export function createPracticeSession(db: DatabaseSync, media: LocalMediaStore, 
       db.prepare(`INSERT INTO practice_results (id, card_id, question_type, correct, answered_at)
         VALUES (?, ?, ?, ?, ?)`).run(item.question.id, item.cardId, item.question.type, Number(correct), new Date().toISOString());
       const feedback = { correct, correctIndex, headword: card.headword, meaning: item.meaning,
-        sentence: context?.sentence ?? `${item.question.before}${item.answer}${item.question.after}`,
+        sentence: context?.sentence ?? `${item.question.before}${item.question.target}${item.question.after}`,
         imageDataUrl: context?.imageDataUrl, audioDataUrl: context?.audioDataUrl };
       results.set(item.question.id, feedback);
       return feedback;

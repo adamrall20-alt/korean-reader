@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import VocabularyManager from '@/components/VocabularyManager.vue';
 import KnownWordsImport from '@/components/KnownWordsImport.vue';
-import CloudSyncCard from '@/components/CloudSyncCard.vue';
-import { accountEnabled } from '@/types/account';
 import { onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import type { SettingsResponse } from '@/types/messages';
@@ -147,7 +145,6 @@ const sections = [
     title: 'Storage',
     description: 'Local vocabulary storage, JSON export and cache management.',
   },
-  ...(accountEnabled ? [{ id: 'account', title: 'Google account', description: 'Sync known words and progress history.' } as const] : []),
 ] as const;
 </script>
 
@@ -302,7 +299,6 @@ const sections = [
               </button>
             </div>
             <KnownWordsImport v-else-if="section.id === 'import-known'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
-            <CloudSyncCard v-else-if="section.id === 'account'" class="mt-4" />
             <details v-else-if="section.id === 'storage'" class="mt-4 border-t border-interface/10 pt-4"><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary><VocabularyManager :key="vocabularyRevision" /></details>
           </section>
         </div>

@@ -158,11 +158,10 @@ export interface UndoReviewResult {
 
 export interface PracticeQuestion {
   id: string;
-  type: 'meaning' | 'cloze';
+  type: 'meaning';
   before: string;
   after: string;
-  target: string | null;
-  focusWord: string | null;
+  target: string;
   options: string[];
 }
 
@@ -191,6 +190,8 @@ export interface DesktopStudyStats {
 }
 
 export interface DesktopApi {
+  importKnownHistory?(): Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
+  onKnownHistoryUpdated?(callback: () => void): () => void;
   getStudyStats(): Promise<DesktopStudyStats>;
   startPractice(): Promise<PracticeQuestion[]>;
   answerPractice(id: string, choice: number): Promise<PracticeFeedback>;
@@ -214,6 +215,8 @@ export interface DesktopApi {
 
 export const DESKTOP_IPC_CHANNELS = {
   getStudyStats: 'desktop:get-study-stats',
+  importKnownHistory: 'desktop:import-known-history',
+  knownHistoryUpdated: 'desktop:known-history-updated',
   startPractice: 'desktop:start-practice',
   answerPractice: 'desktop:answer-practice',
   getSampleEntry: 'desktop:get-sample-entry',

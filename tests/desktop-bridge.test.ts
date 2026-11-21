@@ -33,8 +33,9 @@ describe('Extension-to-Desktop auto-import bridge', () => {
     const desktopDb = openDesktopDatabase(path.join(dir, 'test.sqlite'));
     const media = new LocalMediaStore(path.join(dir, 'media'));
     const onImport = vi.fn();
+    const onKnownHistory = vi.fn();
 
-    const handler = createBridgeHandler({ db: desktopDb.db, mediaStore: media, onImport });
+    const handler = createBridgeHandler({ db: desktopDb.db, mediaStore: media, onImport, onKnownHistory });
     const baseUrl = 'http://127.0.0.1:17421';
     vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
       const request = Object.assign(Readable.from(init?.body ? [Buffer.from(String(init.body))] : []), {
@@ -92,7 +93,10 @@ describe('Extension-to-Desktop auto-import bridge', () => {
         headers: { Origin: 'https://evil.example' },
       });
       expect(forbidden.status).toBe(403);
-      await pushKnownHistory({ baseline: { at: Date.now(), count: 2100 }, days: [] }, baseUrl);
+      await expect(pushKnownHistory({ baseline: { at: Date.now(), count: -1 }, days: [] }, baseUrl)).resolves.toBe(false);
+      expect(onKnownHistory).not.toHaveBeenCalled();
+      await expect(pushKnownHistory({ baseline: { at: Date.now(), count: 2100 }, days: [] }, baseUrl)).resolves.toBe(true);
+      expect(onKnownHistory).toHaveBeenCalledOnce();
       expect(getStudyStats(desktopDb.db).knownWords).toBe(2100);
       expect(listCards(desktopDb.db)).toHaveLength(2);
     } finally {

@@ -2,7 +2,7 @@
 
 ## Current desktop milestone
 
-[The desktop plan](DESKTOP_APP_PLAN.md) tracks D0–D7. D2 is owner-verified. D3 practice and desktop Stats are implemented, alongside D4 offline Anki import and D5 loopback delivery. The Chrome Statistics and AnkiConnect interfaces were retired. Firebase stays in Chrome Settings while [Google Drive sync](docs/desktop-sync-options.md) is evaluated.
+[The desktop plan](DESKTOP_APP_PLAN.md) tracks D0–D7. D2 is owner-verified. D3 practice and desktop Stats are implemented, alongside D4 offline Anki import and D5 loopback delivery. The Chrome Statistics and AnkiConnect interfaces were retired. Study data stays local. [Hosted storage and Google Drive](docs/desktop-sync-options.md) are future options.
 
 The following dated extension milestones record the features available in their original releases.
 
@@ -288,7 +288,7 @@ YouTube can serve an English transcript while the video player displays Korean c
 - [x] Start from the current local known-word count and chart changes after opt-in.
 - [x] Show live review counts, a seven-day scheduled total, and known-word overlap for the configured Anki deck.
 
-## Phase 10 — Accounts and Progress Sync (prototype)
+## Phase 10 — Accounts and Progress Sync (retired prototype)
 
 **Goal:** Let users optionally sign in with Google and carry their known-word progress between Chrome profiles.
 
@@ -354,7 +354,7 @@ These candidates come from gaps in the current implementation. Choose one milest
 | 2 | Subtitle replay and shortcuts | Replay the current line, move to previous/next lines and optionally loop a line for listening practice. Ignore shortcuts while typing and retain explicit mining. | Small–medium; reliable transcript timing, graceful fallback for collected captions |
 | 3 | Video vocabulary coverage — percentage implemented | The sidebar header now shows unique known-word coverage to one decimal, with exact counts on hover and partial-transcript labelling. An unknown-word list remains optional future work. | Percentage implemented; unknown list not approved |
 | 4 | Public distribution and onboarding | Prepare a versioned ZIP with installation/update instructions, explain KRDict and Anki setup, and evaluate Edge compatibility. Preserve the extension ID and user data during updates. | Small–medium for packaging; browser and OAuth compatibility testing before any store release |
-| 5 | Complete optional account sync | Finish automatic local-change queueing, guest/account separation, incremental downloads, retries, account deletion and registration controls. Measure Spark usage before open sign-up. | Large; existing Phase 10 prototype, live Firebase and multi-profile verification |
+| 5 | Explore optional sync | Evaluate portable backups, Drive and hosted storage for private cards, media and review history. | Product decision before implementation |
 | 6 | Bring your own subtitles | Import SRT/VTT for a YouTube video with no usable Korean transcript; reuse the sidebar, dictionary and mining flow. Validate timing, file size and navigation cleanup. | Medium; local parsing and a manual subtitle/video alignment control |
 | 7 | Undo vocabulary actions | Recover accidental deletion or known/unknown changes with a short-lived undo action, including clear account-sync behaviour if enabled. | Small–medium locally; cloud conflict handling adds scope |
 

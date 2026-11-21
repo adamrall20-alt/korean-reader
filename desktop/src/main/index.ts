@@ -1,5 +1,5 @@
 import { createPracticeSession } from './practice';
-import { getStudyStats } from './stats';
+import { getStudyStats, saveKnownWordHistory } from './stats';
 import fs from 'node:fs';
 import path from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
@@ -183,6 +183,22 @@ function registerIpcHandlers(): void {
     if (!practiceSession) throw new Error('Start a practice session first.');
     return practiceSession.answer(id, choice);
   });
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.importKnownHistory, async () => {
+    const selected = await dialog.showOpenDialog({
+      title: 'Import known-word history',
+      properties: ['openFile'],
+      filters: [{ name: 'Known-word history', extensions: ['json'] }],
+    });
+    const filename = selected.filePaths[0];
+    if (selected.canceled || !filename) return { ok: false, cancelled: true };
+    try {
+      if (fs.statSync(filename).size > 2 * 1024 * 1024) throw new Error('The history file is too large.');
+      saveKnownWordHistory(ensureStorage().db.db, JSON.parse(fs.readFileSync(filename, 'utf8')));
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : 'Could not import known-word history.' };
+    }
+  });
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getStudyStats, () => getStudyStats(ensureStorage().db.db));
 
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getNextReviewCard, () => {
@@ -253,6 +269,11 @@ app.whenReady().then(async () => {
     bridgeServer = await startDesktopBridge({
       db: db.db,
       mediaStore: media,
+      onKnownHistory() {
+        for (const win of BrowserWindow.getAllWindows()) {
+          win.webContents.send(DESKTOP_IPC_CHANNELS.knownHistoryUpdated);
+        }
+      },
       onImport(summary) {
         for (const win of BrowserWindow.getAllWindows()) {
           win.webContents.send(DESKTOP_IPC_CHANNELS.libraryUpdated, summary);

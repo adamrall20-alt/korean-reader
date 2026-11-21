@@ -24,8 +24,15 @@ describe('MiningPanel', () => {
     sendMessage.mockReset().mockResolvedValue(undefined);
   });
 
-  it('shows mining controls and forwards known-word history to desktop', () => {
+  it('shows the local known-word count even when Desktop is unavailable', async () => {
+    sendMessage.mockImplementation(async ({ type }) => type === 'get-known-word-history'
+      ? { ok: true, history: { baseline: { at: 1000, count: 100 }, days: [{ at: 2000, count: 123 }] } }
+      : { ok: false });
     const wrapper = mount(MiningPanel);
+    await flushPromises();
+    expect(wrapper.get('[aria-label="Known words"]').text()).toContain('123');
+    expect(wrapper.text()).toContain('Desktop unavailable');
+    expect(wrapper.text()).toContain('Export history');
     expect(wrapper.text()).toContain('Open Sidebar');
     expect(wrapper.text()).toContain('Parse Page');
     expect(wrapper.find('[aria-label="Open Statistics"]').exists()).toBe(false);

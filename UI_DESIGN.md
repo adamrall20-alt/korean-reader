@@ -187,11 +187,11 @@ Visual refinements can be introduced after core functionality is reliable.
 
 ## Toolbar popup
 
-The tilted penguin and Korean Reader title sit next to the Settings gear. **Open Sidebar** and **Parse Page** are the reading actions. The star pattern remains a subtle background. A configured extension exposes Google account controls in Settings.
+The tilted penguin and Korean Reader title sit next to the Settings gear. **Open Sidebar** and **Parse Page** are the reading actions. The star pattern remains a subtle background. The popup shows the local known-word count and a status for delivery to Desktop.
 
 ## Desktop study
 
-Review retains the dark and light palettes and orange sentence highlights. The daily review limit state uses the tilted penguin artwork. Practice shows an untimed progress count, A/B/C/D options and the correct answer with available saved media. The summary lists missed words.
+Review retains the dark and light palettes and orange sentence highlights. The daily review limit state uses the tilted penguin artwork. Practice shows the highlighted word, an untimed progress count, A/B/C/D meanings and the correct answer with available saved media. The summary lists missed words.
 
 Desktop Stats uses the same theme and compact aggregate cards. A word-history chart with date filters and 30-day review activity show changes over time. The stats labels distinguish words marked known in Chrome from cards that have graduated in desktop SRS.
 

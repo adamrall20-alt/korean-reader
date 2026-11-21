@@ -36,16 +36,26 @@ export async function readKnownWordHistory(start: boolean): Promise<KnownWordHis
     let history: KnownWordHistory | null = null;
     request.onsuccess = () => {
       const [baseline, ...days] = request.result as KnownWordPoint[];
-      if (baseline) {
-        history = { baseline, days: days.sort((a, b) => a.at - b.at) };
-      } else if (start) {
-        const count = countKnown(transaction);
-        count.onsuccess = () => {
-          const point = { at: Date.now(), count: count.result };
-          store.add(point, BASELINE);
-          history = { baseline: point, days: [] };
-        };
+      days.sort((a, b) => a.at - b.at);
+      if (!start) {
+        if (baseline) history = { baseline, days };
+        return;
       }
+      const count = countKnown(transaction);
+      count.onsuccess = () => {
+        const now = new Date();
+        const point = { at: now.getTime(), count: count.result };
+        if (!baseline) {
+          store.add(point, BASELINE);
+          history = { baseline: point, days };
+        } else if ((days.at(-1) ?? baseline).count !== point.count) {
+          const day = localDay(now);
+          store.put(point, day);
+          history = { baseline, days: [...days.filter(({ at }) => localDay(new Date(at)) !== day), point] };
+        } else {
+          history = { baseline, days };
+        }
+      };
     };
     transaction.oncomplete = () => resolve(history);
     transaction.onabort = () => reject(transaction.error ?? new Error('Could not access known-word history.'));

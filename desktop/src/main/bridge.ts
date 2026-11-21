@@ -67,9 +67,10 @@ interface BridgeOptions {
   mediaStore: LocalMediaStore;
   port?: number;
   onImport?: (summary: ImportSummary) => void;
+  onKnownHistory?: () => void;
 }
 
-export function createBridgeHandler({ db, mediaStore, onImport }: BridgeOptions) {
+export function createBridgeHandler({ db, mediaStore, onImport, onKnownHistory }: BridgeOptions) {
   return async (req: http.IncomingMessage, res: http.ServerResponse) => {
     const origin = req.headers.origin;
     if (!isAllowedOrigin(origin)) {
@@ -107,7 +108,9 @@ export function createBridgeHandler({ db, mediaStore, onImport }: BridgeOptions)
         sendJson(res, 200, { ok: true }, origin);
       } catch (error) {
         sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Could not save history.' }, origin);
+        return;
       }
+      onKnownHistory?.();
       return;
     }
 

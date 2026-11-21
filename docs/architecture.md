@@ -18,7 +18,7 @@ The extension is split into three parts. The YouTube page part watches captions 
 | Korean Reader Desktop | Imports mined cards and Anki packages and runs local FSRS, practice and stats. | Study and media stay local. |
 | Vitest + Vue Test Utils + jsdom | Tests services and UI components. | They provide fast automated checks without requiring a browser for every change. Chrome fixture checks cover extension flows where browser behavior matters. |
 
-The background service worker is the single owner of the extension's stored data and network calls. It can stop when idle under Manifest V3, so operations are message-driven and the worker wakes when needed. Dictionary lookups contact KRDict; Mined cards and known-word counts go to Korean Reader Desktop over loopback. The current build stores vocabulary and progress locally. The [Phase 10 plan](account-sync.md) describes proposed account-scoped storage and Firebase sync.
+The background service worker is the single owner of the extension's stored data and network calls. It can stop when idle under Manifest V3, so operations are message-driven and the worker wakes when needed. Dictionary lookups contact KRDict; Mined cards and known-word counts go to Korean Reader Desktop over loopback. The current build stores vocabulary and progress locally. Chrome shows the known count and awaits a loopback delivery response. Successful delivery refreshes Desktop Stats. A local JSON export and import provides a fallback.
 
 Current status and live checks are listed in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
 

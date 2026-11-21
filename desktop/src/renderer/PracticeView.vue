@@ -87,9 +87,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKey));
     <p v-if="error" role="alert" class="text-sm text-danger">{{ error }}</p>
     <template v-if="question">
       <div class="grid gap-3 rounded-xl border border-interface/15 bg-ink p-5" :key="question.id">
-        <p v-if="question.type === 'meaning'" class="text-sm font-medium text-muted">What does the highlighted word mean in this sentence?</p>
-        <p v-else class="text-sm font-medium text-muted">Which form of <strong lang="ko" class="text-accent">{{ question.focusWord }}</strong> completes the original sentence?</p>
-        <p lang="ko" class="whitespace-pre-wrap text-2xl font-medium leading-relaxed">{{ question.before }}<strong class="text-[#f59e0b]">{{ question.target ?? '＿＿＿' }}</strong>{{ question.after }}</p>
+        <p class="text-sm font-medium text-muted">What does the highlighted word mean in this sentence?</p>
+        <p lang="ko" class="whitespace-pre-wrap text-2xl font-medium leading-relaxed">{{ question.before }}<strong class="text-[#f59e0b]">{{ question.target }}</strong>{{ question.after }}</p>
       </div>
       <div class="grid gap-2 sm:grid-cols-2">
         <button v-for="(option, index) in question.options" :key="option" type="button" :disabled="busy || !!feedback"

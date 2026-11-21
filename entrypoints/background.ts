@@ -1,5 +1,3 @@
-import { handleAccountMessage } from '@/services/account/messages';
-import { accountEnabled, isAccountMessage } from '@/types/account';
 import {
   DEFAULT_SUBTITLE_APPEARANCE, isSubtitleAppearance, SUBTITLE_APPEARANCE_KEY, THEME_KEY,
   type InterfaceTheme, type PreferencesResponse,
@@ -32,10 +30,13 @@ import type {
 
 const KRDICT_API_KEY_STORAGE = 'krDictApiKey';
 
-function syncDesktopKnownHistory() {
-  void readKnownWordHistory(true).then((history) => {
-    if (history) return pushKnownHistory(history);
-  }).catch(() => { /* A closed desktop app retries on the next extension interaction. */ });
+async function syncDesktopKnownHistory(): Promise<boolean> {
+  try {
+    const history = await readKnownWordHistory(true);
+    return history ? await pushKnownHistory(history) : false;
+  } catch {
+    return false;
+  }
 }
 
 let desktopCatchUpComplete = false;
@@ -77,7 +78,7 @@ async function autoSyncDesktopAfterMine(headword: string): Promise<void> {
 /** Without changes, YouTube tabs reload every known headword; with changes, they patch their cached set. */
 async function notifyVocabularyChanged(changes?: { known: string[]; unknown: string[] }) {
   const revision: VocabularyRevision = { id: crypto.randomUUID(), ...changes };
-  syncDesktopKnownHistory();
+  void syncDesktopKnownHistory();
   await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: revision }).catch((error) => {
     console.warn('[Korean Reader] Could not notify subtitle tabs of vocabulary changes.', error);
   });
@@ -153,21 +154,13 @@ function isClearDictionaryCacheMessage(message: unknown): message is ClearDictio
 export default defineBackground(() => {
   console.info('[Korean Reader] Background service worker started.');
   void runDesktopCatchUp();
-  syncDesktopKnownHistory();
+  void syncDesktopKnownHistory();
 
   browser.runtime.onInstalled.addListener((details) => {
     console.info(`[Korean Reader] Extension ${details.reason}.`);
   });
 
   browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
-    if (accountEnabled && isAccountMessage(message) && sender.url === browser.runtime.getURL('/options.html')) {
-      void handleAccountMessage(message).then(
-        (view) => sendResponse({ ok: true, view }),
-        (error: unknown) => sendResponse({ ok: false, error: error instanceof Error ? error.message : 'Account request failed.' }),
-      );
-      return true;
-    }
-
     if (isPingMessage(message)) {
       const response: PingResponse = {
         ok: true,
@@ -292,9 +285,16 @@ export default defineBackground(() => {
     if (!fromExtensionPage) return false;
 
     if (message && typeof message === 'object' && 'type' in message) {
+      if (message.type === 'get-known-word-history') {
+        void readKnownWordHistory(true).then(
+          (history) => sendResponse({ ok: true, history }),
+          () => sendResponse({ ok: false }),
+        );
+        return true;
+      }
       if (message.type === 'sync-desktop-history') {
-        syncDesktopKnownHistory();
-        return false;
+        void syncDesktopKnownHistory().then((ok) => sendResponse({ ok }));
+        return true;
       }
       if (message.type === 'import-known-headwords') {
         const words = 'headwords' in message ? message.headwords : null;

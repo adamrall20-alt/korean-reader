@@ -1,5 +1,7 @@
 # Phase 10 account sync setup
 
+> Historical reference. The Firebase prototype and its setup files were removed. The current app stores study data locally.
+
 Use the existing Spark project `korean-reader-95722` and its default Firestore database.
 
 1. In [Google Auth Platform](https://console.cloud.google.com/auth/clients?project=korean-reader-95722), create a **Chrome Extension** OAuth client. Use item ID `bekcfaadoidpkpadnalmbgmlbkbgijbe`. If Google prompts you to configure the OAuth audience first, use **External** for a personal Google account and add your testing account under **Test users** while the app is in testing.
