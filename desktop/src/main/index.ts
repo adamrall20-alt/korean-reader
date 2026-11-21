@@ -12,12 +12,14 @@ import {
 import { createSampleMinedEntry } from '../shared/fixtures';
 import { runFsrsSpike } from '../shared/fsrs-spike';
 import { openDesktopDatabase, type DesktopDatabase } from './db';
+import { startDesktopBridge, type DesktopBridgeServer } from './bridge';
 import { importVocabularyJson } from './importer';
 import { deleteCard, getCardDetail, getLibraryStats, listCards } from './library';
 import { LocalMediaStore } from './media';
 
 let database: DesktopDatabase | null = null;
 let mediaStore: LocalMediaStore | null = null;
+let bridgeServer: DesktopBridgeServer | null = null;
 
 function ensureStorage(): { db: DesktopDatabase; media: LocalMediaStore } {
   if (!database || !mediaStore) {
@@ -158,8 +160,22 @@ function createMainWindow(): BrowserWindow {
   return win;
 }
 
-app.whenReady().then(() => {
-  ensureStorage();
+app.whenReady().then(async () => {
+  const { db, media } = ensureStorage();
+  try {
+    bridgeServer = await startDesktopBridge({
+      db: db.db,
+      mediaStore: media,
+      onImport(summary) {
+        for (const win of BrowserWindow.getAllWindows()) {
+          win.webContents.send(DESKTOP_IPC_CHANNELS.libraryUpdated, summary);
+        }
+      },
+    });
+  } catch (error) {
+    console.warn('[Korean Reader Desktop] Extension auto-import bridge unavailable:', error);
+  }
+
   registerIpcHandlers();
   createMainWindow();
 
@@ -171,6 +187,8 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  void bridgeServer?.close();
+  bridgeServer = null;
   database?.close();
   database = null;
 });

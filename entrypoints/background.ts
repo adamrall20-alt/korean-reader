@@ -14,7 +14,8 @@ import {
 } from '@/types/vocabulary';
 import { readKnownWordHistory } from '@/services/storage/statistics';
 import type { HistoryResponse } from '@/types/statistics';
-import { getVocabulary, listKnownHeadwords, normalizeHeadword } from '@/services/storage/vocabulary';
+import { getVocabulary, listKnownHeadwords, listVocabulary, normalizeHeadword } from '@/services/storage/vocabulary';
+import { pushEntriesToDesktop, syncMissingEntriesToDesktop } from '@/services/desktop/bridge';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
 import { headwordAliases, nominalCopulaHeadwords } from '@/services/korean/dictionary-forms';
@@ -32,6 +33,41 @@ import type {
 } from '@/types/messages';
 
 const KRDICT_API_KEY_STORAGE = 'krDictApiKey';
+let desktopCatchUpComplete = false;
+let desktopCatchUpInFlight: Promise<void> | null = null;
+
+async function runDesktopCatchUp(): Promise<void> {
+  if (desktopCatchUpComplete) return;
+  if (desktopCatchUpInFlight) return desktopCatchUpInFlight;
+  desktopCatchUpInFlight = (async () => {
+    try {
+      const entries = await listVocabulary();
+      const result = await syncMissingEntriesToDesktop(entries);
+      if (result.reachable) {
+        desktopCatchUpComplete = true;
+      }
+    } catch {
+      // Desktop app is optional; ignore when offline or storage is unavailable.
+    } finally {
+      desktopCatchUpInFlight = null;
+    }
+  })();
+  return desktopCatchUpInFlight;
+}
+
+async function autoSyncDesktopAfterMine(headword: string): Promise<void> {
+  try {
+    const entry = await getVocabulary(headword);
+    if (entry && entry.contexts.length > 0) {
+      const pushed = await pushEntriesToDesktop([entry]);
+      if (pushed && !desktopCatchUpComplete) {
+        await runDesktopCatchUp();
+      }
+    }
+  } catch {
+    // Desktop app is optional; never disrupt mining.
+  }
+}
 
 /** Without changes, YouTube tabs reload every known headword; with changes, they patch their cached set. */
 async function notifyVocabularyChanged(changes?: { known: string[]; unknown: string[] }) {
@@ -110,6 +146,7 @@ function isClearDictionaryCacheMessage(message: unknown): message is ClearDictio
 
 export default defineBackground(() => {
   console.info('[Korean Reader] Background service worker started.');
+  void runDesktopCatchUp();
 
   browser.runtime.onInstalled.addListener((details) => {
     console.info(`[Korean Reader] Extension ${details.reason}.`);
@@ -201,6 +238,9 @@ export default defineBackground(() => {
         if (response.ok && (message.type === 'mark-word-known' || message.type === 'set-vocabulary-status' ||
           message.type === 'delete-vocabulary' || (message.type === 'mine-word' && response.outcome !== 'existing'))) {
           await notifyVocabularyChanged(knownStatusChanges(message));
+        }
+        if (response.ok && message.type === 'mine-word') {
+          void autoSyncDesktopAfterMine(message.entry.headword);
         }
         sendResponse(response);
       }).catch((error: unknown) => {

@@ -40,7 +40,7 @@ async function buildDesktop() {
       ssr: path.resolve(desktopDir, 'src/main/index.ts'),
       target: 'node22',
       rollupOptions: {
-        external: ['electron', 'node:crypto', 'node:fs', 'node:path', 'node:sqlite'],
+        external: ['electron', 'node:crypto', 'node:fs', 'node:http', 'node:path', 'node:sqlite'],
         output: {
           format: 'cjs',
           entryFileNames: 'index.cjs',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import logo from '@/assets/New logo update.png';
 import stars from '@/assets/stars.png';
 import {
@@ -193,8 +193,28 @@ watch(searchQuery, () => {
   }, 180);
 });
 
+let unsubscribeLibraryUpdates: (() => void) | null = null;
+
 onMounted(() => {
   void refreshLibrary(false);
+  if (window.koreanReaderDesktop?.onLibraryUpdated) {
+    unsubscribeLibraryUpdates = window.koreanReaderDesktop.onLibraryUpdated((summary) => {
+      const parts: string[] = [];
+      if (summary.cardsAdded > 0) parts.push(`${summary.cardsAdded} added`);
+      if (summary.cardsUpdated > 0) parts.push(`${summary.cardsUpdated} updated`);
+      if (summary.contextsAdded > 0) parts.push(`${summary.contextsAdded} contexts`);
+      importNotice.value =
+        parts.length > 0
+          ? `Auto-imported from Chrome extension: ${parts.join(' · ')}.`
+          : 'Synced with Chrome extension.';
+      void refreshLibrary(true);
+    });
+  }
+});
+
+onBeforeUnmount(() => {
+  unsubscribeLibraryUpdates?.();
+  unsubscribeLibraryUpdates = null;
 });
 </script>
 

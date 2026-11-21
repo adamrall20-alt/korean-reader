@@ -116,6 +116,7 @@ export interface DesktopApi {
   getCardDetail(cardId: string): Promise<DesktopCardDetail | null>;
   getLibraryStats(): Promise<DesktopLibraryStats>;
   deleteCard(cardId: string): Promise<DeleteCardResult>;
+  onLibraryUpdated?(callback: (summary: ImportSummary) => void): () => void;
 }
 
 export const DESKTOP_IPC_CHANNELS = {
@@ -127,6 +128,7 @@ export const DESKTOP_IPC_CHANNELS = {
   getCardDetail: 'desktop:get-card-detail',
   getLibraryStats: 'desktop:get-library-stats',
   deleteCard: 'desktop:delete-card',
+  libraryUpdated: 'desktop:library-updated',
 } as const;
 
 export function isSafeExternalUrl(rawUrl: string): boolean {
