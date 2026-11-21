@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { AnkiImportProgress, ImportSummary } from '../shared/api';
-import { importVocabularyJson } from './importer';
+import { importVocabularyJson, type ImportedSchedule } from './importer';
 import type { LocalMediaStore } from './media';
 
 export const DEFAULT_ANKI_CONNECT_URL = 'http://127.0.0.1:8765';
@@ -14,7 +14,105 @@ interface AnkiConnectResponse<T> {
 interface AnkiNoteInfo {
   noteId: number;
   modelName?: string;
+  cards?: number[];
   fields?: Record<string, { value?: string; order?: number }>;
+}
+
+export interface AnkiCardInfo {
+  cardId: number;
+  note?: number;
+  type?: number; // 0 = New, 1 = Learning, 2 = Review, 3 = Relearning
+  queue?: number;
+  due?: number;
+  interval?: number;
+  factor?: number; // ease factor * 1000 (e.g. 2500)
+  reps?: number;
+  lapses?: number;
+  left?: number;
+  mod?: number; // last modified Unix timestamp in seconds
+}
+
+function clamp(min: number, max: number, value: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function mapAnkiCardToSchedule(card: AnkiCardInfo, now = new Date()): ImportedSchedule {
+  const nowIso = now.toISOString();
+  const type = typeof card.type === 'number' && card.type >= 0 && card.type <= 3 ? card.type : 0;
+  const reps = typeof card.reps === 'number' && card.reps > 0 ? Math.round(card.reps) : 0;
+  const lapses = typeof card.lapses === 'number' && card.lapses > 0 ? Math.round(card.lapses) : 0;
+  const interval = typeof card.interval === 'number' && Number.isFinite(card.interval) ? card.interval : 0;
+  const factor = typeof card.factor === 'number' && card.factor > 0 ? card.factor : 2500;
+  const modSec = typeof card.mod === 'number' && card.mod > 1_000_000_000 ? card.mod : 0;
+
+  if (type === 0 && reps === 0) {
+    return {
+      state: 0,
+      dueAt: nowIso,
+      stability: 0,
+      difficulty: 0,
+      elapsedDays: 0,
+      scheduledDays: 0,
+      reps: 0,
+      lapses: 0,
+      learningSteps: 0,
+      lastReviewAt: null,
+    };
+  }
+
+  // Map Anki ease factor (default 2500, range ~1300-3500) to FSRS difficulty (1-10, default ~5)
+  const difficulty = Math.round(clamp(1, 10, 5 + (2500 - factor) / 250) * 100) / 100;
+  const lastReviewMs = modSec > 0 ? modSec * 1000 : now.getTime();
+  const lastReviewAt = new Date(lastReviewMs).toISOString();
+  const elapsedDays = Math.max(0, Math.round((now.getTime() - lastReviewMs) / 86_400_000));
+
+  if (type === 2) {
+    const scheduledDays = Math.max(1, Math.round(interval));
+    // In FSRS at R=0.9, stability S equals the interval in days at 90% retrievability.
+    const stability = Math.max(0.1, scheduledDays);
+    const dueMs = lastReviewMs + scheduledDays * 86_400_000;
+    return {
+      state: 2,
+      dueAt: new Date(dueMs).toISOString(),
+      stability,
+      difficulty,
+      elapsedDays,
+      scheduledDays,
+      reps: Math.max(1, reps),
+      lapses,
+      learningSteps: 0,
+      lastReviewAt,
+    };
+  }
+
+  // Learning (1) or Relearning (3)
+  const dueSec = typeof card.due === 'number' && card.due > 1_000_000_000 ? card.due : 0;
+  const dueAt = dueSec > 0 ? new Date(dueSec * 1000).toISOString() : nowIso;
+  const stability = Math.max(0.1, interval > 0 ? interval : 0.5);
+
+  return {
+    state: type,
+    dueAt,
+    stability,
+    difficulty,
+    elapsedDays,
+    scheduledDays: Math.max(0, Math.round(interval)),
+    reps,
+    lapses,
+    learningSteps: 0,
+    lastReviewAt: modSec > 0 ? lastReviewAt : null,
+  };
+}
+
+function pickPrimaryCard(cards: AnkiCardInfo[]): AnkiCardInfo | null {
+  if (cards.length === 0) return null;
+  return [...cards].sort((a, b) => {
+    const typeDiff = (b.type ?? 0) - (a.type ?? 0);
+    if (typeDiff !== 0) return typeDiff;
+    const ivlDiff = (b.interval ?? 0) - (a.interval ?? 0);
+    if (ivlDiff !== 0) return ivlDiff;
+    return (b.reps ?? 0) - (a.reps ?? 0);
+  })[0]!;
 }
 
 const EXT_TO_MIME: Record<string, string> = {
@@ -213,6 +311,36 @@ export async function importAnkiDeck(options: {
       endpoint,
     );
 
+    const cardIdsByNote = new Map<number, number[]>();
+    const allBatchCardIds: number[] = [];
+    for (const note of notes) {
+      if (Array.isArray(note.cards) && note.cards.length > 0) {
+        const validIds = note.cards.filter((id): id is number => typeof id === 'number');
+        if (validIds.length > 0) {
+          cardIdsByNote.set(note.noteId, validIds);
+          allBatchCardIds.push(...validIds);
+        }
+      }
+    }
+
+    const cardsById = new Map<number, AnkiCardInfo>();
+    if (allBatchCardIds.length > 0) {
+      try {
+        const cardsInfo = await invokeAnkiConnect<AnkiCardInfo[]>(
+          'cardsInfo',
+          { cards: allBatchCardIds },
+          endpoint,
+        );
+        for (const card of cardsInfo) {
+          if (card && typeof card.cardId === 'number') {
+            cardsById.set(card.cardId, card);
+          }
+        }
+      } catch {
+        // If cardsInfo is unavailable, continue importing notes with default schedules.
+      }
+    }
+
     const convertedEntries: unknown[] = [];
 
     for (const note of notes) {
@@ -270,6 +398,13 @@ export async function importAnkiDeck(options: {
         minedAt: nowIso,
       }));
 
+      const noteCardIds = cardIdsByNote.get(note.noteId) ?? [];
+      const noteCards = noteCardIds
+        .map((id) => cardsById.get(id))
+        .filter((c): c is AnkiCardInfo => Boolean(c));
+      const primaryCard = pickPrimaryCard(noteCards);
+      const schedule = primaryCard ? mapAnkiCardToSchedule(primaryCard) : undefined;
+
       convertedEntries.push({
         headword,
         originalForm: headword,
@@ -277,6 +412,7 @@ export async function importAnkiDeck(options: {
         definitions,
         koreanDefinitions: [],
         ankiNoteId: note.noteId,
+        schedule,
         contexts,
         status: 'known',
         createdAt: nowIso,

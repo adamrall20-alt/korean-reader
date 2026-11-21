@@ -119,6 +119,45 @@ export interface AnkiImportProgress {
   total: number;
 }
 
+export type ReviewRatingValue = 1 | 2 | 3 | 4;
+
+export interface ReviewQueueSummary {
+  newAvailable: number;
+  dueLearning: number;
+  dueReviews: number;
+  totalDue: number;
+  reviewedToday: number;
+  canUndo: boolean;
+}
+
+export interface ReviewRatingPreview {
+  rating: ReviewRatingValue;
+  label: 'Again' | 'Hard' | 'Good' | 'Easy';
+  intervalText: string;
+  dueAt: string;
+  scheduledDays: number;
+  state: number;
+}
+
+export interface NextReviewCardResult {
+  card: DesktopCardDetail | null;
+  ratingPreviews: ReviewRatingPreview[];
+  queue: ReviewQueueSummary;
+}
+
+export interface SubmitReviewResult {
+  ok: boolean;
+  reviewLogId?: string;
+  nextDueAt?: string;
+  error?: string;
+}
+
+export interface UndoReviewResult {
+  ok: boolean;
+  restoredCardId?: string;
+  error?: string;
+}
+
 export interface DesktopApi {
   getSampleEntry(): Promise<VocabularyEntry>;
   getRuntimeInfo(): Promise<DesktopRuntimeInfo>;
@@ -130,6 +169,10 @@ export interface DesktopApi {
   deleteCard(cardId: string): Promise<DeleteCardResult>;
   listAnkiDecks?(): Promise<AnkiDecksResult>;
   importAnkiDeck?(deckName: string): Promise<ImportResult>;
+  getReviewQueue?(): Promise<ReviewQueueSummary>;
+  getNextReviewCard?(): Promise<NextReviewCardResult>;
+  submitReview?(cardId: string, rating: ReviewRatingValue): Promise<SubmitReviewResult>;
+  undoLastReview?(): Promise<UndoReviewResult>;
   onLibraryUpdated?(callback: (summary: ImportSummary) => void): () => void;
   onAnkiImportProgress?(callback: (progress: AnkiImportProgress) => void): () => void;
 }
@@ -145,6 +188,10 @@ export const DESKTOP_IPC_CHANNELS = {
   deleteCard: 'desktop:delete-card',
   listAnkiDecks: 'desktop:list-anki-decks',
   importAnkiDeck: 'desktop:import-anki-deck',
+  getReviewQueue: 'desktop:get-review-queue',
+  getNextReviewCard: 'desktop:get-next-review-card',
+  submitReview: 'desktop:submit-review',
+  undoLastReview: 'desktop:undo-last-review',
   libraryUpdated: 'desktop:library-updated',
   ankiImportProgress: 'desktop:anki-import-progress',
 } as const;

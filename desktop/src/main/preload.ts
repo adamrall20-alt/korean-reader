@@ -4,6 +4,7 @@ import {
   type AnkiImportProgress,
   type DesktopApi,
   type ImportSummary,
+  type ReviewRatingValue,
 } from '../shared/api';
 
 const desktopApi: DesktopApi = {
@@ -18,6 +19,11 @@ const desktopApi: DesktopApi = {
   listAnkiDecks: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.listAnkiDecks),
   importAnkiDeck: (deckName: string) =>
     ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.importAnkiDeck, deckName),
+  getReviewQueue: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getReviewQueue),
+  getNextReviewCard: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getNextReviewCard),
+  submitReview: (cardId: string, rating: ReviewRatingValue) =>
+    ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.submitReview, cardId, rating),
+  undoLastReview: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.undoLastReview),
   onLibraryUpdated: (callback: (summary: ImportSummary) => void) => {
     const listener = (_event: unknown, summary: ImportSummary) => callback(summary);
     ipcRenderer.on(DESKTOP_IPC_CHANNELS.libraryUpdated, listener);

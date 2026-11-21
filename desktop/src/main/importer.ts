@@ -15,6 +15,19 @@ interface RawContext {
   minedAt?: unknown;
 }
 
+export interface ImportedSchedule {
+  state: number;
+  dueAt: string;
+  stability: number;
+  difficulty: number;
+  elapsedDays: number;
+  scheduledDays: number;
+  reps: number;
+  lapses: number;
+  learningSteps: number;
+  lastReviewAt: string | null;
+}
+
 interface RawVocabularyEntry {
   headword?: unknown;
   originalForm?: unknown;
@@ -25,6 +38,7 @@ interface RawVocabularyEntry {
   koreanDefinitions?: unknown;
   contexts?: unknown;
   ankiNoteId?: unknown;
+  schedule?: unknown;
   createdAt?: unknown;
   updatedAt?: unknown;
 }
@@ -57,6 +71,54 @@ function toIsoTimestamp(value: unknown, fallback: string): string {
     return value;
   }
   return fallback;
+}
+
+function parseImportedSchedule(value: unknown, fallbackIso: string): ImportedSchedule | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  const state = typeof raw.state === 'number' && Number.isFinite(raw.state) ? raw.state : null;
+  if (state === null || state < 0 || state > 3) return null;
+
+  const dueAt = toIsoTimestamp(raw.dueAt, fallbackIso);
+  const stability =
+    typeof raw.stability === 'number' && Number.isFinite(raw.stability) ? raw.stability : 0;
+  const difficulty =
+    typeof raw.difficulty === 'number' && Number.isFinite(raw.difficulty) ? raw.difficulty : 0;
+  const elapsedDays =
+    typeof raw.elapsedDays === 'number' && Number.isFinite(raw.elapsedDays)
+      ? Math.max(0, Math.round(raw.elapsedDays))
+      : 0;
+  const scheduledDays =
+    typeof raw.scheduledDays === 'number' && Number.isFinite(raw.scheduledDays)
+      ? Math.max(0, Math.round(raw.scheduledDays))
+      : 0;
+  const reps =
+    typeof raw.reps === 'number' && Number.isFinite(raw.reps) ? Math.max(0, Math.round(raw.reps)) : 0;
+  const lapses =
+    typeof raw.lapses === 'number' && Number.isFinite(raw.lapses)
+      ? Math.max(0, Math.round(raw.lapses))
+      : 0;
+  const learningSteps =
+    typeof raw.learningSteps === 'number' && Number.isFinite(raw.learningSteps)
+      ? Math.max(0, Math.round(raw.learningSteps))
+      : 0;
+  const lastReviewAt =
+    typeof raw.lastReviewAt === 'string' && !Number.isNaN(Date.parse(raw.lastReviewAt))
+      ? raw.lastReviewAt
+      : null;
+
+  return {
+    state,
+    dueAt,
+    stability,
+    difficulty,
+    elapsedDays,
+    scheduledDays,
+    reps,
+    lapses,
+    learningSteps,
+    lastReviewAt,
+  };
 }
 
 export function importVocabularyJson(
@@ -129,8 +191,24 @@ export function importVocabularyJson(
   const insertScheduleStmt = db.prepare(
     `INSERT OR IGNORE INTO schedules (
        card_id, state, due_at, stability, difficulty,
-       elapsed_days, scheduled_days, reps, lapses, last_review_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       elapsed_days, scheduled_days, reps, lapses, learning_steps, last_review_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  const updateUnreviewedScheduleStmt = db.prepare(
+    `UPDATE schedules
+     SET state = ?,
+         due_at = ?,
+         stability = ?,
+         difficulty = ?,
+         elapsed_days = ?,
+         scheduled_days = ?,
+         reps = ?,
+         lapses = ?,
+         learning_steps = ?,
+         last_review_at = ?
+     WHERE card_id = ?
+       AND reps = 0
+       AND NOT EXISTS (SELECT 1 FROM review_logs rl WHERE rl.card_id = schedules.card_id)`,
   );
 
   db.exec('BEGIN');
@@ -187,6 +265,7 @@ export function importVocabularyJson(
       const partOfSpeech = toOptionalString(raw.partOfSpeech);
       const frequencyRank = toOptionalNumber(raw.frequencyRank);
       const ankiNoteId = toOptionalNumber(raw.ankiNoteId);
+      const importedSchedule = parseImportedSchedule(raw.schedule, nowIso);
       const createdAt = toIsoTimestamp(raw.createdAt, nowIso);
       const updatedAt = toIsoTimestamp(raw.updatedAt, nowIso);
 
@@ -213,19 +292,36 @@ export function importVocabularyJson(
           updatedAt,
         );
 
-        const emptyFsrs = createEmptyCard(now);
-        insertScheduleStmt.run(
-          cardId,
-          emptyFsrs.state ?? 0,
-          emptyFsrs.due.toISOString(),
-          emptyFsrs.stability ?? 0,
-          emptyFsrs.difficulty ?? 0,
-          0,
-          emptyFsrs.scheduled_days ?? 0,
-          emptyFsrs.reps ?? 0,
-          emptyFsrs.lapses ?? 0,
-          null,
-        );
+        if (importedSchedule) {
+          insertScheduleStmt.run(
+            cardId,
+            importedSchedule.state,
+            importedSchedule.dueAt,
+            importedSchedule.stability,
+            importedSchedule.difficulty,
+            importedSchedule.elapsedDays,
+            importedSchedule.scheduledDays,
+            importedSchedule.reps,
+            importedSchedule.lapses,
+            importedSchedule.learningSteps,
+            importedSchedule.lastReviewAt,
+          );
+        } else {
+          const emptyFsrs = createEmptyCard(now);
+          insertScheduleStmt.run(
+            cardId,
+            emptyFsrs.state ?? 0,
+            emptyFsrs.due.toISOString(),
+            emptyFsrs.stability ?? 0,
+            emptyFsrs.difficulty ?? 0,
+            0,
+            emptyFsrs.scheduled_days ?? 0,
+            emptyFsrs.reps ?? 0,
+            emptyFsrs.lapses ?? 0,
+            emptyFsrs.learning_steps ?? 0,
+            null,
+          );
+        }
         cardsAdded += 1;
       } else {
         cardId = existingCard.id;
@@ -239,6 +335,21 @@ export function importVocabularyJson(
           updatedAt,
           cardId,
         );
+        if (importedSchedule && importedSchedule.reps > 0) {
+          updateUnreviewedScheduleStmt.run(
+            importedSchedule.state,
+            importedSchedule.dueAt,
+            importedSchedule.stability,
+            importedSchedule.difficulty,
+            importedSchedule.elapsedDays,
+            importedSchedule.scheduledDays,
+            importedSchedule.reps,
+            importedSchedule.lapses,
+            importedSchedule.learningSteps,
+            importedSchedule.lastReviewAt,
+            cardId,
+          );
+        }
         cardsUpdated += 1;
       }
 

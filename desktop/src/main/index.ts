@@ -9,6 +9,8 @@ import {
   type DesktopRuntimeInfo,
   type ImportResult,
   type OpenExternalResult,
+  type ReviewRatingValue,
+  type SubmitReviewResult,
 } from '../shared/api';
 import { createSampleMinedEntry } from '../shared/fixtures';
 import { runFsrsSpike } from '../shared/fsrs-spike';
@@ -18,6 +20,12 @@ import { startDesktopBridge, type DesktopBridgeServer } from './bridge';
 import { importVocabularyJson } from './importer';
 import { deleteCard, getCardDetail, getLibraryStats, listCards } from './library';
 import { LocalMediaStore } from './media';
+import {
+  getNextReviewCard,
+  getReviewQueueSummary,
+  submitReview,
+  undoLastReview,
+} from './review';
 
 let database: DesktopDatabase | null = null;
 let mediaStore: LocalMediaStore | null = null;
@@ -177,6 +185,35 @@ function registerIpcHandlers(): void {
       }
     },
   );
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getReviewQueue, () => {
+    const { db } = ensureStorage();
+    return getReviewQueueSummary(db.db);
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getNextReviewCard, () => {
+    const { db, media } = ensureStorage();
+    return getNextReviewCard(db.db, media);
+  });
+
+  ipcMain.handle(
+    DESKTOP_IPC_CHANNELS.submitReview,
+    (_event, cardId: unknown, rating: unknown): SubmitReviewResult => {
+      if (typeof cardId !== 'string' || !cardId) {
+        return { ok: false, error: 'Invalid card ID.' };
+      }
+      if (rating !== 1 && rating !== 2 && rating !== 3 && rating !== 4) {
+        return { ok: false, error: 'Invalid rating.' };
+      }
+      const { db } = ensureStorage();
+      return submitReview(db.db, cardId, rating as ReviewRatingValue);
+    },
+  );
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.undoLastReview, () => {
+    const { db } = ensureStorage();
+    return undoLastReview(db.db);
+  });
 }
 
 function createMainWindow(): BrowserWindow {

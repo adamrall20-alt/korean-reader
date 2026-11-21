@@ -9,7 +9,13 @@ import {
   type DesktopCardSummary,
   type DesktopLibraryStats,
   type ImportResult,
+  type ReviewQueueSummary,
 } from '../shared/api';
+import ReviewView from './ReviewView.vue';
+
+const activeTab = ref<'review' | 'library'>('library');
+const reviewViewRef = ref<InstanceType<typeof ReviewView> | null>(null);
+const reviewDueCount = ref(0);
 
 const cards = ref<DesktopCardSummary[]>([]);
 const selectedCardId = ref<string | null>(null);
@@ -83,12 +89,19 @@ async function refreshLibrary(preserveSelection = true) {
   loading.value = true;
   loadError.value = '';
   try {
-    const [nextCards, nextStats] = await Promise.all([
+    const [nextCards, nextStats, nextQueue] = await Promise.all([
       api.listCards(searchQuery.value),
       api.getLibraryStats(),
+      api.getReviewQueue ? api.getReviewQueue() : Promise.resolve(null),
     ]);
     cards.value = nextCards;
     stats.value = nextStats;
+    if (nextQueue) {
+      reviewDueCount.value = nextQueue.totalDue;
+    }
+    if (activeTab.value === 'review') {
+      void reviewViewRef.value?.refresh();
+    }
 
     if (nextCards.length === 0) {
       selectedCardId.value = null;
@@ -289,6 +302,17 @@ onMounted(() => {
   }
 });
 
+function handleQueueChanged(queue: ReviewQueueSummary) {
+  reviewDueCount.value = queue.totalDue;
+}
+
+function switchTab(tab: 'review' | 'library') {
+  activeTab.value = tab;
+  if (tab === 'library') {
+    void refreshLibrary(true);
+  }
+}
+
 onBeforeUnmount(() => {
   unsubscribeLibraryUpdates?.();
   unsubscribeLibraryUpdates = null;
@@ -304,8 +328,34 @@ onBeforeUnmount(() => {
         <img :src="logo" alt="" class="size-9 shrink-0 object-contain" />
         <div class="min-w-0">
           <h1 class="truncate text-base font-semibold tracking-tight text-paper">Korean Reader</h1>
-          <p class="text-xs text-muted">Desktop Library</p>
+          <p class="text-xs text-muted">Desktop</p>
         </div>
+
+        <nav class="ml-4 flex items-center rounded-lg border border-interface/15 bg-ink-soft p-0.5 text-xs">
+          <button
+            type="button"
+            class="flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition-colors"
+            :class="activeTab === 'review' ? 'bg-accent text-white' : 'text-muted hover:text-paper'"
+            @click="switchTab('review')"
+          >
+            <span>Review</span>
+            <span
+              v-if="reviewDueCount > 0"
+              class="rounded-full px-1.5 py-0.2 text-[10px] font-semibold"
+              :class="activeTab === 'review' ? 'bg-white/20 text-white' : 'bg-accent/20 text-accent'"
+            >
+              {{ reviewDueCount }}
+            </span>
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-3 py-1 font-medium transition-colors"
+            :class="activeTab === 'library' ? 'bg-accent text-white' : 'text-muted hover:text-paper'"
+            @click="switchTab('library')"
+          >
+            Library ({{ stats.totalCards }})
+          </button>
+        </nav>
 
         <div class="ml-auto flex items-center gap-2.5">
           <button
@@ -420,6 +470,14 @@ onBeforeUnmount(() => {
           <span class="font-semibold text-accent">✓</span> {{ importNotice }}
         </div>
 
+        <ReviewView
+          v-if="activeTab === 'review'"
+          ref="reviewViewRef"
+          @open-library="switchTab('library')"
+          @queue-changed="handleQueueChanged"
+        />
+
+        <template v-else>
         <section
           aria-label="Library statistics"
           class="grid grid-cols-2 gap-3 sm:grid-cols-4"
@@ -615,6 +673,7 @@ onBeforeUnmount(() => {
             </div>
           </article>
         </section>
+        </template>
       </div>
     </main>
   </div>

@@ -121,16 +121,39 @@ export function runMigrations(db: DatabaseSync): void {
     );
   `);
 
-  const applied = db
+  const appliedV1 = db
     .prepare('SELECT version FROM schema_migrations WHERE version = 1')
     .get() as { version?: number } | undefined;
 
-  if (!applied) {
+  if (!appliedV1) {
     db.exec('BEGIN');
     try {
       db.exec(MIGRATION_V1_SQL);
       db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)').run(
         1,
+        new Date().toISOString(),
+      );
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  const appliedV2 = db
+    .prepare('SELECT version FROM schema_migrations WHERE version = 2')
+    .get() as { version?: number } | undefined;
+
+  if (!appliedV2) {
+    db.exec('BEGIN');
+    try {
+      const columns = db.prepare('PRAGMA table_info(schedules)').all() as Array<{ name?: string }>;
+      const hasLearningSteps = columns.some((col) => col.name === 'learning_steps');
+      if (!hasLearningSteps) {
+        db.exec('ALTER TABLE schedules ADD COLUMN learning_steps INTEGER NOT NULL DEFAULT 0;');
+      }
+      db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)').run(
+        2,
         new Date().toISOString(),
       );
       db.exec('COMMIT');
