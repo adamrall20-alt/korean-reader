@@ -90,6 +90,17 @@ function splitHighlight(sentence: string, originalForm: string, headword: string
   };
 }
 
+function pauseAudio() {
+  const el = audioEl.value;
+  if (!el) return;
+  el.pause();
+}
+
+function revealAnswer() {
+  pauseAudio();
+  revealed.value = true;
+}
+
 function replayAudio() {
   const el = audioEl.value;
   if (!el) return;
@@ -155,6 +166,7 @@ async function studyMoreNewCards(extraCount = 10) {
 async function handleRate(rating: ReviewRatingValue) {
   const api = window.koreanReaderDesktop;
   if (!api?.submitReview || !currentCard.value || submitting.value) return;
+  pauseAudio();
   submitting.value = true;
   errorMessage.value = '';
   statusMessage.value = '';
@@ -235,7 +247,7 @@ function handleKeydown(event: KeyboardEvent) {
 
   if (!revealed.value && (event.code === 'Space' || event.key === 'Enter')) {
     event.preventDefault();
-    revealed.value = true;
+    revealAnswer();
     return;
   }
 
@@ -518,7 +530,7 @@ defineExpose({
           <button
             type="button"
             class="w-full max-w-xs rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-            @click="revealed = true"
+            @click="revealAnswer"
           >
             Show Answer <span class="ml-1 opacity-75">(Space)</span>
           </button>
