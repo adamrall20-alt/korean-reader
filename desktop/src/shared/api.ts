@@ -128,6 +128,7 @@ export interface DesktopReviewSettings {
 
 export interface ReviewQueueSummary {
   newAvailable: number;
+  totalNewRemaining: number;
   dueLearning: number;
   dueReviews: number;
   totalDue: number;

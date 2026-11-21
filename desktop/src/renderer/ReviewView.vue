@@ -18,6 +18,7 @@ const currentCard = ref<DesktopCardDetail | null>(null);
 const ratingPreviews = ref<ReviewRatingPreview[]>([]);
 const queue = ref<ReviewQueueSummary>({
   newAvailable: 0,
+  totalNewRemaining: 0,
   dueLearning: 0,
   dueReviews: 0,
   totalDue: 0,
@@ -122,6 +123,29 @@ async function loadNextCard() {
     errorMessage.value = error instanceof Error ? error.message : 'Failed to load next review card.';
   } finally {
     loading.value = false;
+  }
+}
+
+async function handleRefreshQueue() {
+  statusMessage.value = '';
+  await loadNextCard();
+  if (!currentCard.value && !errorMessage.value) {
+    statusMessage.value = 'Queue refreshed — no more cards due right now.';
+  }
+}
+
+async function studyMoreNewCards(extraCount = 10) {
+  const api = window.koreanReaderDesktop;
+  if (!api?.saveReviewSettings) return;
+  statusMessage.value = '';
+  errorMessage.value = '';
+  try {
+    await api.saveReviewSettings({
+      dailyNewLimit: queue.value.dailyNewLimit + extraCount,
+    });
+    await loadNextCard();
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'Failed to update daily new limit.';
   }
 }
 
@@ -311,6 +335,9 @@ defineExpose({
         <template v-if="queue.dailyLimitReached">
           You have reached your daily limit of {{ queue.dailyReviewLimit }} reviews. You can adjust daily limits in Settings.
         </template>
+        <template v-else-if="queue.totalNewRemaining > 0 && queue.reviewedToday > 0">
+          You have completed {{ queue.reviewedToday }} review{{ queue.reviewedToday === 1 ? '' : 's' }} today and reached today's limit of {{ queue.dailyNewLimit }} new cards ({{ queue.totalNewRemaining.toLocaleString() }} unseen remaining).
+        </template>
         <template v-else-if="queue.reviewedToday > 0">
           You have completed {{ queue.reviewedToday }} review{{ queue.reviewedToday === 1 ? '' : 's' }} today.
         </template>
@@ -318,7 +345,15 @@ defineExpose({
           No cards are currently due. Import cards from Chrome or Anki in your Library to start reviewing.
         </template>
       </p>
-      <div class="flex items-center gap-3 pt-1">
+      <div class="flex flex-wrap items-center justify-center gap-3 pt-1">
+        <button
+          v-if="!queue.dailyLimitReached && queue.totalNewRemaining > 0"
+          type="button"
+          class="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          @click="studyMoreNewCards(10)"
+        >
+          Study +10 New Cards
+        </button>
         <button
           v-if="queue.dailyLimitReached"
           type="button"
@@ -330,7 +365,7 @@ defineExpose({
         <button
           v-else
           type="button"
-          class="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          class="rounded-lg border border-interface/15 px-4 py-2 text-sm font-medium text-paper transition hover:bg-ink-lift"
           @click="emit('open-library')"
         >
           Open Library
@@ -338,7 +373,7 @@ defineExpose({
         <button
           type="button"
           class="rounded-lg border border-interface/15 px-4 py-2 text-sm font-medium text-paper transition hover:bg-ink-lift"
-          @click="loadNextCard"
+          @click="handleRefreshQueue"
         >
           Refresh Queue
         </button>

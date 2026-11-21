@@ -209,6 +209,7 @@ export function getReviewQueueSummary(
   if (dailyLimitReached) {
     return {
       newAvailable: 0,
+      totalNewRemaining: totalNew,
       dueLearning: 0,
       dueReviews: 0,
       totalDue: 0,
@@ -231,6 +232,7 @@ export function getReviewQueueSummary(
 
   return {
     newAvailable,
+    totalNewRemaining: totalNew,
     dueLearning,
     dueReviews,
     totalDue: dueLearning + dueReviews + newAvailable,
