@@ -80,6 +80,10 @@ function stripHtml(input: string): string {
     .trim();
 }
 
+function normalizeFieldKey(key: string): string {
+  return key.toLowerCase().replace(/[\s_-]+/g, '');
+}
+
 function findFieldValue(
   fields: Record<string, { value?: string }>,
   candidates: string[],
@@ -87,11 +91,11 @@ function findFieldValue(
   const lowerMap = new Map<string, string>();
   for (const [key, entry] of Object.entries(fields)) {
     if (typeof entry?.value === 'string') {
-      lowerMap.set(key.toLowerCase().trim(), entry.value);
+      lowerMap.set(normalizeFieldKey(key), entry.value);
     }
   }
   for (const candidate of candidates) {
-    const val = lowerMap.get(candidate.toLowerCase());
+    const val = lowerMap.get(normalizeFieldKey(candidate));
     if (val && val.trim().length > 0) return val;
   }
   return '';
