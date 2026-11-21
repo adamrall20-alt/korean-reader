@@ -143,10 +143,10 @@ export async function importAnkiDeck(options: {
   onProgress?: (progress: AnkiImportProgress) => void;
 }): Promise<ImportSummary> {
   const { db, mediaStore, deckName, endpoint = DEFAULT_ANKI_CONNECT_URL, onProgress } = options;
-  const escapedDeck = deckName.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const escapedDeck = deckName.replace(/[\\"*_]/g, '\\$&');
   const noteIds = await invokeAnkiConnect<number[]>(
     'findNotes',
-    { query: `deck:"${escapedDeck}"` },
+    { query: `"deck:${escapedDeck}"` },
     endpoint,
   );
 
@@ -221,7 +221,11 @@ export async function importAnkiDeck(options: {
         'Korean',
         'Front',
       ]);
-      const headword = stripHtml(rawFocus).split('\n')[0]?.trim().normalize('NFC') ?? '';
+      const headword =
+        stripHtml(rawFocus.replace(/\[sound:[^\]]*\]/gi, ''))
+          .split('\n')[0]
+          ?.trim()
+          .normalize('NFC') ?? '';
       if (!headword) {
         totals.skippedInvalid += 1;
         continue;
