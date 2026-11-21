@@ -1,5 +1,11 @@
 # ROADMAP.md — Korean Reader
 
+## Current desktop milestone
+
+[The desktop plan](DESKTOP_APP_PLAN.md) tracks D0–D7. D2 is owner-verified. D3 practice and desktop Stats are implemented, alongside D4 offline Anki import and D5 loopback delivery. The Chrome Statistics and AnkiConnect interfaces were retired. Firebase stays in Chrome Settings while [Google Drive sync](docs/desktop-sync-options.md) is evaluated.
+
+The following dated extension milestones record the features available in their original releases.
+
 ## v1.0.0 — 19 November 2026
 
 The product owner has designated the implemented personal YouTube-to-Anki workflow as v1.0. The original core scope and later local reading improvements form this release. The numbered phases below are the development record, not prerequisites for a public cloud service. Remaining live checks are documented in PROJECT_STATUS.md; the Phase 10 account prototype remains incomplete.
@@ -276,7 +282,7 @@ YouTube can serve an English transcript while the video player displays Korean c
 - [x] Request Korean from YouTube's transcript panel and select the Korean track when the transcript exposes a language menu.
 - [x] Check that most letters in the full transcript are Hangul. If that check fails, collect the Korean captions shown during playback.
 
-## Statistics
+## Original Chrome Statistics (moved to Desktop)
 
 - [x] Open Statistics in a new browser tab from the toolbar popup.
 - [x] Start from the current local known-word count and chart changes after opt-in.
@@ -290,7 +296,7 @@ YouTube can serve an English transcript while the video player displays Korean c
 - [x] Verify the 13,000-word import, merge, revision conflicts and account isolation in the Firestore emulator.
 - [ ] Finish live validation of sign-in on the existing installation and two-profile sync on Firebase Spark (owner confirmed sign-in and sync in the separate test build).
 - [ ] Implement account and guest data separation, automatic merging, and offline sync.
-- [ ] Extend Statistics with account history, backdated progress and sync status.
+- [ ] Extend account settings with account history and backdated progress.
 - [ ] Add registration capacity controls and verify account isolation and recovery before open sign-up.
 
 See the [Phase 10 plan](docs/account-sync.md) for decisions, scope and verification.

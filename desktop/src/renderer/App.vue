@@ -4,7 +4,6 @@ import logo from '@/assets/New logo update.png';
 import stars from '@/assets/stars.png';
 import {
   buildSourceLink,
-  type AnkiImportProgress,
   type DesktopCardDetail,
   type DesktopCardSummary,
   type DesktopLibraryStats,
@@ -13,8 +12,11 @@ import {
 } from '../shared/api';
 import ReviewView from './ReviewView.vue';
 import SettingsView from './SettingsView.vue';
+import PracticeView from './PracticeView.vue';
+import StatsView from './StatsView.vue';
 
-const activeTab = ref<'review' | 'library' | 'settings'>('library');
+type Tab = 'review' | 'practice' | 'library' | 'stats' | 'settings';
+const activeTab = ref<Tab>('library');
 const reviewViewRef = ref<InstanceType<typeof ReviewView> | null>(null);
 const reviewDueCount = ref(0);
 
@@ -31,21 +33,13 @@ const stats = ref<DesktopLibraryStats>({
 
 const searchQuery = ref('');
 const loading = ref(false);
-const importing = ref(false);
+const importing = ref<'json' | 'apkg' | null>(null);
 const loadError = ref('');
 const importNotice = ref('');
 const importError = ref('');
 const linkStatus = ref('');
 const playingContextId = ref<string | null>(null);
 const theme = ref<'dark' | 'light'>('dark');
-
-const showAnkiPanel = ref(false);
-const ankiDecks = ref<string[]>([]);
-const selectedAnkiDeck = ref('');
-const loadingAnkiDecks = ref(false);
-const importingAnki = ref(false);
-const ankiError = ref('');
-const ankiProgress = ref<AnkiImportProgress | null>(null);
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 const audioElements = new Map<string, HTMLAudioElement>();
@@ -135,15 +129,15 @@ async function loadCardDetail(cardId: string) {
   }
 }
 
-async function importJson() {
+async function importFile(format: 'json' | 'apkg') {
   const api = window.koreanReaderDesktop;
   if (!api || importing.value) return;
 
-  importing.value = true;
+  importing.value = format;
   importNotice.value = '';
   importError.value = '';
   try {
-    const result: ImportResult = await api.importVocabularyFile();
+    const result: ImportResult = await (format === 'apkg' ? api.importAnkiPackage() : api.importVocabularyFile());
     if (result.cancelled) {
       return;
     }
@@ -160,6 +154,8 @@ async function importJson() {
     if (s.skippedKnownOnly > 0) {
       parts.push(`${s.skippedKnownOnly} known-only skipped`);
     }
+    if (s.skippedInvalid) parts.push(`${s.skippedInvalid} unsupported entries skipped`);
+    if (s.missingMedia) parts.push(`${s.missingMedia} missing or unsupported attachments`);
     if (s.mediaSaved > 0) {
       parts.push(`${s.mediaSaved} media files saved`);
     }
@@ -168,7 +164,7 @@ async function importJson() {
   } catch (error) {
     importError.value = error instanceof Error ? error.message : 'Import failed.';
   } finally {
-    importing.value = false;
+    importing.value = null;
   }
 }
 
@@ -216,70 +212,7 @@ watch(searchQuery, () => {
   }, 180);
 });
 
-async function openAnkiImport() {
-  const api = window.koreanReaderDesktop;
-  if (!api?.listAnkiDecks) return;
-  showAnkiPanel.value = !showAnkiPanel.value;
-  if (!showAnkiPanel.value) return;
-
-  loadingAnkiDecks.value = true;
-  ankiError.value = '';
-  try {
-    const result = await api.listAnkiDecks();
-    if (!result.ok || !result.decks) {
-      ankiError.value = result.error ?? 'Could not connect to AnkiConnect.';
-      ankiDecks.value = [];
-      return;
-    }
-    ankiDecks.value = result.decks;
-    if (result.decks.length > 0 && !selectedAnkiDeck.value) {
-      selectedAnkiDeck.value = result.decks[0]!;
-    }
-  } catch (error) {
-    ankiError.value = error instanceof Error ? error.message : 'Could not load Anki decks.';
-  } finally {
-    loadingAnkiDecks.value = false;
-  }
-}
-
-async function runAnkiImport() {
-  const api = window.koreanReaderDesktop;
-  if (!api?.importAnkiDeck || !selectedAnkiDeck.value || importingAnki.value) return;
-
-  importingAnki.value = true;
-  ankiError.value = '';
-  importNotice.value = '';
-  importError.value = '';
-  ankiProgress.value = { phase: 'fetching', processed: 0, total: 0 };
-
-  try {
-    const result = await api.importAnkiDeck(selectedAnkiDeck.value);
-    if (!result.ok || !result.summary) {
-      ankiError.value = result.error ?? 'Anki import failed.';
-      return;
-    }
-    const s = result.summary;
-    const parts = [
-      `${s.cardsAdded} added`,
-      `${s.cardsUpdated} updated`,
-      `${s.contextsAdded} contexts`,
-    ];
-    if (s.mediaSaved > 0) {
-      parts.push(`${s.mediaSaved} media files saved`);
-    }
-    importNotice.value = `Imported from Anki (${selectedAnkiDeck.value}): ${parts.join(' · ')}.`;
-    showAnkiPanel.value = false;
-    await refreshLibrary(false);
-  } catch (error) {
-    ankiError.value = error instanceof Error ? error.message : 'Anki import failed.';
-  } finally {
-    importingAnki.value = false;
-    ankiProgress.value = null;
-  }
-}
-
 let unsubscribeLibraryUpdates: (() => void) | null = null;
-let unsubscribeAnkiProgress: (() => void) | null = null;
 
 onMounted(() => {
   void refreshLibrary(false);
@@ -296,18 +229,13 @@ onMounted(() => {
       void refreshLibrary(true);
     });
   }
-  if (window.koreanReaderDesktop?.onAnkiImportProgress) {
-    unsubscribeAnkiProgress = window.koreanReaderDesktop.onAnkiImportProgress((progress) => {
-      ankiProgress.value = progress;
-    });
-  }
 });
 
 function handleQueueChanged(queue: ReviewQueueSummary) {
   reviewDueCount.value = queue.totalDue;
 }
 
-function switchTab(tab: 'review' | 'library' | 'settings') {
+function switchTab(tab: Tab) {
   activeTab.value = tab;
   if (tab === 'library') {
     void refreshLibrary(true);
@@ -325,15 +253,13 @@ async function handleSettingsSaved() {
 onBeforeUnmount(() => {
   unsubscribeLibraryUpdates?.();
   unsubscribeLibraryUpdates = null;
-  unsubscribeAnkiProgress?.();
-  unsubscribeAnkiProgress = null;
 });
 </script>
 
 <template>
   <div class="flex min-h-screen flex-col bg-ink text-paper">
     <header class="sticky top-0 z-10 border-b border-interface/10 bg-ink px-6 py-3.5">
-      <div class="mx-auto flex max-w-6xl items-center gap-3">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
         <img :src="logo" alt="" class="size-9 shrink-0 object-contain" />
         <div class="min-w-0">
           <h1 class="truncate text-base font-semibold tracking-tight text-paper">Korean Reader</h1>
@@ -356,22 +282,15 @@ onBeforeUnmount(() => {
               {{ reviewDueCount }}
             </span>
           </button>
-          <button
-            type="button"
-            class="rounded-md px-3 py-1 font-medium transition-colors"
-            :class="activeTab === 'library' ? 'bg-accent text-white' : 'text-muted hover:text-paper'"
-            @click="switchTab('library')"
-          >
-            Library ({{ stats.totalCards }})
-          </button>
-          <button
-            type="button"
-            class="rounded-md px-3 py-1 font-medium transition-colors"
-            :class="activeTab === 'settings' ? 'bg-accent text-white' : 'text-muted hover:text-paper'"
-            @click="switchTab('settings')"
-          >
-            Settings
-          </button>
+          <button v-for="tab in [
+              { id: 'practice', label: 'Practice' },
+              { id: 'library', label: `Library (${stats.totalCards})` },
+              { id: 'stats', label: 'Stats' },
+              { id: 'settings', label: 'Settings' },
+            ] as const"
+            :key="tab.id" type="button" class="rounded-md px-3 py-1 font-medium transition-colors"
+            :class="activeTab === tab.id ? 'bg-accent text-white' : 'text-muted hover:text-paper'"
+            @click="switchTab(tab.id)">{{ tab.label }}</button>
         </nav>
 
         <div class="ml-auto flex items-center gap-2.5">
@@ -385,19 +304,19 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
-            :disabled="importingAnki"
+            :disabled="!!importing"
             class="rounded-lg border border-interface/15 bg-ink-soft px-3 py-1.5 text-xs font-medium text-paper transition-colors hover:bg-ink-lift disabled:opacity-50"
-            @click="openAnkiImport"
+            @click="importFile('apkg')"
           >
-            {{ importingAnki ? 'Importing Anki…' : 'Import from Anki' }}
+            {{ importing === 'apkg' ? 'Importing Anki…' : 'Import Anki .apkg' }}
           </button>
           <button
             type="button"
-            :disabled="importing"
+            :disabled="!!importing"
             class="rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-            @click="importJson"
+            @click="importFile('json')"
           >
-            {{ importing ? 'Importing…' : 'Import JSON' }}
+            {{ importing === 'json' ? 'Importing…' : 'Import JSON' }}
           </button>
         </div>
       </div>
@@ -426,59 +345,6 @@ onBeforeUnmount(() => {
           {{ importError }}
         </div>
 
-        <section
-          v-if="showAnkiPanel"
-          aria-label="Import from Anki"
-          class="rounded-2xl border border-interface/15 bg-ink-soft p-4"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 class="text-sm font-semibold text-paper">Import Deck from Anki Desktop</h2>
-              <p class="text-xs text-muted">
-                Requires Anki Desktop open with AnkiConnect on <code>127.0.0.1:8765</code>. Imports cards, sentences, images, and audio.
-              </p>
-            </div>
-            <button
-              type="button"
-              class="rounded-lg border border-interface/15 px-2.5 py-1 text-xs text-muted hover:bg-ink-lift hover:text-paper"
-              @click="showAnkiPanel = false"
-            >
-              Close
-            </button>
-          </div>
-
-          <p v-if="ankiError" role="alert" class="mt-3 text-xs text-danger">{{ ankiError }}</p>
-
-          <div v-if="loadingAnkiDecks" class="mt-3 text-xs text-muted">Loading Anki decks…</div>
-
-          <div v-else-if="ankiDecks.length > 0" class="mt-3 flex flex-wrap items-center gap-2.5">
-            <select
-              v-model="selectedAnkiDeck"
-              aria-label="Select Anki deck"
-              :disabled="importingAnki"
-              class="min-w-[240px] flex-1 rounded-lg border border-interface/15 bg-ink px-3 py-2 text-sm text-paper"
-            >
-              <option v-for="deck in ankiDecks" :key="deck" :value="deck">{{ deck }}</option>
-            </select>
-            <button
-              type="button"
-              :disabled="importingAnki || !selectedAnkiDeck"
-              class="rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              @click="runAnkiImport"
-            >
-              {{ importingAnki ? 'Importing…' : 'Import Deck' }}
-            </button>
-          </div>
-
-          <p v-if="importingAnki && ankiProgress" class="mt-2.5 text-xs text-accent">
-            {{
-              ankiProgress.total > 0
-                ? `Importing ${ankiProgress.processed.toLocaleString()} / ${ankiProgress.total.toLocaleString()} notes (downloading media)…`
-                : 'Fetching notes from Anki…'
-            }}
-          </p>
-        </section>
-
         <div
           v-if="importNotice"
           role="status"
@@ -495,6 +361,8 @@ onBeforeUnmount(() => {
           @queue-changed="handleQueueChanged"
         />
 
+        <PracticeView v-else-if="activeTab === 'practice'" @open-library="switchTab('library')" />
+        <StatsView v-else-if="activeTab === 'stats'" />
         <SettingsView
           v-else-if="activeTab === 'settings'"
           @settings-saved="handleSettingsSaved"
@@ -535,9 +403,9 @@ onBeforeUnmount(() => {
           </p>
           <button
             type="button"
-            :disabled="importing"
+            :disabled="!!importing"
             class="mt-6 rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-            @click="importJson"
+            @click="importFile('json')"
           >
             {{ importing ? 'Importing…' : 'Import Vocabulary JSON' }}
           </button>

@@ -8,6 +8,10 @@ import App from '../desktop/src/renderer/App.vue';
 function createMockDesktopApi(overrides: Partial<DesktopApi> = {}): DesktopApi {
   const sample = createSampleMinedEntry();
   return {
+    getStudyStats: vi.fn(),
+    startPractice: vi.fn(),
+    answerPractice: vi.fn(),
+    importAnkiPackage: vi.fn(),
     getSampleEntry: vi.fn().mockResolvedValue(sample),
     getRuntimeInfo: vi.fn().mockResolvedValue({
       electron: '45.4.1',

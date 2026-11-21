@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import type { DatabaseSync } from 'node:sqlite';
 import type { ImportSummary } from '../shared/api';
 import { importVocabularyJson } from './importer';
+import { saveKnownWordHistory } from './stats';
 import type { LocalMediaStore } from './media';
 
 export const DESKTOP_BRIDGE_HOST = '127.0.0.1';
@@ -61,15 +62,15 @@ function readRequestBody(req: http.IncomingMessage): Promise<string> {
   });
 }
 
-export async function startDesktopBridge(options: {
+interface BridgeOptions {
   db: DatabaseSync;
   mediaStore: LocalMediaStore;
   port?: number;
   onImport?: (summary: ImportSummary) => void;
-}): Promise<DesktopBridgeServer> {
-  const { db, mediaStore, port = DESKTOP_BRIDGE_PORT, onImport } = options;
+}
 
-  const server = http.createServer(async (req, res) => {
+export function createBridgeHandler({ db, mediaStore, onImport }: BridgeOptions) {
+  return async (req: http.IncomingMessage, res: http.ServerResponse) => {
     const origin = req.headers.origin;
     if (!isAllowedOrigin(origin)) {
       sendJson(res, 403, { ok: false, error: 'Origin not allowed.' });
@@ -97,6 +98,16 @@ export async function startDesktopBridge(options: {
     if (req.method === 'GET' && url.pathname === '/headwords') {
       const rows = db.prepare('SELECT headword FROM cards').all() as Array<{ headword: string }>;
       sendJson(res, 200, { ok: true, headwords: rows.map((r) => r.headword) }, origin);
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/known-history') {
+      try {
+        saveKnownWordHistory(db, JSON.parse(await readRequestBody(req)));
+        sendJson(res, 200, { ok: true }, origin);
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Could not save history.' }, origin);
+      }
       return;
     }
 
@@ -132,7 +143,12 @@ export async function startDesktopBridge(options: {
     }
 
     sendJson(res, 404, { ok: false, error: 'Not found.' }, origin);
-  });
+  };
+}
+
+export async function startDesktopBridge(options: BridgeOptions): Promise<DesktopBridgeServer> {
+  const port = options.port ?? DESKTOP_BRIDGE_PORT;
+  const server = http.createServer(createBridgeHandler(options));
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);

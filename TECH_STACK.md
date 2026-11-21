@@ -1,12 +1,12 @@
 # TECH_STACK.md — Korean Reader
 
-**Release baseline:** v1.0.0 (19 November 2026). The local YouTube-to-Anki workflow is the released scope. Optional account sync remains a prototype; future proposals are tracked in ROADMAP.md.
+**Current scope:** Chrome handles mining and dictionary lookups. The desktop app handles review, practice, stats and Anki file import. Optional account sync remains a Chrome prototype.
 
 ## 1. Architecture Overview
 
 Korean Reader is a locally operated Google Chrome extension.
 
-The current build uses local storage, KRDict for dictionary data and AnkiConnect for the user's local Anki Desktop. Phase 10 uses Firebase Authentication and Firestore Lite for optional Google sign-in and progress sync on Spark. See the [Phase 10 plan](docs/account-sync.md).
+Chrome uses local storage and KRDict for dictionary data. Desktop uses local SQLite, managed attachment files and FSRS. Phase 10 uses Firebase Authentication and Firestore Lite for optional Google sign-in and progress sync on Spark. See the [Phase 10 plan](docs/account-sync.md).
 
 Its main responsibilities are:
 
@@ -14,7 +14,7 @@ Its main responsibilities are:
 2. Korean morphological analysis.
 3. Dictionary lookup.
 4. Vocabulary storage.
-5. AnkiConnect integration.
+5. Desktop study and offline imports.
 6. User interface rendering.
 
 ## 2. Core Technologies
@@ -71,10 +71,10 @@ The background service worker is the single source of truth for:
 - IndexedDB vocabulary and dictionary cache data.
 - `chrome.storage.local` settings, including the KRDict API key.
 - KRDict API requests.
-- AnkiConnect requests.
+- Local desktop bridge requests.
 - Duplicate detection.
 
-The content script must never read the KRDict key, open extension-origin IndexedDB, or call KRDict or AnkiConnect directly. It sends typed messages to the background.
+The content script must never read the KRDict key, open extension-origin IndexedDB, or call KRDict or the desktop bridge directly. It sends typed messages to the background.
 
 The popup and options pages also request data through the background rather than maintaining their own copies of application state. This avoids multiple competing sources of truth.
 
@@ -107,7 +107,7 @@ Responsible for:
 - Coordinating extension functionality.
 - Managing messages between extension components.
 - IndexedDB and settings access.
-- Dictionary and Anki API calls.
+- Dictionary and local desktop bridge calls.
 - Handling operations requiring background execution.
 
 Do not rely on the service worker remaining continuously active. It can be woken by messages.
@@ -184,96 +184,15 @@ IndexedDB access is centralised in the background service worker. Content script
 
 ### Known-word history
 
-IndexedDB schema version 3 adds a status index to vocabulary and a statistics store. Starting tracking records an immutable baseline. Count-changing vocabulary writes record the latest total under the local date in the same transaction, including bulk imports. Changes on the same day replace that day's snapshot and preserve the baseline. History stays in the Chrome profile. The Statistics page reads it through extension-page-only messages and listens for vocabulary updates.
+The IndexedDB statistics store keeps a baseline and the latest known-word count for each date. Chrome snapshots are delivered to Desktop over the loopback bridge and stored in SQLite. The Stats page lives in Desktop.
 
 ### Planned account storage
 
 An account-enabled Chrome build uses the extension background worker for Chrome Identity, Firebase Authentication, and Firestore Lite. It stores the Firebase session in IndexedDB and the per-user cache and queue in extension-local storage. Firestore holds shared known-word status and progress history. The [Phase 10 plan](docs/account-sync.md) describes the proposed document grouping, conflict handling and quota controls.
 
-## 7. Anki Integration
+## 7. Desktop study and Anki package import
 
-Use AnkiConnect.
-
-Documentation: https://foosoft.net/projects/anki-connect/
-
-Repository: https://github.com/FooSoft/anki-connect
-
-Connect to the local AnkiConnect endpoint, normally:
-
-http://127.0.0.1:8765
-
-Required operations include:
-
-- version
-- deckNames
-- modelNames
-- modelFieldNames
-- findNotes
-- canAddNotes
-- addNote
-- addNotes
-- updateNoteFields
-
-Implement AnkiConnect as an independent service module.
-
-Requirements:
-
-- Detect connection availability.
-- Retrieve available decks.
-- Retrieve note types and fields.
-- Support field mapping.
-- Detect duplicates.
-- Support bulk synchronisation.
-- Report errors and results.
-
-Do not create a custom Anki add-on.
-
-Anki Desktop and AnkiConnect are external dependencies that must be installed by the user.
-### Kimchi Sentence Mining Note Type
-
-The application must integrate with the user's existing Anki note type named:
-
-**Kimchi Sentence Mining**
-
-Use AnkiConnect to retrieve the note type's available fields through `modelFieldNames`.
-
-Expected fields:
-
-- Focus Word
-- Sentence
-- Definition
-- Pronunciation
-- Image
-- Audio
-
-Do not assume the field names or their ordering without checking AnkiConnect.
-
-Implement configurable field mapping if necessary.
-
-#### Field Population
-
-| Anki Field | Data Source |
-|---|---|
-| Focus Word | Korean dictionary headword |
-| Sentence | Original YouTube subtitle sentence, plus additional saved sentences separated by newlines |
-| Definition | Kimchi Reader–style `headword = gloss: definition` for English definitions (omitting Korean when English exists); Korean definitions + on-device translation fallback when absent |
-| Pronunciation | Dictionary pronunciation |
-| Image | Video frame saved locally when mining; uploaded to Anki when synchronising |
-| Audio | Captured subtitle audio where available; existing non-empty fields are preserved |
-
-#### Duplicate Detection
-
-One vocabulary headword may have at most one Anki card. Before creating a note, check whether the headword already has a note in Anki.
-
-Avoid creating duplicate notes. A new sentence for an existing word updates the existing vocabulary record and its Sentence field rather than creating a second card.
-
-#### Template Compatibility
-
-The existing Anki note type controls the visual appearance of the front and back of the card.
-
-The extension is responsible for supplying the correct field values, not recreating the Anki card template.
-
-Do not modify the user's existing Anki templates.
+Electron runs the Vue renderer and holds SQLite and filesystem access in the main process. TypeScript FSRS schedules cards from review ratings. A separate SQL table stores multiple-choice results. Desktop imports .apkg ZIP packages using `fflate`, Node SQLite and Node Zstandard decompression for modern collections and media. See [desktop architecture](docs/desktop-architecture.md) for the database and IPC details.
 
 ## 8. Application Architecture
 
@@ -293,9 +212,9 @@ Tokenisation, morphological analysis and dictionary-form identification.
 
 KRDict API communication, result processing and caching.
 
-### anki/
+### desktop/
 
-AnkiConnect communication, deck retrieval, duplicate detection and note creation.
+The extension bridge sends mined content and known-word snapshots to Desktop over loopback.
 
 ### storage/
 
@@ -324,7 +243,7 @@ The current setup uses:
 
 Test important functionality independently. Tests live in `tests/`. Run `npm run test:run` for a single non-watching run and `npm run compile` for type checking.
 
-Prioritise tests for Korean word processing, dictionary lookup, storage and AnkiConnect as those features are added.
+Prioritise tests for Korean word processing, dictionary lookup, storage and desktop imports as those features are added.
 
 ## 10. Dependencies and Constraints
 

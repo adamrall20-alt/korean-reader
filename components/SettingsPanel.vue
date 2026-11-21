@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import VocabularyManager from '@/components/VocabularyManager.vue';
-import AnkiPanel from '@/components/AnkiPanel.vue';
+import KnownWordsImport from '@/components/KnownWordsImport.vue';
+import CloudSyncCard from '@/components/CloudSyncCard.vue';
+import { accountEnabled } from '@/types/account';
 import { onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import type { SettingsResponse } from '@/types/messages';
@@ -131,9 +133,9 @@ const sections = [
     description: 'KRDict API key, lookup preferences and local dictionary cache controls.',
   },
   {
-    id: 'anki',
-    title: 'Anki',
-    description: 'AnkiConnect connection, default deck, note type and field mapping.',
+    id: 'import-known',
+    title: 'Import known words',
+    description: 'Bring in known words from an Anki notes export or Kimchi Reader CSV.',
   },
   {
     id: 'appearance',
@@ -145,6 +147,7 @@ const sections = [
     title: 'Storage',
     description: 'Local vocabulary storage, JSON export and cache management.',
   },
+  ...(accountEnabled ? [{ id: 'account', title: 'Google account', description: 'Sync known words and progress history.' } as const] : []),
 ] as const;
 </script>
 
@@ -181,7 +184,7 @@ const sections = [
         <div class="mb-6">
           <h1 class="text-2xl font-semibold tracking-tight">Settings</h1>
           <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            Manage subtitles, dictionary, Anki and locally saved vocabulary.
+            Manage subtitles, dictionary and saved vocabulary.
           </p>
         </div>
 
@@ -298,7 +301,8 @@ const sections = [
                 {{ clearingCache ? 'Clearing…' : 'Clear dictionary cache' }}
               </button>
             </div>
-            <AnkiPanel v-else-if="section.id === 'anki'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
+            <KnownWordsImport v-else-if="section.id === 'import-known'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
+            <CloudSyncCard v-else-if="section.id === 'account'" class="mt-4" />
             <details v-else-if="section.id === 'storage'" class="mt-4 border-t border-interface/10 pt-4"><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary><VocabularyManager :key="vocabularyRevision" /></details>
           </section>
         </div>

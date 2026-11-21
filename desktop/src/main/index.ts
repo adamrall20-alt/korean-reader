@@ -1,10 +1,11 @@
+import { createPracticeSession } from './practice';
+import { getStudyStats } from './stats';
 import fs from 'node:fs';
 import path from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import {
   DESKTOP_IPC_CHANNELS,
   isSafeExternalUrl,
-  type AnkiDecksResult,
   type DeleteCardResult,
   type DesktopReviewSettings,
   type DesktopRuntimeInfo,
@@ -15,7 +16,7 @@ import {
 } from '../shared/api';
 import { createSampleMinedEntry } from '../shared/fixtures';
 import { runFsrsSpike } from '../shared/fsrs-spike';
-import { importAnkiDeck, listAnkiDecks } from './anki-import';
+import { importAnkiPackage } from './anki-import';
 import { openDesktopDatabase, type DesktopDatabase } from './db';
 import { startDesktopBridge, type DesktopBridgeServer } from './bridge';
 import { importVocabularyJson } from './importer';
@@ -150,48 +151,39 @@ function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle(DESKTOP_IPC_CHANNELS.listAnkiDecks, async (): Promise<AnkiDecksResult> => {
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.importAnkiPackage, async (): Promise<ImportResult> => {
+    const result = await dialog.showOpenDialog({
+      title: 'Import Anki deck package',
+      properties: ['openFile'],
+      filters: [{ name: 'Anki deck package', extensions: ['apkg'] }],
+    });
+    const filePath = result.filePaths[0];
+    if (result.canceled || !filePath) return { ok: false, cancelled: true };
     try {
-      const decks = await listAnkiDecks();
-      return { ok: true, decks };
+      const { db, media } = ensureStorage();
+      const summary = importAnkiPackage(db.db, media, filePath);
+      return { ok: true, fileName: path.basename(filePath), summary };
     } catch (error) {
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : 'Could not load Anki decks.',
-      };
+      return { ok: false, error: error instanceof Error ? error.message : 'Anki package import failed.' };
     }
   });
-
-  ipcMain.handle(
-    DESKTOP_IPC_CHANNELS.importAnkiDeck,
-    async (event, deckName: unknown): Promise<ImportResult> => {
-      if (typeof deckName !== 'string' || !deckName.trim()) {
-        return { ok: false, error: 'Select an Anki deck first.' };
-      }
-      try {
-        const { db, media } = ensureStorage();
-        const summary = await importAnkiDeck({
-          db: db.db,
-          mediaStore: media,
-          deckName: deckName.trim(),
-          onProgress(progress) {
-            event.sender.send(DESKTOP_IPC_CHANNELS.ankiImportProgress, progress);
-          },
-        });
-        return { ok: true, fileName: `Anki: ${deckName.trim()}`, summary };
-      } catch (error) {
-        return {
-          ok: false,
-          error: error instanceof Error ? error.message : 'Anki import failed.',
-        };
-      }
-    },
-  );
 
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getReviewQueue, () => {
     const { db } = ensureStorage();
     return getReviewQueueSummary(db.db);
   });
+
+  let practiceSession: ReturnType<typeof createPracticeSession> | undefined;
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.startPractice, () => {
+    const { db, media } = ensureStorage();
+    practiceSession = createPracticeSession(db.db, media);
+    return practiceSession.questions;
+  });
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.answerPractice, (_event, id: unknown, choice: unknown) => {
+    if (!practiceSession) throw new Error('Start a practice session first.');
+    return practiceSession.answer(id, choice);
+  });
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getStudyStats, () => getStudyStats(ensureStorage().db.db));
 
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getNextReviewCard, () => {
     const { db, media } = ensureStorage();
@@ -200,7 +192,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(
     DESKTOP_IPC_CHANNELS.submitReview,
-    (_event, cardId: unknown, rating: unknown): SubmitReviewResult => {
+    (_event, cardId: unknown, rating: unknown, durationMs: unknown): SubmitReviewResult => {
       if (typeof cardId !== 'string' || !cardId) {
         return { ok: false, error: 'Invalid card ID.' };
       }
@@ -208,7 +200,8 @@ function registerIpcHandlers(): void {
         return { ok: false, error: 'Invalid rating.' };
       }
       const { db } = ensureStorage();
-      return submitReview(db.db, cardId, rating as ReviewRatingValue);
+      return submitReview(db.db, cardId, rating as ReviewRatingValue, new Date(),
+        typeof durationMs === 'number' ? durationMs : undefined);
     },
   );
 

@@ -1,6 +1,6 @@
 # Desktop App Plan — Korean Reader
 
-**Status:** Product direction agreed on 21 November 2026. Implementation milestones are proposed and awaiting approval.
+**Status:** D2 is owner-verified. D3 is implemented with owner question-quality verification pending. D4 offline package import and D5 local delivery are available. D6 and D7 remain future milestones.
 
 ## Product goal
 
@@ -13,18 +13,18 @@ The desktop home screen should answer two questions at a glance. How many cards 
 | Decision | Plan |
 | --- | --- |
 | First release | Mac first, with daily SRS, multiple-choice practice, Anki migration and automatic delivery from Chrome. Windows follows as its own milestone. |
-| Existing Anki decks | Import cards and media from selected decks. Imported cards start with fresh Korean Reader schedules. |
+| Existing Anki decks | Import cards and media from selected decks. Carry over schedules when included in the deck package. Cards without scheduling information start fresh. |
 | Newly mined words | Prototype with a file import. Ship the first usable Mac release with automatic delivery on the same computer. |
-| Existing reading workflow | Keep explicit **Mine Word** and **Known** actions in the Chrome extension. Anki export remains available for users who choose it. |
+| Existing reading workflow | Keep explicit **Mine Word** and **Known** actions in the Chrome extension. Review happens in Desktop. Existing Anki decks enter through offline package import. |
 
 ## Technical direction
 
 - **Desktop shell.** Evaluate Electron first for the existing Vue 3, TypeScript and Tailwind stack. Keep desktop entry points and platform-specific code separate from the WXT extension. Share data types, pure study logic and suitable UI components. Approve the shell and storage choice after Phase D0.
-- **Data ownership.** Chrome owns mining and subtitle coverage. Desktop owns the local study library, selected study context, schedules, review history and practice results. Browser-to-desktop delivery sends mined content. A Known-only entry has no study card, and a quiz result never changes the browser's Known status.
+- **Data ownership.** Chrome owns mining, known-word status and subtitle coverage. Desktop Stats reads Chrome known-word snapshots over the local bridge. Desktop owns the local study library, selected study context, schedules, review history and practice results. Browser-to-desktop delivery sends mined content. A Known-only entry has no study card, and a quiz result never changes the browser's Known status.
 - **Study identity.** Default to one scheduled card per NFC-normalised headword, with multiple saved contexts and one preferred sentence. Preserve imported contexts and alternate meanings. Use stable source IDs and content matching to merge confirmed overlaps. Preview uncertain matches and let the user keep them distinct. Later imports must preserve learned schedules and user edits.
 - **Local storage.** Evaluate SQLite for structured data and managed local files for attachments. Commit each review event and its next due date together. Store attachment references and load media when a card is opened. Version imports, backups and schema migrations.
 - **Scheduling.** Evaluate the TypeScript FSRS implementation against the desktop runtime. Keep a review log so updates, undo and restored data can be verified. Use a consistent local study day when building daily queues.
-- **Scope.** The first two platform releases use local storage, local question generation and Chrome for mining. Cross-computer sync of cards, media and review progress, mobile, and mining directly inside the desktop app require separate product decisions. The [existing Firebase prototype](docs/account-sync.md) covers known words and progress history.
+- **Scope.** The first two platform releases use local storage, local question generation and Chrome for mining. Cross-computer sync of cards, media and review progress, mobile, and mining directly inside the desktop app require separate product decisions. The [existing Firebase prototype](docs/account-sync.md) covers known words and progress history. [Google Drive is the preferred option to explore](docs/desktop-sync-options.md).
 
 ## Phase D0 — Desktop Foundation and Feasibility
 
@@ -47,10 +47,10 @@ Tasks:
 
 Tasks:
 
-- [ ] Import the current `korean-reader-vocabulary.json` format. Read the focus word, definitions, pronunciation where present, original forms, sentences, source details and available media.
-- [ ] Preview new cards, updated cards, skipped Known-only words and invalid entries. Confirm before writing. Report row-level errors and provide a repeatable retry after a failed import.
-- [ ] Upsert existing words and add new contexts without duplicating identically sourced sentences. Preserve user-selected study contexts and desktop edits when the same content is reimported.
-- [ ] Add Library search by Korean word or definition, a card detail view, context selection, source links, and audio and image playback.
+- [x] Import the current `korean-reader-vocabulary.json` format. Read the focus word, definitions, pronunciation where present, original forms, sentences, source details and available media.
+- [ ] Allow choosing a preferred study context. Preview new cards, updated cards, skipped Known-only words and invalid entries. Confirm before writing. Report row-level errors and provide a repeatable retry after a failed import.
+- [x] Upsert existing words and add new contexts without duplicating identically sourced sentences. Preserve user-selected study contexts and desktop edits when the same content is reimported.
+- [x] Add Library search by Korean word or definition, a card detail view, saved contexts, source links, and audio and image playback.
 - [ ] Handle missing or corrupt media with visible feedback while keeping usable text. Keep library search and startup responsive with a representative large export and media-heavy fixtures.
 - [ ] Test a real export, an older export with missing optional fields, duplicate imports, interrupted saves and app restart.
 
@@ -62,12 +62,14 @@ Tasks:
 
 Tasks:
 
-- [ ] Add a **Review due cards** entry point with due and new counts, a daily new-card limit, and a clear finished-for-today state. Let a large imported deck enter study gradually.
-- [ ] Show the selected Korean sentence and highlight the focus word where its saved occurrence can be located reliably. Reveal the definition, pronunciation and available image or audio after the user attempts recall.
-- [ ] Add **Again**, **Hard**, **Good** and **Easy** ratings with keyboard controls. Save the review event and updated schedule together. Protect against double submission and allow undo of the last rating.
+- [x] Add a **Review due cards** entry point with due and new counts, a daily new-card limit, and a clear finished-for-today state. Let a large imported deck enter study gradually.
+- [x] Show the selected Korean sentence and highlight the focus word where its saved occurrence can be located reliably. Reveal the definition, pronunciation and available image or audio after the user attempts recall.
+- [x] Add **Again**, **Hard**, **Good** and **Easy** ratings with keyboard controls. Save the review event and updated schedule together. Protect against double submission and allow undo of the last rating.
 - [ ] Restore an unfinished session after closing the app. Provide a basic summary of cards reviewed and upcoming due counts.
 - [ ] Test first review, missed recall, relearning, multiple reviews on one day, time-zone and daylight-saving boundaries, restart, retry and undo. Verify that updating a card's content leaves its schedule intact.
-- [ ] Test a real study session offline on the owner's Mac.
+- [x] Test a real study session offline on the owner's Mac.
+
+**Owner verification:** D2 and the local FSRS review flow have been verified. The unfinished renderer session has no separate resume record. Review queues reconstruct from stored schedules.
 
 **Completion criteria:** The owner can complete an offline review session, reopen the app and see the correct cards due on the expected days. New cards, retries and undo retain consistent history.
 
@@ -77,46 +79,34 @@ Tasks:
 
 Tasks:
 
-- [ ] Add **Quick practice** with a suggested default of 10 questions. Weight selection toward recently mined words and words the user struggled with during recall. Save practice results separately from FSRS ratings.
-- [ ] Start with meaning in context. Show the mined sentence and ask for the meaning of the highlighted form. Use the selected meaning or an unambiguous saved definition as the answer.
-- [ ] Add sentence completion once the app can identify the chosen occurrence. Use the exact form from the saved sentence, including relevant conjugation. Skip examples with repeated or ambiguous matches unless a saved span identifies the target.
-- [ ] Generate three distinct wrong options from eligible local vocabulary. Match part of speech or answer type where reliable. Exclude duplicate glosses, known alternate answers and contextually plausible substitutes the generator cannot disambiguate. Skip a question when four sound options are unavailable.
-- [ ] Shuffle answer positions, accept A/B/C/D and 1–4 shortcuts, give immediate feedback and reveal the original sentence, meaning and available media. Show missed words at the end.
-- [ ] Check that small libraries get a shorter session or a useful empty state. Test synonym cases, missing definitions, missing audio, conjugation, repeated tokens and files from both import sources.
+- [x] Add **Quick practice** with a suggested default of 10 questions. Weight selection toward recently mined words and words the user struggled with during recall. Save practice results separately from FSRS ratings.
+- [x] Start with meaning in context. Show the mined sentence and ask for the meaning of the highlighted form. Use a single saved glossary entry, including a definition chosen when mining. Skip cards with multiple distinct glosses.
+- [x] Add sentence completion once the app can identify the chosen occurrence. Use the exact form from the saved sentence, including relevant conjugation. Show the headword as the cue. Skip repeated matches and forms that cannot be identified as a complete occurrence.
+- [x] Generate three distinct wrong options from eligible local vocabulary. Match part of speech or answer type where reliable. Reject duplicate glosses, overlapping glossary words and incompatible known parts of speech. Option selection uses local lexical heuristics. Skip a question when four sound options are unavailable.
+- [x] Shuffle answer positions, accept A/B/C/D and 1–4 shortcuts, give immediate feedback and reveal the original sentence, meaning and available media. Show missed words at the end.
+- [x] Check that small libraries get a shorter session or a useful empty state. Test synonym cases, missing definitions, missing audio, conjugation, repeated tokens and files from both import sources.
 - [ ] Have the owner play a real session and review the quality of the wrong options before expanding question types.
 
 **Completion criteria:** A real mining library produces a usable practice session with one defensible answer per question in the reviewed sample. Quiz responses leave due dates and review history intact.
 
 ## Phase D4 — Anki Cards and Media Migration
 
-**Goal:** Bring selected Anki decks into the desktop library with fresh Korean Reader schedules.
+**Goal:** Bring existing Anki decks into the desktop library as an offline file import.
 
-Tasks:
-
-- [ ] Prototype a read-only migration with the existing AnkiConnect setup. Compare it with Anki deck-package import if connecting or retrieving media proves unreliable. Pick one first-release route after testing the owner's deck.
-- [ ] Preview selected decks and map Focus Word, Sentence, Definition, Pronunciation, Image and Audio. Prioritise the Korean Reader and Kimchi Sentence Mining note types. Preview custom field mappings before importing.
-- [ ] Convert notes to local study cards and preserve multiple usable sentences and local media. Render sanitised content using Korean Reader's review layout. Report unsupported note structures and missing files.
-- [ ] Match confirmed overlap with existing Korean Reader cards using stored note IDs where applicable and matching words and sentences. Preserve desktop review progress, merge missing context and attachments, and flag conflicting definitions or ambiguous identities for preview.
-- [ ] Show new cards, duplicates, conflicts and unavailable media before applying changes. Create fresh schedules for newly imported cards. Verify a repeated import and a partially failed media transfer.
-- [ ] Test one real selected deck with audio and images. Close Anki and verify that both review modes still work using the copied local data.
-
-**Completion criteria:** The owner's selected Anki material can be reviewed independently of Anki after migration. Existing desktop schedules survive overlapping imports, and import results explain omissions and retries.
+- [x] Import modern and legacy Anki deck packages with the desktop file picker.
+- [x] Map common Korean Reader and Kimchi Sentence Mining field names and copy supported local images and audio.
+- [x] Merge by headword and sentence, preserving Korean Reader review progress. Import due dates and FSRS parameters when the package provides them.
+- [x] Report skipped notes and missing attachments. Verify reimport, invalid files, media, and scheduling with package fixtures.
+- [ ] Check the owner's real deck package and schedules in Electron. Custom field mapping and import previews remain possible follow-ups.
 
 ## Phase D5 — Automatic Delivery from Chrome
 
 **Goal:** A word mined in Chrome appears in the desktop Library automatically on the same computer.
 
-Tasks:
-
-- [ ] Prototype Chrome Native Messaging with a stable extension ID and a registered local host. Compare installer burden and delivery behaviour against an authenticated local bridge if the native host creates a practical blocker. Approve the transport before integrating it.
-- [ ] Add a desktop destination in extension settings, with opt-in, connection status, pending count, and a manual retry or backfill for existing mined cards.
-- [ ] Queue successfully stored mining updates from YouTube and webpages. Persist the queue across Chrome service-worker restarts. Send bounded payloads with stable update IDs, and acknowledge each delivery only after it is durably accepted.
-- [ ] Cover new words, additional sentences and media captured after an initial save. Preserve desktop edits and schedules. A browser deletion or Known toggle leaves the desktop study card available.
-- [ ] Make delivery recover after the app is closed, Chrome restarts or the host is unavailable. Document whether the selected transport delivers while the app is closed or drains pending updates on next launch.
-- [ ] Limit bridge access to the authorised installation and validate protocol version, payload size and media types. Verify that ordinary webpages cannot submit bridge messages.
-- [ ] Test real mining from YouTube and a webpage, repeated delivery, queue replay, app upgrades and interrupted media sends. Verify the existing Chrome mining and optional Anki workflow with desktop delivery enabled and disabled.
-
-**Completion criteria:** After pairing, a freshly mined word appears without a manual file export. A temporary outage recovers without losing the word, creating duplicates or resetting a schedule.
+- [x] Deliver newly mined cards and their saved media through the loopback HTTP bridge while Desktop is running.
+- [x] Backfill missing mined headwords on extension startup or after a successful live delivery. Ignore known-only entries for card creation.
+- [x] Deliver the Chrome profile's known-word count history separately for desktop Stats. Retry the history on extension startup, popup open or a vocabulary change.
+- [ ] Verify live delivery after reloading Chrome and with the owner's current library. The current bridge has origin filtering and deduplicated imports. Pairing, a durable outbox, and replay of changed contexts on existing headwords after an outage remain open.
 
 ## Phase D6 — First Mac Release
 
@@ -132,6 +122,8 @@ Tasks:
 - [ ] Record remaining issues and update the project's user-facing setup documentation and status after acceptance.
 
 **Completion criteria:** The owner has an installable Mac app and has completed the full mine-to-review workflow with Anki closed. Backup restoration and a packaged update have been exercised.
+
+See [desktop sync options](docs/desktop-sync-options.md) for the proposed Google Drive path after portable backups.
 
 ## Phase D7 — Windows Release
 

@@ -1,4 +1,3 @@
-import type { AnkiTranslation } from '@/types/anki';
 import { openDatabase, STATISTICS_STORE, VOCABULARY_STATUS_INDEX, VOCABULARY_STORE } from '@/services/storage/database';
 import { recordKnownWordCount } from './statistics';
 import {
@@ -174,25 +173,5 @@ export function changeVocabulary(message: Extract<VocabularyMessage, {
     store.put({ ...existing, ...changes, updatedAt: new Date().toISOString() });
     if (message.type === 'set-vocabulary-status' &&
       (existing.status === 'known') !== (message.status === 'known')) recordKnownWordCount(transaction);
-  });
-}
-
-export function recordAnkiSync(headword: string, noteId: number, focusField: string) {
-  return updateVocabulary(normalizeHeadword(headword), (store, existing) => {
-    if (existing) store.put({
-      ...existing,
-      ankiNoteId: noteId,
-      ankiFocusField: focusField,
-      ankiSyncedAt: new Date().toISOString(),
-    });
-  });
-}
-
-export function saveMachineTranslation(translation: AnkiTranslation) {
-  return updateVocabulary(normalizeHeadword(translation.headword), (store, entry) => {
-    if (!entry || entry.definitions.length || entry.machineDefinitions?.length) return;
-    if (!translation.korean.every((definition, index) => definition === entry.koreanDefinitions[index])) return;
-
-    store.put({ ...entry, machineDefinitions: translation.english, updatedAt: new Date().toISOString() });
   });
 }

@@ -71,7 +71,7 @@ Avoid excessive underlining or distracting highlighting.
 
 ### Transcript sidebar
 
-The toolbar's **Open Sidebar** button appears below the Anki controls. The panel starts closed. On standard desktop watch pages it sits above YouTube recommendations, and its left edge can be dragged or resized with the arrow keys. It uses an overlay in theatre or narrow layouts and hides during fullscreen. The rounded search field, timestamp buttons and scrollable list follow YouTube's transcript layout. Korean Reader's green accent marks the current line and interactive controls in both themes.
+The toolbar's **Open Sidebar** button appears in the toolbar popup. The panel starts closed. On standard desktop watch pages it sits above YouTube recommendations, and its left edge can be dragged or resized with the arrow keys. It uses an overlay in theatre or narrow layouts and hides during fullscreen. The rounded search field, timestamp buttons and scrollable list follow YouTube's transcript layout. Korean Reader's green accent marks the current line and interactive controls in both themes.
 
 The seek button combines an arrow and timestamp. Clicking a Korean word pauses the video and opens the existing dictionary popup without seeking. Auto-scroll starts enabled and pauses while searching or reviewing a definition.
 
@@ -128,36 +128,7 @@ Do not automatically mine words when they are clicked.
 
 ## 5. Vocabulary Mining Interface
 
-Provide a small, accessible vocabulary management panel.
-
-The panel should display:
-
-- Saved Korean words.
-- English meanings.
-- Known/unknown status with a toggle.
-- Selection controls.
-- Number of selected words.
-- Anki connection status.
-- Selected Anki deck.
-- Synchronisation button.
-
-A word defaults to unknown until it is marked. Mining a word and selecting "Known" both mark it as known. The user can change the status later.
-
-The interface should make it easy to review collected vocabulary and synchronise it with Anki.
-
-### Synchronisation
-
-Use a clearly visible button labelled:
-
-"Sync to Anki"
-
-Only selected vocabulary should be synchronised unless the user explicitly chooses an option to synchronise all eligible entries.
-
-Each word has a maximum of one Anki card. The extension must never create duplicate cards for the same headword. Multiple example sentences for a word are combined in the card's Sentence field, separated by newlines.
-
-Display successful and unsuccessful synchronisation results.
-
-Never silently synchronise vocabulary.
+The Chrome vocabulary manager shows saved Korean words, meanings, known status and sentence context. A word becomes known when the learner mines it or chooses **Known**. Settings provides search, edits and JSON export. The desktop Library organises the cards and their saved examples.
 
 ## 6. Settings Interface
 
@@ -167,7 +138,7 @@ Organise settings into logical categories:
 
 - General.
 - Dictionary.
-- Anki.
+- Import known words.
 - Appearance.
 - Storage.
 
@@ -190,8 +161,6 @@ Initial component concepts:
 - MineWordButton
 - VocabularyPanel
 - VocabularyItem
-- AnkiSyncButton
-- AnkiConnectionStatus
 - SettingsPanel
 
 The proposed file structure starts with five top-level component files: `DictionaryPopup`, `SubtitleReader`, `WordToken`, `MiningPanel` and `SettingsPanel`. Smaller elements such as definition rows, the mine button and status badges may live inside those files. Extract a new component file only when it improves clarity.
@@ -203,7 +172,7 @@ Components should be visually consistent.
 - Click to open dictionary.
 - Hover only provides visual feedback.
 - Explicit button press to mine vocabulary.
-- Explicit button press to synchronise with Anki.
+- Explicit Mine Word and Known actions.
 - Clear confirmation after successful actions.
 - Clear error messages when actions fail.
 - Avoid unnecessary confirmation dialogs for routine actions.
@@ -216,23 +185,15 @@ Use the established visual language consistently, but prioritise working interac
 
 Visual refinements can be introduced after core functionality is reliable.
 
-## Toolbar popup refinement
+## Toolbar popup
 
-The toolbar popup presents Anki connection status, vocabulary counts, and an explicit sync button. **Known words** counts all local entries marked known, including imports, even when Anki is disconnected. **New words** counts mined words absent from Anki and requires a configured Anki connection. Vocabulary management and JSON export are in Settings, as are Anki connection, deck, note type and field mapping controls. The Settings vocabulary list shows 50 entries at a time with a **Show more** button and a "Showing X of Y words" count. Search applies after a 250 ms pause in typing. The tilted penguin logo (`assets/New logo update.png`, selected concept 04) is the header logo across the popup, Settings and Statistics and the source for all Chrome extension icon sizes (16, 32, 48, 96 and 128 pixels). Headers show the complete transparent image with contain sizing and no rounded clipping; the supplied star pattern remains a subtle popup background.
+The tilted penguin and Korean Reader title sit next to the Settings gear. **Open Sidebar** and **Parse Page** are the reading actions. The star pattern remains a subtle background. A configured extension exposes Google account controls in Settings.
 
-## Statistics
+## Desktop study
 
-In the toolbar popup, the penguin and Korean Reader title precede two right-aligned controls. The bar-graph Statistics icon sits immediately to the left of Settings and opens a new browser tab.
+Review retains the dark and light palettes and orange sentence highlights. The daily review limit state uses the tilted penguin artwork. Practice shows an untimed progress count, A/B/C/D options and the correct answer with available saved media. The summary lists missed words.
 
-The tab uses the same fixed star-pattern background and dark/light overlay treatment as Settings, with a solid header above it. The known-word graph leads with the current count, change from the starting count, and the tracking start date. **Start tracking** appears until the user opts in. **View recorded totals** exposes the same data as a table.
-
-The Anki section names the saved deck and has a **Refresh** button. It shows reviews left today, the next seven days of scheduled reviews, and deck word overlap. Connection and configuration messages appear in that section so the vocabulary graph remains usable.
-
-### Account progress (Phase 10)
-
-Account-enabled Chrome builds show a Cloud sync card in Statistics. The signed-out card offers Google sign-in. The signed-in card shows the Google account, sign-out, and a responsive row for the account known-word count, pending changes and last successful sync. Import and Sync now sit below the summary. The summary stacks in narrow windows. The account graph uses the existing Statistics chart. The planned release offers optional Google sign-in and automatic sync. Show the active account, last successful sync and pending or unavailable sync states. When registration is paused, explain that guest use is available. After sign-out, show guest progress.
-
-In account mode, distinguish deleting a local mined entry from **Mark unknown**, which changes the shared list. Continue presenting the current computer's live Anki figures separately. See the [Phase 10 plan](docs/account-sync.md) for account behaviour and the open deletion decision.
+Desktop Stats uses the same theme and compact aggregate cards. A word-history chart with date filters and 30-day review activity show changes over time. The stats labels distinguish words marked known in Chrome from cards that have graduated in desktop SRS.
 
 ## Word frequency
 

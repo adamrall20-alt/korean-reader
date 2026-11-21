@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import logo from '@/assets/New logo update.png';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   buildSourceLink,
@@ -36,6 +37,24 @@ const errorMessage = ref('');
 const statusMessage = ref('');
 const audioEl = ref<HTMLAudioElement | null>(null);
 const isPlayingAudio = ref(false);
+let elapsedMs = 0;
+let focusedAt: number | null = null;
+
+function pauseTimer() {
+  if (focusedAt !== null) elapsedMs += performance.now() - focusedAt;
+  focusedAt = null;
+}
+
+function resumeTimer() {
+  if (currentCard.value && focusedAt === null && !document.hidden && document.hasFocus()) {
+    focusedAt = performance.now();
+  }
+}
+
+function handleVisibility() {
+  if (document.hidden) pauseTimer();
+  else resumeTimer();
+}
 
 const primaryContext = computed(() => {
   const card = currentCard.value;
@@ -122,7 +141,10 @@ async function loadNextCard() {
   revealed.value = false;
   try {
     const result = await api.getNextReviewCard();
+    pauseTimer();
+    elapsedMs = 0;
     currentCard.value = result.card;
+    resumeTimer();
     ratingPreviews.value = result.ratingPreviews;
     queue.value = result.queue;
     emit('queue-changed', result.queue);
@@ -171,7 +193,8 @@ async function handleRate(rating: ReviewRatingValue) {
   errorMessage.value = '';
   statusMessage.value = '';
   try {
-    const res = await api.submitReview(currentCard.value.id, rating);
+    const durationMs = elapsedMs + (focusedAt === null ? 0 : performance.now() - focusedAt);
+    const res = await api.submitReview(currentCard.value.id, rating, durationMs);
     if (!res.ok) {
       errorMessage.value = res.error ?? 'Failed to save review.';
       return;
@@ -274,11 +297,17 @@ watch(currentCard, () => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown);
+  window.addEventListener('focus', resumeTimer);
+  window.addEventListener('blur', pauseTimer);
+  document.addEventListener('visibilitychange', handleVisibility);
   void loadNextCard();
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener('focus', resumeTimer);
+  window.removeEventListener('blur', pauseTimer);
+  document.removeEventListener('visibilitychange', handleVisibility);
 });
 
 defineExpose({
@@ -342,7 +371,8 @@ defineExpose({
       v-else-if="!currentCard"
       class="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-interface/15 bg-ink-soft p-10 text-center"
     >
-      <div class="text-4xl">{{ queue.dailyLimitReached ? '✅' : '🎉' }}</div>
+      <img v-if="queue.dailyLimitReached" :src="logo" alt="" class="size-20 object-contain" />
+      <div v-else class="text-4xl" aria-hidden="true">🎉</div>
       <h2 class="text-xl font-semibold text-paper">
         {{ queue.dailyLimitReached ? 'Daily review limit reached' : 'All caught up for now!' }}
       </h2>

@@ -1,119 +1,16 @@
-import type { DatabaseSync } from 'node:sqlite';
-import type { AnkiImportProgress, ImportSummary } from '../shared/api';
-import { importVocabularyJson, type ImportedSchedule } from './importer';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { zstdDecompressSync } from 'node:zlib';
+import { unzipSync } from 'fflate';
+import type { ImportSummary } from '../shared/api';
+import { importVocabularyEntries, type ImportedSchedule } from './importer';
 import type { LocalMediaStore } from './media';
 
-export const DEFAULT_ANKI_CONNECT_URL = 'http://127.0.0.1:8765';
-const NOTES_BATCH_SIZE = 100;
-
-interface AnkiConnectResponse<T> {
-  result: T;
-  error: string | null;
-}
-
-interface AnkiNoteInfo {
-  noteId: number;
-  modelName?: string;
-  cards?: number[];
-  fields?: Record<string, { value?: string; order?: number }>;
-}
-
-export interface AnkiCardInfo {
-  cardId: number;
-  note?: number;
-  type?: number; // 0 = New, 1 = Learning, 2 = Review, 3 = Relearning
-  queue?: number;
-  due?: number;
-  interval?: number;
-  factor?: number; // ease factor * 1000 (e.g. 2500)
-  reps?: number;
-  lapses?: number;
-  left?: number;
-  mod?: number; // last modified Unix timestamp in seconds
-}
-
-function clamp(min: number, max: number, value: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-export function mapAnkiCardToSchedule(card: AnkiCardInfo, now = new Date()): ImportedSchedule {
-  const nowIso = now.toISOString();
-  const type = typeof card.type === 'number' && card.type >= 0 && card.type <= 3 ? card.type : 0;
-  const reps = typeof card.reps === 'number' && card.reps > 0 ? Math.round(card.reps) : 0;
-  const lapses = typeof card.lapses === 'number' && card.lapses > 0 ? Math.round(card.lapses) : 0;
-  const interval = typeof card.interval === 'number' && Number.isFinite(card.interval) ? card.interval : 0;
-  const factor = typeof card.factor === 'number' && card.factor > 0 ? card.factor : 2500;
-  const modSec = typeof card.mod === 'number' && card.mod > 1_000_000_000 ? card.mod : 0;
-
-  if (type === 0 && reps === 0) {
-    return {
-      state: 0,
-      dueAt: nowIso,
-      stability: 0,
-      difficulty: 0,
-      elapsedDays: 0,
-      scheduledDays: 0,
-      reps: 0,
-      lapses: 0,
-      learningSteps: 0,
-      lastReviewAt: null,
-    };
-  }
-
-  // Map Anki ease factor (default 2500, range ~1300-3500) to FSRS difficulty (1-10, default ~5)
-  const difficulty = Math.round(clamp(1, 10, 5 + (2500 - factor) / 250) * 100) / 100;
-  const lastReviewMs = modSec > 0 ? modSec * 1000 : now.getTime();
-  const lastReviewAt = new Date(lastReviewMs).toISOString();
-  const elapsedDays = Math.max(0, Math.round((now.getTime() - lastReviewMs) / 86_400_000));
-
-  if (type === 2) {
-    const scheduledDays = Math.max(1, Math.round(interval));
-    // In FSRS at R=0.9, stability S equals the interval in days at 90% retrievability.
-    const stability = Math.max(0.1, scheduledDays);
-    const dueMs = lastReviewMs + scheduledDays * 86_400_000;
-    return {
-      state: 2,
-      dueAt: new Date(dueMs).toISOString(),
-      stability,
-      difficulty,
-      elapsedDays,
-      scheduledDays,
-      reps: Math.max(1, reps),
-      lapses,
-      learningSteps: 0,
-      lastReviewAt,
-    };
-  }
-
-  // Learning (1) or Relearning (3)
-  const dueSec = typeof card.due === 'number' && card.due > 1_000_000_000 ? card.due : 0;
-  const dueAt = dueSec > 0 ? new Date(dueSec * 1000).toISOString() : nowIso;
-  const stability = Math.max(0.1, interval > 0 ? interval : 0.5);
-
-  return {
-    state: type,
-    dueAt,
-    stability,
-    difficulty,
-    elapsedDays,
-    scheduledDays: Math.max(0, Math.round(interval)),
-    reps,
-    lapses,
-    learningSteps: 0,
-    lastReviewAt: modSec > 0 ? lastReviewAt : null,
-  };
-}
-
-function pickPrimaryCard(cards: AnkiCardInfo[]): AnkiCardInfo | null {
-  if (cards.length === 0) return null;
-  return [...cards].sort((a, b) => {
-    const typeDiff = (b.type ?? 0) - (a.type ?? 0);
-    if (typeDiff !== 0) return typeDiff;
-    const ivlDiff = (b.interval ?? 0) - (a.interval ?? 0);
-    if (ivlDiff !== 0) return ivlDiff;
-    return (b.reps ?? 0) - (a.reps ?? 0);
-  })[0]!;
-}
+const MIB = 1024 * 1024;
+const MAX_PACKAGE = 1024 * MIB;
+const MAX_MEDIA = 25 * MIB;
 
 const EXT_TO_MIME: Record<string, string> = {
   jpg: 'image/jpeg',
@@ -127,33 +24,6 @@ const EXT_TO_MIME: Record<string, string> = {
   webm: 'audio/webm',
   m4a: 'audio/mp4',
 };
-
-async function invokeAnkiConnect<T>(
-  action: string,
-  params: Record<string, unknown> = {},
-  endpoint = DEFAULT_ANKI_CONNECT_URL,
-): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, version: 6, params }),
-    });
-  } catch {
-    throw new Error('Could not connect to AnkiConnect. Make sure Anki Desktop is open.');
-  }
-
-  if (!response.ok) {
-    throw new Error(`AnkiConnect returned HTTP ${response.status}.`);
-  }
-
-  const payload = (await response.json()) as AnkiConnectResponse<T>;
-  if (payload.error) {
-    throw new Error(payload.error);
-  }
-  return payload.result;
-}
 
 function decodeHtmlEntities(input: string): string {
   return input
@@ -232,225 +102,212 @@ function extractAudioFilename(fields: Record<string, { value?: string }>): strin
   return null;
 }
 
-function mimeFromFilename(filename: string, fallback: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
-  return EXT_TO_MIME[ext] ?? fallback;
+interface AnkiCardRow {
+  nid: number;
+  did: number;
+  odid: number;
+  type: number;
+  due: number;
+  odue: number;
+  ivl: number;
+  factor: number;
+  reps: number;
+  lapses: number;
+  mod: number;
+  last_review: number | null;
+  data: string;
 }
 
-export async function listAnkiDecks(
-  endpoint = DEFAULT_ANKI_CONNECT_URL,
-): Promise<string[]> {
-  const decks = await invokeAnkiConnect<string[]>('deckNames', {}, endpoint);
-  return [...decks].sort((a, b) => a.localeCompare(b));
+interface NoteField { name: string; ord: number }
+interface PackageEntry {
+  headword: string;
+  pronunciation?: string;
+  definitions: string[];
+  ankiNoteId: number;
+  schedule?: ImportedSchedule;
+  context: { originalForm: string; sentence: string; sourceUrl: string; sourceTitle: string; minedAt: string };
+  image: string | null;
+  audio: string | null;
 }
 
-export async function importAnkiDeck(options: {
-  db: DatabaseSync;
-  mediaStore: LocalMediaStore;
-  deckName: string;
-  endpoint?: string;
-  onProgress?: (progress: AnkiImportProgress) => void;
-}): Promise<ImportSummary> {
-  const { db, mediaStore, deckName, endpoint = DEFAULT_ANKI_CONNECT_URL, onProgress } = options;
-  const escapedDeck = deckName.replace(/[\\"*_]/g, '\\$&');
-  const noteIds = await invokeAnkiConnect<number[]>(
-    'findNotes',
-    { query: `"deck:${escapedDeck}"` },
-    endpoint,
-  );
-
-  const totalNotes = noteIds.length;
-  onProgress?.({ phase: 'fetching', processed: 0, total: totalNotes });
-
-  if (totalNotes === 0) {
-    const totalRow = db.prepare('SELECT COUNT(*) AS count FROM cards').get() as { count?: number };
-    return {
-      cardsAdded: 0,
-      cardsUpdated: 0,
-      contextsAdded: 0,
-      contextsUpdated: 0,
-      skippedKnownOnly: 0,
-      skippedInvalid: 0,
-      mediaSaved: 0,
-      totalCards: Number(totalRow?.count ?? 0),
-    };
-  }
-
-  const mediaCache = new Map<string, string | null>();
-  async function fetchMediaDataUrl(filename: string, fallbackMime: string): Promise<string | undefined> {
-    if (mediaCache.has(filename)) {
-      return mediaCache.get(filename) ?? undefined;
+// The modern package media index is a protobuf list of length-delimited entries.
+function* protobufBytes(buffer: Uint8Array, matchField: number): Generator<Uint8Array> {
+  let offset = 0;
+  function varint(): number {
+    let result = 0;
+    for (let shift = 0; shift < 53 && offset < buffer.length; shift += 7) {
+      const byte = buffer[offset++]!;
+      result += (byte & 127) * 2 ** shift;
+      if (byte < 128) return result;
     }
-    try {
-      const base64 = await invokeAnkiConnect<string | false>(
-        'retrieveMediaFile',
-        { filename },
-        endpoint,
-      );
-      if (typeof base64 === 'string' && base64.length > 0) {
-        const dataUrl = `data:${mimeFromFilename(filename, fallbackMime)};base64,${base64}`;
-        mediaCache.set(filename, dataUrl);
-        return dataUrl;
-      }
-    } catch {
-      // Missing media file in Anki should not abort the note import.
-    }
-    mediaCache.set(filename, null);
-    return undefined;
+    throw new Error('Invalid Anki media index.');
   }
+  while (offset < buffer.length) {
+    const tag = varint();
+    const wireType = tag % 8;
+    if (wireType === 0) { varint(); continue; }
+    const length = wireType === 2 ? varint() : wireType === 1 ? 8 : wireType === 5 ? 4 : -1;
+    const end = offset + length;
+    if (length < 0 || end > buffer.length) throw new Error('Invalid Anki media index.');
+    if (wireType === 2 && Math.floor(tag / 8) === matchField) yield buffer.subarray(offset, end);
+    offset = end;
+  }
+}
 
-  const totals: ImportSummary = {
-    cardsAdded: 0,
-    cardsUpdated: 0,
-    contextsAdded: 0,
-    contextsUpdated: 0,
-    skippedKnownOnly: 0,
-    skippedInvalid: 0,
-    mediaSaved: 0,
-    totalCards: 0,
+function readMediaIndex(bytes: Uint8Array | undefined, modern: boolean): Map<string, string> {
+  const index = new Map<string, string>();
+  if (!bytes) return index;
+  if (modern) {
+    let i = 0;
+    for (const entry of protobufBytes(zstdDecompressSync(bytes, { maxOutputLength: 32 * MIB }), 1)) {
+      const name = protobufBytes(entry, 1).next().value;
+      if (name) index.set(Buffer.from(name).toString('utf8').normalize('NFC'), String(i));
+      i += 1;
+    }
+  } else {
+    const entries = JSON.parse(Buffer.from(bytes).toString('utf8')) as Record<string, unknown>;
+    for (const [id, name] of Object.entries(entries)) {
+      if (/^\d+$/.test(id) && typeof name === 'string') index.set(name.normalize('NFC'), id);
+    }
+  }
+  return index;
+}
+
+function mapSchedule(card: AnkiCardRow, collectionStart: number, now: Date): ImportedSchedule | undefined {
+  if (card.type < 1 || card.type > 3 || card.reps < 1) return undefined;
+  const dueValue = card.odid && card.odue ? card.odue : card.due;
+  const due = dueValue > 1_000_000_000 ? new Date(dueValue * 1000) : new Date(collectionStart * 1000);
+  if (dueValue <= 1_000_000_000) due.setDate(due.getDate() + dueValue);
+  if (!Number.isFinite(+due)) throw new Error('The Anki deck contains an invalid due date.');
+  const lastReview = card.last_review ?? card.mod * 1000;
+  let fsrs: { s?: number; d?: number } = {};
+  try { fsrs = JSON.parse(card.data) ?? {}; } catch { /* Older decks have no stored FSRS parameters. */ }
+  return {
+    state: card.type,
+    dueAt: due.toISOString(),
+    stability: fsrs.s && fsrs.s > 0 ? fsrs.s : Math.max(0.1, card.ivl || 0.5),
+    difficulty: typeof fsrs.d === 'number' && fsrs.d >= 1 && fsrs.d <= 10 ? fsrs.d :
+      Math.min(10, Math.max(1, 5 + (2500 - (card.factor || 2500)) / 250)),
+    scheduledDays: Math.max(0, card.ivl),
+    elapsedDays: Math.max(0, Math.floor((+now - lastReview) / 86_400_000)),
+    reps: card.reps,
+    lapses: card.lapses,
+    learningSteps: 0,
+    lastReviewAt: lastReview > 0 && Number.isFinite(+new Date(lastReview)) ? new Date(lastReview).toISOString() : null,
   };
+}
 
-  for (let i = 0; i < noteIds.length; i += NOTES_BATCH_SIZE) {
-    const batchIds = noteIds.slice(i, i + NOTES_BATCH_SIZE);
-    const notes = await invokeAnkiConnect<AnkiNoteInfo[]>(
-      'notesInfo',
-      { notes: batchIds },
-      endpoint,
-    );
-
-    const cardIdsByNote = new Map<number, number[]>();
-    const allBatchCardIds: number[] = [];
-    for (const note of notes) {
-      if (Array.isArray(note.cards) && note.cards.length > 0) {
-        const validIds = note.cards.filter((id): id is number => typeof id === 'number');
-        if (validIds.length > 0) {
-          cardIdsByNote.set(note.noteId, validIds);
-          allBatchCardIds.push(...validIds);
-        }
+export function importAnkiPackage(
+  target: DatabaseSync,
+  media: LocalMediaStore,
+  filePath: string,
+  now = new Date(),
+): ImportSummary {
+  if (fs.statSync(filePath).size > MAX_PACKAGE) throw new Error('Anki packages over 1 GB must be exported in smaller decks.');
+  const archive = fs.readFileSync(filePath);
+  const members = unzipSync(archive, { filter: ({ name, originalSize }) => {
+    if (!/^collection\.anki(2|21|21b)$|^media$/.test(name)) return false;
+    if (originalSize > 256 * MIB) throw new Error('The Anki collection is too large. Export a smaller deck.');
+    return true;
+  } });
+  const modern = Boolean(members['collection.anki21b']);
+  const bytes = members['collection.anki21b'] ?? members['collection.anki21'] ?? members['collection.anki2'];
+  if (!bytes) throw new Error('This file does not contain an Anki deck.');
+  const mediaIndex = readMediaIndex(members.media, modern);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'korean-reader-anki-'));
+  let source: DatabaseSync | undefined;
+  try {
+    const collectionPath = path.join(tmp, 'collection.sqlite');
+    fs.writeFileSync(collectionPath, modern ? zstdDecompressSync(bytes, { maxOutputLength: 256 * MIB }) : bytes);
+    const db = source = new DatabaseSync(collectionPath, { readOnly: true });
+    db.exec('PRAGMA trusted_schema = OFF');
+    const collection = db.prepare('SELECT * FROM col LIMIT 1').get() as { crt: number; models?: string; decks?: string } | undefined;
+    if (!collection) throw new Error('Anki deck collection is empty.');
+    const fieldsByModel = new Map<number, NoteField[]>();
+    const deckNames = new Map<number, string>();
+    if (db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'fields'").get()) {
+      for (const field of db.prepare('SELECT ntid, name, ord FROM fields').iterate() as Iterable<{ ntid: number } & NoteField>) {
+        const fields = fieldsByModel.get(field.ntid) ?? [];
+        fields.push(field);
+        fieldsByModel.set(field.ntid, fields);
       }
+      for (const deck of db.prepare('SELECT id, name FROM decks').iterate() as Iterable<{ id: number; name: string }>) {
+        deckNames.set(deck.id, deck.name.replace(/\x1f/g, '::'));
+      }
+    } else {
+      const models = JSON.parse(collection.models ?? '{}') as Record<string, { flds: NoteField[] }>;
+      for (const [id, model] of Object.entries(models)) fieldsByModel.set(Number(id), model.flds);
+      const decks = JSON.parse(collection.decks ?? '{}') as Record<string, { name: string }>;
+      for (const [id, deck] of Object.entries(decks)) deckNames.set(Number(id), deck.name);
     }
 
-    const cardsById = new Map<number, AnkiCardInfo>();
-    if (allBatchCardIds.length > 0) {
-      try {
-        const cardsInfo = await invokeAnkiConnect<AnkiCardInfo[]>(
-          'cardsInfo',
-          { cards: allBatchCardIds },
-          endpoint,
-        );
-        for (const card of cardsInfo) {
-          if (card && typeof card.cardId === 'number') {
-            cardsById.set(card.cardId, card);
-          }
-        }
-      } catch {
-        // If cardsInfo is unavailable, continue importing notes with default schedules.
-      }
-    }
-
-    const convertedEntries: unknown[] = [];
-
-    for (const note of notes) {
-      const fields = note.fields ?? {};
-      const rawFocus = findFieldValue(fields, [
-        'Focus Word',
-        'Word',
-        'Expression',
-        'Vocabulary',
-        'Korean',
-        'Front',
-      ]);
-      const headword =
-        stripHtml(rawFocus.replace(/\[sound:[^\]]*\]/gi, ''))
-          .split('\n')[0]
-          ?.trim()
-          .normalize('NFC') ?? '';
-      if (!headword) {
-        totals.skippedInvalid += 1;
-        continue;
-      }
-
+    // Pick one primary card per headword. Prefer a graduated card over another template's new card.
+    const primaryCards = new Map<number, AnkiCardRow>();
+    const cardRows = db.prepare(`SELECT cards.*, rev.last_review FROM cards LEFT JOIN
+      (SELECT cid, MAX(id) AS last_review FROM revlog WHERE ease BETWEEN 1 AND 4 GROUP BY cid) rev
+      ON rev.cid = cards.id ORDER BY CASE type WHEN 2 THEN 0 WHEN 3 THEN 1 WHEN 1 THEN 2 ELSE 3 END,
+      ivl DESC, reps DESC, cards.id`).iterate() as unknown as Iterable<AnkiCardRow>;
+    for (const card of cardRows) if (!primaryCards.has(card.nid)) primaryCards.set(card.nid, card);
+    const entries: Array<PackageEntry | null> = [];
+    const needed = new Set<string>();
+    for (const note of db.prepare('SELECT id, mid, flds FROM notes ORDER BY id').iterate() as Iterable<{ id: number; mid: number; flds: string }>) {
+      const values = note.flds.split('\x1f');
+      const fields = Object.fromEntries((fieldsByModel.get(note.mid) ?? []).map(({ name, ord }) => [name, { value: values[ord] }]));
+      const headword = stripHtml(findFieldValue(fields, ['Focus Word', 'Word', 'Expression', 'Vocabulary', 'Korean', 'Front'])
+        .replace(/\[sound:[^\]]*\]/gi, '')).split('\n')[0]?.trim().normalize('NFC') ?? '';
+      if (!/\p{Script=Hangul}/u.test(headword)) { entries.push(null); continue; }
       const rawSentence = findFieldValue(fields, ['Sentence', 'Example', 'Context', 'Expression']);
-      const highlightedForm = extractHighlightedForm(rawSentence) ?? headword;
-      const fullSentence = stripHtml(rawSentence)
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0)
-        .join('\n');
-      const sentence = fullSentence.length > 0 ? fullSentence : headword;
-
-      const rawDef = findFieldValue(fields, ['Definition', 'Meaning', 'Glossary', 'English', 'Back']);
-      const definitions = stripHtml(rawDef)
-        .split('\n')
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0);
-
-      const rawPronunciation = findFieldValue(fields, ['Pronunciation', 'Reading']);
-      const pronunciation = stripHtml(rawPronunciation) || undefined;
-
-      const imageFilename = extractImageFilename(fields);
-      const audioFilename = extractAudioFilename(fields);
-
-      const [imageDataUrl, audioDataUrl] = await Promise.all([
-        imageFilename ? fetchMediaDataUrl(imageFilename, 'image/jpeg') : Promise.resolve(undefined),
-        audioFilename ? fetchMediaDataUrl(audioFilename, 'audio/mpeg') : Promise.resolve(undefined),
-      ]);
-
-      const nowIso = new Date().toISOString();
-      const contexts = [
-        {
-          sentence,
-          originalForm: highlightedForm,
-          sourceUrl: '',
-          sourceTitle: `Anki: ${deckName}`,
-          image: imageDataUrl,
-          audio: audioDataUrl,
-          minedAt: nowIso,
-        },
-      ];
-
-      const noteCardIds = cardIdsByNote.get(note.noteId) ?? [];
-      const noteCards = noteCardIds
-        .map((id) => cardsById.get(id))
-        .filter((c): c is AnkiCardInfo => Boolean(c));
-      const primaryCard = pickPrimaryCard(noteCards);
-      const schedule = primaryCard ? mapAnkiCardToSchedule(primaryCard) : undefined;
-
-      convertedEntries.push({
-        headword,
-        originalForm: headword,
-        pronunciation,
-        definitions,
-        koreanDefinitions: [],
-        ankiNoteId: note.noteId,
-        schedule,
-        contexts,
-        status: 'known',
-        createdAt: nowIso,
-        updatedAt: nowIso,
-      });
+      const sentence = stripHtml(rawSentence).split('\n').map((line) => line.trim()).filter(Boolean).join('\n');
+      const definitions = stripHtml(findFieldValue(fields, ['Definition', 'Meaning', 'Glossary', 'English', 'Back']))
+        .split('\n').map((line) => line.trim()).filter(Boolean);
+      const pronunciation = stripHtml(findFieldValue(fields, ['Pronunciation', 'Reading'])) || undefined;
+      const image = extractImageFilename(fields);
+      const audio = extractAudioFilename(fields);
+      for (const filename of [image, audio]) {
+        const index = filename && mediaIndex.get(filename.normalize('NFC'));
+        if (index) needed.add(index);
+      }
+      const card = primaryCards.get(note.id);
+      const deck = deckNames.get(card?.odid || card?.did || 0) || path.basename(filePath, '.apkg');
+      const minedAt = note.id > 1_000_000_000_000 && note.id <= +now ? new Date(note.id).toISOString() : now.toISOString();
+      entries.push({ headword, pronunciation, definitions, ankiNoteId: note.id,
+        schedule: card ? mapSchedule(card, collection.crt, now) : undefined,
+        context: { originalForm: extractHighlightedForm(rawSentence) ?? headword, sentence: sentence || headword,
+          sourceUrl: '', sourceTitle: `Anki: ${deck}`, minedAt }, image, audio });
     }
 
-    if (convertedEntries.length > 0) {
-      const batchSummary = importVocabularyJson(db, mediaStore, JSON.stringify(convertedEntries));
-      totals.cardsAdded += batchSummary.cardsAdded;
-      totals.cardsUpdated += batchSummary.cardsUpdated;
-      totals.contextsAdded += batchSummary.contextsAdded;
-      totals.contextsUpdated += batchSummary.contextsUpdated;
-      totals.skippedKnownOnly += batchSummary.skippedKnownOnly;
-      totals.skippedInvalid += batchSummary.skippedInvalid;
-      totals.mediaSaved += batchSummary.mediaSaved;
-      totals.totalCards = batchSummary.totalCards;
+    let zipMediaBytes = 0;
+    const attachments = needed.size ? unzipSync(archive, { filter: ({ name, originalSize }) => {
+      if (!needed.has(name) || originalSize > MAX_MEDIA) return false;
+      zipMediaBytes += originalSize;
+      if (zipMediaBytes > MAX_PACKAGE) throw new Error('Anki media exceeds 1 GB. Export a smaller deck.');
+      return true;
+    } }) : {};
+    let missingMedia = 0;
+    function dataUrl(filename: string | null, kind: 'audio' | 'image'): string | undefined {
+      if (!filename) return undefined;
+      const id = mediaIndex.get(filename.normalize('NFC'));
+      const raw = id === undefined ? undefined : attachments[id];
+      const mime = EXT_TO_MIME[path.extname(filename).slice(1).toLowerCase()];
+      if (mime?.startsWith(`${kind}/`) && raw?.length) {
+        try {
+          const data = modern ? zstdDecompressSync(raw, { maxOutputLength: MAX_MEDIA }) : Buffer.from(raw);
+          if (data.length) return `data:${mime};base64,${data.toString('base64')}`;
+        } catch { /* Import the text if an attachment cannot be decoded. */ }
+      }
+      missingMedia += 1;
     }
-
-    onProgress?.({
-      phase: 'importing',
-      processed: Math.min(i + batchIds.length, totalNotes),
-      total: totalNotes,
-    });
+    function* converted() {
+      for (const entry of entries) {
+        if (!entry) { yield null; continue; }
+        const { context, image, audio, ...card } = entry;
+        yield { ...card, createdAt: context.minedAt, contexts: [{ ...context, image: dataUrl(image, 'image'), audio: dataUrl(audio, 'audio') }] };
+      }
+    }
+    const summary = importVocabularyEntries(target, media, converted(), now);
+    return { ...summary, missingMedia };
+  } finally {
+    source?.close();
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
-
-  const totalRow = db.prepare('SELECT COUNT(*) AS count FROM cards').get() as { count?: number };
-  totals.totalCards = Number(totalRow?.count ?? totals.totalCards);
-  return totals;
 }

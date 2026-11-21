@@ -40,7 +40,7 @@ describe('Phase D1 local database, media store, and JSON importer', () => {
       const versions = desktopDb.db
         .prepare('SELECT version FROM schema_migrations')
         .all() as Array<{ version: number }>;
-      expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4]);
+      expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4, 5]);
     } finally {
       desktopDb.close();
     }
@@ -171,6 +171,10 @@ describe('Phase D1 local database, media store, and JSON importer', () => {
     const sample = createSampleMinedEntry();
     const openExternalUrl = vi.fn().mockResolvedValue({ ok: true });
     const mockApi: DesktopApi = {
+      getStudyStats: vi.fn(),
+      startPractice: vi.fn(),
+      answerPractice: vi.fn(),
+      importAnkiPackage: vi.fn(),
       getSampleEntry: vi.fn().mockResolvedValue(sample),
       getRuntimeInfo: vi.fn().mockResolvedValue({
         electron: '45.4.1',

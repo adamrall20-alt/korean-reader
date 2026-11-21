@@ -2,11 +2,24 @@
 
 ## Current Project State
 
-**Status:** v1.0.0 — the product owner has designated the implemented personal YouTube-to-Anki workflow as the first full release. Transcript, statistics, frequency and Phase 11 performance/highlighting improvements are included. Live sidebar mining into Anki and other recorded live checks remain unverified.
+**Status:** Chrome mines words and sends cards to Korean Reader Desktop. Desktop handles local review, practice and Stats. Chrome’s optional Firebase prototype is available in Settings → Google account.
 
-**Current milestone:** v1.0 release version and documentation. Phase 10 cloud sync remains an optional prototype; no next feature milestone has been approved.
+**Current milestone:** Desktop D3 implementation. The owner confirmed D2 review verification and the prior D4 and D5 feature implementation. Current D4 uses offline Anki packages. Mac packaging and backup/restore are D6.
 
-**Last Updated:** 21 November 2026
+**Last updated:** 21 November 2026
+
+## Desktop D3, study stats and Anki import update — 21 November 2026
+
+- **Practice.** Up to ten untimed four-choice questions from saved examples. Weighted selection favours recent material and words with difficult reviews. Meaning and sentence completion use saved surface forms, distinct local options, keyboard controls, answer feedback and a missed-word summary. Results stay in `practice_results` and leave SRS history and due dates intact.
+- **Stats.** Desktop charts Chrome’s known-word snapshots and shows lifetime local reviews, recorded review time, 30-day review activity, current streak, graduated cards, recall rate and practice accuracy. Older local reviews contribute to review totals. Timing begins with this update and undo subtracts the review and its time. The review-limit screen shows the penguin.
+- **Anki import.** Desktop opens modern and legacy `.apkg` files. It copies supported media, maps common note fields and preserves available schedules without changing cards already reviewed locally. Chrome imports known words from Anki notes text or Kimchi Reader CSV. AnkiConnect and the Chrome Statistics page have been removed. Earlier AnkiConnect implementation details below are historical.
+- **Delivery and sync.** The D5 bridge carries known-word snapshots as well as mined cards. The account panel moved to Chrome Settings. [Google Drive](docs/desktop-sync-options.md) is the first option to explore after portable backup/restore.
+
+**Verification:** 184 automated tests passed. The Firestore emulator test was skipped because the emulator was unavailable. Both TypeScript checks and production builds passed. Electron 45 on Apple silicon loaded SQLite and decoded Zstandard data in a runtime check.
+
+**Live verification remaining:** Play a session with the owner’s actual cards to assess answer quality, test a real `.apkg` export in Electron, and verify Chrome-to-Desktop mining and known-count delivery after reloading Chrome. Automated bridge tests exercise HTTP request handling in-process because binding to a loopback port is restricted by the test environment.
+
+## Earlier milestones
 
 **Desktop Phase D2 Anki-compatible FSRS review engine & Anki schedule preservation — 21 November 2026:** Implemented the spaced-repetition review engine (`desktop/src/main/review.ts`) using Anki's FSRS algorithm (`ts-fsrs` v6 with `enable_short_term: true`, 90% desired retention, and 20-minute learn-ahead), SQLite migrations v2 (`learning_steps` on `schedules`) and v3 (`settings` table in `desktop/src/main/db.ts`), atomic review submission + `review_logs` persistence, single-step Undo, and persistent daily review/new-card limits (`desktop/src/main/settings.ts`). Updated `desktop/src/main/anki-import.ts` and `desktop/src/main/importer.ts` to query AnkiConnect `cardsInfo` during deck imports and preserve each card's Anki scheduling state (`type`, `interval`, `factor`, `reps`, `lapses`, `due`/`mod`) mapped to FSRS stability, difficulty, and due dates without overwriting cards already reviewed locally. Added `desktop/src/renderer/ReviewView.vue` (with image/audio playback including fallback across secondary contexts, orange focus-word highlight, audio replay `R`, keyboard shortcuts `Space`/`Enter`, `1`–`4`, `Cmd/Ctrl+Z`, daily-limit status, `Study +10 New Cards`, and `Refresh Queue` feedback) and `desktop/src/renderer/SettingsView.vue` (configuring `dailyNewLimit` and `dailyReviewLimit`), wired into `App.vue` with a Review / Library / Settings tab bar. Added `tests/desktop-d2.test.ts`; all 23 desktop tests, `desktop:compile`, and `desktop:build` pass. Live review verification in Electron remains for the owner.
 Verified the FSRS engine against AnkiConnect `cardsInfo` for 10,000+ cards with a mix of new, learning, and review states. The owner confirmed that the FSRS engine produces the same next-review dates as AnkiConnect for all tested cards.
@@ -102,12 +115,12 @@ The user confirmed the Phase 2–3 workflow on a live YouTube video, including o
 
 ## v1.0 Verification Remaining
 
-- Live verification of subtitle audio capture and playback in the user's Kimchi Sentence Mining Anki note type.
+- Live verification of subtitle audio capture and playback in Korean Reader Desktop.
 - Live verification of the Kimchi Reader status CSV import.
 - Live verification of selectable definition mining.
 - Live visual verification of the latest interface/logo and highlighting refinements.
-- Live transcript-sidebar mining into Anki.
-- Live verification of Phase 12 KRDict `gloss: definition` display and Anki `word = gloss: definition` rendering in the `Kimchi Sentence Mining` note type.
+- Live transcript-sidebar mining into Desktop.
+- Live verification of Phase 12 KRDict `gloss: definition` display.
 - Phase 10 release readiness: full guest/account separation, automatic local edits and offline retry, account deletion, registration controls and live quota measurements remain incomplete.
 
 ## Settings and subtitle appearance — 18 November 2026
@@ -219,7 +232,8 @@ The table below preserves historical verification checkpoints. See the v1.0 entr
 | Korean processing | Kiwi 0.24.1 WASM with bundled `cong` model assets |
 | Kiwi runtime | Background service worker; local assets; MV3 `wasm-unsafe-eval` CSP |
 | Dictionary | KRDict; API key entered in Settings and stored locally; lookup runs in background |
-| Anki integration | AnkiConnect; maximum one card per dictionary headword |
+| Desktop study | Electron, SQLite, local FSRS and practice. One scheduled card per headword. |
+| Anki migration | Offline .apkg import for study cards and notes text import for Chrome known words. |
 | Subtitle presentation | Hide native YouTube captions; render a custom overlay |
 | Caption source | DOM caption windows polled every 250 ms; no YouTube API dependency |
 | Korean detection | Hangul Unicode ranges plus caption-track language metadata when available |
@@ -236,14 +250,14 @@ The table below preserves historical verification checkpoints. See the v1.0 entr
 - Captions must be enabled in YouTube's player for extraction to work. The extension does not force captions on.
 - KRDict lookup collects matching homonym definitions from its first search page; pronunciation, part of speech and optional details come from the first matching entry.
 - A KRDict API key is required before live dictionary definitions can be retrieved.
-- Audio capture uses estimated boundaries for rendered and rolling captions; live YouTube timing and playback in the user's Anki template remain to be verified.
+- Audio capture uses estimated boundaries for rendered and rolling captions. Live YouTube timing and desktop playback remain to be verified.
 - Live verification of Kimchi Reader CSV import and definition selection remains pending.
 
 ## Pending Investigation
 
 - Native caption DOM reliability across YouTube layouts, live streams and auto-generated captions.
 - Dictionary result caching and expiry policy.
-- AnkiConnect communication permissions and CORS configuration.
+- Live Chrome-to-Desktop delivery and pairing for a packaged release.
 - Tailwind CSS behaviour inside a Shadow DOM content-script UI.
 - Appropriate dictionary cache expiry and clearing strategy.
 

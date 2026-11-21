@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import {
   DESKTOP_IPC_CHANNELS,
-  type AnkiImportProgress,
   type DesktopApi,
   type DesktopReviewSettings,
   type ImportSummary,
@@ -9,6 +8,9 @@ import {
 } from '../shared/api';
 
 const desktopApi: DesktopApi = {
+  getStudyStats: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getStudyStats),
+  startPractice: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.startPractice),
+  answerPractice: (id, choice) => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.answerPractice, id, choice),
   getSampleEntry: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getSampleEntry),
   getRuntimeInfo: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getRuntimeInfo),
   openExternalUrl: (url: string) => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.openExternalUrl, url),
@@ -17,13 +19,11 @@ const desktopApi: DesktopApi = {
   getCardDetail: (cardId: string) => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getCardDetail, cardId),
   getLibraryStats: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getLibraryStats),
   deleteCard: (cardId: string) => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.deleteCard, cardId),
-  listAnkiDecks: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.listAnkiDecks),
-  importAnkiDeck: (deckName: string) =>
-    ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.importAnkiDeck, deckName),
+  importAnkiPackage: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.importAnkiPackage),
   getReviewQueue: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getReviewQueue),
   getNextReviewCard: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getNextReviewCard),
-  submitReview: (cardId: string, rating: ReviewRatingValue) =>
-    ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.submitReview, cardId, rating),
+  submitReview: (cardId: string, rating: ReviewRatingValue, durationMs?: number) =>
+    ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.submitReview, cardId, rating, durationMs),
   undoLastReview: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.undoLastReview),
   getReviewSettings: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getReviewSettings),
   saveReviewSettings: (settings: Partial<DesktopReviewSettings>) =>
@@ -35,13 +35,7 @@ const desktopApi: DesktopApi = {
       ipcRenderer.removeListener(DESKTOP_IPC_CHANNELS.libraryUpdated, listener);
     };
   },
-  onAnkiImportProgress: (callback: (progress: AnkiImportProgress) => void) => {
-    const listener = (_event: unknown, progress: AnkiImportProgress) => callback(progress);
-    ipcRenderer.on(DESKTOP_IPC_CHANNELS.ankiImportProgress, listener);
-    return () => {
-      ipcRenderer.removeListener(DESKTOP_IPC_CHANNELS.ankiImportProgress, listener);
-    };
-  },
+
 };
 
 contextBridge.exposeInMainWorld('koreanReaderDesktop', desktopApi);

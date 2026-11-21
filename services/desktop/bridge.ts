@@ -1,3 +1,4 @@
+import type { KnownWordHistory } from '@/types/statistics';
 import type { VocabularyEntry } from '@/types/vocabulary';
 
 export const DESKTOP_BRIDGE_URL = 'http://127.0.0.1:17421';
@@ -84,4 +85,12 @@ export async function syncMissingEntriesToDesktop(
   }
 
   return { synced, reachable: true };
+}
+
+export async function pushKnownHistory(history: KnownWordHistory, baseUrl = DESKTOP_BRIDGE_URL): Promise<void> {
+  await fetchWithTimeout(`${baseUrl}/known-history`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(history),
+  });
 }

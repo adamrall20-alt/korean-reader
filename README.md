@@ -1,6 +1,6 @@
 # Korean Reader v1.0
 
-Personal Korean language-learning and vocabulary-mining Chrome extension. It is designed for personal use and is inspired by Kimchi Reader and Yomitan.
+Korean vocabulary mining in Chrome, with local review and practice in Korean Reader Desktop. It is designed for personal use and is inspired by Kimchi Reader and Yomitan.
 
 The v1.0 workflow is:
 
@@ -8,8 +8,8 @@ The v1.0 workflow is:
 2. Read Korean subtitles with individually clickable words.
 3. Click a word to see its dictionary entry.
 4. Choose **Mine Word** to save a sentence or **Known** to mark the word known locally.
-5. Review saved vocabulary.
-6. Synchronise newly mined words to Anki through AnkiConnect.
+5. Run Korean Reader Desktop to receive mined sentences, audio and images.
+6. Review cards with FSRS, play a quick practice session and check progress in **Stats**.
 
 ## Install in Chrome — start here
 
@@ -41,7 +41,7 @@ Korean Reader is loaded manually into **Google Chrome on Mac or Windows**. It is
 3. Enter your KRDict API key and click **Save**. You need a key from the [Korean Basic Dictionary](https://krdict.korean.go.kr/); contact Adam if you need help obtaining one.
 4. Wait for **KRDict API key saved locally.** Your key is saved in this Chrome profile.
 
-Google sign-in is not required for local dictionary lookup, vocabulary mining or Anki sync.
+Dictionary lookup, mining and desktop study work without a Google account.
 
 ### 4. Try it on YouTube
 
@@ -51,21 +51,20 @@ Google sign-in is not required for local dictionary lookup, vocabulary mining or
 4. Click a Korean word to open its definition. Choose **Mine Word** to save it, or **Known** to mark it known without mining.
 5. For the transcript beside the video, open the Korean Reader toolbar popup and choose **Open Sidebar**.
 
-### 5. Connect Anki (optional)
+### 5. Study in Korean Reader Desktop
 
-1. Install **Anki Desktop** and the **AnkiConnect** add-on, then restart Anki after installing the add-on. See the [AnkiConnect installation instructions](https://foosoft.net/projects/anki-connect/).
-2. Keep Anki Desktop open whenever you want Korean Reader to connect or sync.
-3. In Korean Reader, open **Settings → Anki**, connect, choose your deck and note type, check the field mapping, and save the configuration. The extension is designed for the **Kimchi Sentence Mining** note type; if you do not have it, ask Adam for setup help. It does not create the note type for you.
-4. Open the toolbar popup and choose **Connect Anki** if needed, then **Sync to Anki** to send newly mined words.
+In the project checkout, install dependencies with `npm install` and run `npm run desktop:start`. Keep the desktop app open while mining in Chrome to receive cards automatically. Use **Import JSON** for an existing Korean Reader vocabulary export or **Import Anki .apkg** for an Anki deck with scheduling and media. Chrome **Settings → Import known words** accepts Anki notes text and Kimchi Reader word-status CSVs for reading coverage. See the [Anki import guide](docs/anki-integration.md).
 
-Anki sync is separate from Google cloud sync. You do not need Firebase access to send words to your local Anki collection. See the [Anki setup and troubleshooting guide](docs/anki-integration.md) for connection permissions and field details.
+**Review** uses local FSRS. **Practice** generates up to ten A/B/C/D questions from saved sentences. **Stats** shows known-word history, review time and totals, and practice accuracy. Open the extension popup while Desktop is running to deliver its known-word history, then refresh Stats.
+
+The desktop app currently runs from source. See the [desktop plan](DESKTOP_APP_PLAN.md) for Mac and Windows packaging.
 
 ### 6. Google sign-in and cloud sync — ask Adam for access
 
 **Google sign-in and progress sync require manual approval. Contact Adam with the Google account email you want to use; he must manually add your account to the Firebase access list before cloud sync will work.** Installing the extension does not grant access automatically.
 
 1. Ask Adam for access and a build configured for Google sign-in. Your unpacked extension ID may differ from his, so he may also need to configure Google sign-in for your installation.
-2. If Adam asks you to attempt sign-in first, open Korean Reader **Statistics** using the graph icon, then choose **Sign in with Google**. This creates the Firebase user record he needs to approve. A permission error at this stage can mean your access is still awaiting approval.
+2. If Adam asks you to attempt sign-in first, open Chrome extension **Settings → Google account**, then choose **Sign in with Google**. This creates the Firebase user record he needs to approve. A permission error at this stage can mean your access is still awaiting approval.
 3. Once Adam confirms approval, choose **Sync now**, or complete sign-in again if needed.
 4. On your first use, choose **Import this profile’s known words** to upload this profile's known words and progress history. Later, use **Sync now** to merge newly known local words and refresh account progress.
 
@@ -94,7 +93,7 @@ Do not move or delete the permanent extension folder while you are using it.
 | Dictionary asks for a key or lookup fails | Save your own KRDict key under **Settings → Dictionary** and check your internet connection. |
 | Captions are visible but words are not clickable | Select Korean captions, confirm the extension is enabled, reload the extension and refresh the YouTube tab. |
 | No full transcript appears | Some videos do not expose a full transcript. Leave Korean captions on and play the video to collect lines. |
-| Anki will not connect | Keep Anki Desktop open with AnkiConnect installed. Check **Settings → Anki** and the [connection guide](docs/anki-integration.md). |
+| Anki import failed | Export an Anki Deck Package (.apkg). Include media and scheduling if needed, then choose **Import Anki .apkg** in Desktop. |
 | Google sign-in or cloud sync fails | Ask Adam to confirm your Firebase approval and Google sign-in configuration. Local use does not require cloud access. |
 | Words disappear after an update | Check that you reloaded the original extension rather than installing a second copy from another folder or Chrome profile. Keep the original installation; contact Adam before removing anything. |
 
@@ -111,7 +110,7 @@ Opening the sidebar analyses all loaded Korean subtitle lines in sequential batc
 
 ## Current Status
 
-**Current release: v1.0.0 — 19 November 2026.** The original YouTube-to-Anki workflow is implemented, alongside the transcript sidebar, statistics, word frequency and performance improvements. Optional Google account sync remains a configured prototype, not a completed public service. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verification limits and [ROADMAP.md](ROADMAP.md) for optional work after v1.0.
+**Current development:** Desktop D3 practice, Stats, offline Anki import and same-computer Chrome delivery are available. Optional Google account sync remains a configured Chrome prototype. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for verification and [DESKTOP_APP_PLAN.md](DESKTOP_APP_PLAN.md) for the desktop roadmap.
 
 Implemented:
 
@@ -137,20 +136,18 @@ Implemented:
 - YouTube playback pauses when a subtitle word is selected.
 - Red underlines for unknown Korean subtitle words. Known base forms match conjugated verbs and nouns or pronouns with particles or the plural suffix 들.
 - Explicit **Mine Word** and **Save Sentence** actions in the dictionary popup.
-- **Known** beside **Mine Word** marks the dictionary headword as known without saving a sentence or creating an Anki card.
+- **Known** beside **Mine Word** marks the dictionary headword as known without saving a sentence or creating a study card.
 - Local vocabulary management with search, date sorting, known status, definition edits, deletion, and JSON export.
 - Direct Settings shortcut in the toolbar popup.
-- Screenshot capture for Anki notes, where browser video access permits.
-- Subtitle audio capture and Anki media attachment, with live YouTube and card playback checks still pending.
-- A Statistics tab with opt-in known-word history and review and vocabulary figures for the configured Anki deck.
+- Screenshot capture for study cards, where browser video access permits.
+- Subtitle audio capture and playback in Desktop, with further live YouTube checks pending.
+- Desktop Stats for known-word history, lifetime reviews, review time, streak and quiz performance.
 
-- Import of known words from Anki decks and Kimchi Reader status CSV files.
+- Import of known words from Anki notes text and Kimchi Reader status CSV files. Desktop imports full Anki deck packages.
 - Selectable dictionary definitions when mining.
 - Component tests, type checking and production builds (see the dated verification log in PROJECT_STATUS.md).
 
-- AnkiConnect with deck and note type selection, configurable field mapping, Kimchi Reader–style `word = gloss: definition` definitions, and one-click sync for newly mined words, with a live unsynced count.
-
-Live user checks have confirmed key workflows, including live lookup, mining and a large Anki known-word import. Some live media, CSV-import and definition-selection checks remain unrecorded. A KRDict API key is needed for live dictionary lookups. See [Anki setup](docs/anki-integration.md) for connecting to your collection and [plain-English architecture](docs/architecture.md) for how the system works.
+Chrome mining uses a KRDict API key for live lookups. See the [architecture guide](docs/architecture.md) for data ownership and the [desktop sync discussion](docs/desktop-sync-options.md) for future Google Drive support.
 
 ## Project Structure
 
@@ -182,6 +179,7 @@ korean-reader/
 │   └── anki-integration.md
 ├── public/
 │   └── icon/
+├── desktop/
 ├── entrypoints/
 │   ├── background.ts
 │   ├── content.ts
@@ -205,7 +203,7 @@ korean-reader/
 │   │   └── presenter.ts
 │   ├── dictionary/
 │   ├── korean/
-│   ├── anki/
+│   ├── desktop/
 │   └── storage/
 ├── types/
 │   ├── messages.ts
@@ -213,7 +211,8 @@ korean-reader/
 └── tests/
     ├── setup.ts
     ├── components/
-    ├── entrypoints/
+    ├── desktop/
+├── entrypoints/
     └── services/
         └── youtube/
 ```
@@ -228,7 +227,7 @@ Skip this section if you installed the ready-built ZIP above. These steps are fo
 - npm.
 - Google Chrome desktop.
 
-Anki Desktop with AnkiConnect is needed for synchronisation and Anki imports. A KRDict API key is needed for dictionary lookups and is stored locally in extension settings.
+A KRDict API key is needed for dictionary lookups and is stored locally in extension settings.
 
 ### Install dependencies
 
@@ -305,9 +304,8 @@ After loading `.output/chrome-mv3` in Chrome:
 ### 1. Popup
 
 - Click the Korean Reader toolbar icon.
-- The popup should show **Korean Reader**, Statistics and Settings buttons, known/new word counts, Anki controls and **Open Sidebar**.
+- The popup should show **Korean Reader**, the Settings gear, **Open Sidebar** and **Parse Page**.
 - The footer should show `Version 1.0.0`.
-- **Sync to Anki** becomes available after connecting Anki, mapping the required fields, and choosing a deck. Manage vocabulary in Settings → Storage.
 
 If the popup reports a connection or vocabulary error, open `chrome://extensions`, click **Errors** or the background service worker link, and check for a startup error.
 
@@ -316,7 +314,7 @@ If the popup reports a connection or vocabulary error, open `chrome://extensions
 - Click the Settings gear in the top-right of the Korean Reader popup. The extension options
   page should open directly. The Options entry in `chrome://extensions` remains available.
 - A full-page Settings interface should open.
-- It should list **General**, **Dictionary**, **Anki**, **Appearance** and **Storage**.
+- It should list **General**, **Dictionary**, **Import known words**, **Appearance** and **Storage**. Configured builds also show **Google account**.
 - Under Dictionary, the KRDict API key can be saved locally and the dictionary cache can be cleared.
 
 ### 3. YouTube content script
@@ -381,7 +379,7 @@ Captions must be enabled for extraction to work; the extension does not turn the
 3. Expand its sentence and check the source link and timestamp.
 4. Reopen the same subtitle word to check its saved state. Find it in a different sentence and click **Save Sentence**. The toolbar panel should show both sentences under one word.
 5. Check search, the status filter, definition editing, and **Export JSON**. Delete the test entry when finished.
-6. Look up another unknown word and click **Known** beside **Mine Word**. Confirm its underline clears immediately, it appears as **Known** in Settings → Storage, and it does not increase the Anki **New words** count.
+6. Look up another unknown word and click **Known** beside **Mine Word**. Confirm its underline clears immediately, it appears as **Known** in Settings → Storage, and no study card appears in Desktop.
 
 ## Project Documentation
 
@@ -395,7 +393,8 @@ Captions must be enabled for extraction to work; the extension does not turn the
 - [Phase 10 accounts and progress sync](docs/account-sync.md) — prototype behaviour, architecture and open decisions.
 - [Phase 10 prototype setup](docs/account-sync-setup.md) — Firebase configuration and the two-profile Chrome test.
 - `docs/dictionary.md` — KRDict lookup and caching behaviour.
-- `docs/anki-integration.md` — AnkiConnect setup, note mapping, and sync behaviour.
+- `docs/anki-integration.md` — Anki deck and known-word import.
+- [Desktop architecture](docs/desktop-architecture.md) and [sync options](docs/desktop-sync-options.md).
 - `docs/interview-questions.md` — interview-style questions about the product and its engineering.
 
 ## Privacy

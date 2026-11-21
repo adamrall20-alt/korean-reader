@@ -356,6 +356,7 @@ export function submitReview(
   cardId: string,
   rating: ReviewRatingValue,
   now = new Date(),
+  durationMs?: number,
 ): SubmitReviewResult {
   const meta = RATING_META.find((item) => item.rating === rating);
   if (!meta) {
@@ -386,8 +387,8 @@ export function submitReview(
   try {
     db.prepare(
       `INSERT INTO review_logs (
-         id, card_id, rating, state, due_at, reviewed_at, prev_schedule_json
-       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+         id, card_id, rating, state, due_at, reviewed_at, prev_schedule_json, duration_ms
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       reviewLogId,
       cardId,
@@ -396,6 +397,9 @@ export function submitReview(
       nextDueIso,
       nowIso,
       JSON.stringify(scheduleRow),
+      typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs >= 0
+        ? Math.min(120_000, Math.round(durationMs))
+        : null,
     );
 
     db.prepare(

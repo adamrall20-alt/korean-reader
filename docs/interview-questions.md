@@ -6,7 +6,7 @@ Use these questions to explain the product, its design choices, and what you lea
 
 1. What problem does Korean Reader solve for someone learning Korean through YouTube?
 2. Why does clicking a subtitle word open a definition without automatically saving it?
-3. How does the extension keep vocabulary mining and Anki synchronisation under the user's control?
+3. How does the extension keep vocabulary mining and desktop study under the user's control?
 4. Why does the interface preserve YouTube's native captions as a fallback?
 5. How do the red underlines help distinguish known words from new vocabulary?
 
@@ -24,9 +24,9 @@ Use these questions to explain the product, its design choices, and what you lea
 
 13. How does a clicked conjugated word become a dictionary lookup candidate?
 14. How does the extension protect the KRDict API key from the YouTube page?
-15. How does duplicate detection enforce one Anki note per dictionary headword?
+15. How does duplicate detection enforce one desktop schedule per dictionary headword?
 16. How are additional sentences and optional media handled when syncing an existing note?
-17. What happens when captions, dictionary results, audio capture, local storage or AnkiConnect are unavailable?
+17. What happens when captions, dictionary results, audio capture, local storage or the desktop bridge are unavailable?
 18. What is the difference between fixture-based verification and a live user check in this project?
 19. Which remaining Phase 8 checks would you prioritize, and why?
 

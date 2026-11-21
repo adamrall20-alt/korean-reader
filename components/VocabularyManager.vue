@@ -181,7 +181,7 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
                 </li>
               </ul>
             </template>
-            <p v-if="!entry.contexts.length" class="text-xs text-muted">Imported from Anki</p>
+            <p v-if="!entry.contexts.length" class="text-xs text-muted">Known word</p>
             <details v-else class="text-xs">
               <summary class="cursor-pointer text-muted">{{ entry.contexts.length }} {{ entry.contexts.length === 1 ? 'sentence' : 'sentences' }}</summary>
               <ul class="space-y-2 pt-2">
@@ -197,7 +197,6 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
             </details>
             <div class="flex items-center gap-3 border-t border-interface/10 pt-2 text-xs">
               <time :datetime="entry.createdAt" class="mr-auto text-muted">{{ new Date(entry.createdAt).toLocaleDateString() }}</time>
-              <span v-if="entry.ankiSyncedAt" class="text-muted" :title="`Last Anki sync ${new Date(entry.ankiSyncedAt).toLocaleString()}`">In Anki</span>
               <template v-if="pendingDeletion === entry.headword">
                 <button type="button" :disabled="busy" class="text-danger" @click="deleteWord(entry.headword)">Delete word</button>
                 <button type="button" :disabled="busy" class="text-muted" @click="pendingDeletion = undefined">Cancel</button>

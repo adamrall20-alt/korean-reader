@@ -138,6 +138,15 @@ export function importVocabularyJson(
     throw new Error('Expected a JSON array exported from Korean Reader.');
   }
 
+  return importVocabularyEntries(db, mediaStore, parsed, now);
+}
+
+export function importVocabularyEntries(
+  db: DatabaseSync,
+  mediaStore: LocalMediaStore,
+  entries: Iterable<unknown>,
+  now = new Date(),
+): ImportSummary {
   const nowIso = now.toISOString();
   let cardsAdded = 0;
   let cardsUpdated = 0;
@@ -213,7 +222,7 @@ export function importVocabularyJson(
 
   db.exec('BEGIN');
   try {
-    for (const item of parsed) {
+    for (const item of entries) {
       if (!item || typeof item !== 'object') {
         skippedInvalid += 1;
         continue;

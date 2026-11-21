@@ -17,10 +17,11 @@
     "desktop:build": "node desktop/build.mjs",
     "desktop:start": "npm run desktop:build && electron .output/desktop/main/index.cjs",
     "desktop:compile": "vue-tsc -p desktop/tsconfig.json --noEmit",
-    "desktop:test": "vitest run tests/desktop-foundation.test.ts tests/desktop-d1.test.ts tests/desktop-bridge.test.ts tests/desktop-anki-import.test.ts tests/desktop-d2.test.ts",
+    "desktop:test": "vitest run tests/desktop-foundation.test.ts tests/desktop-d1.test.ts tests/desktop-bridge.test.ts tests/desktop-anki-import.test.ts tests/desktop-d2.test.ts tests/desktop-d3.test.ts",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "firebase": "^13.4.0",
     "kiwi-nlp": "^0.24.1",
     "ts-fsrs": "^6.0.0",

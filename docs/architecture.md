@@ -15,28 +15,28 @@ The extension is split into three parts. The YouTube page part watches captions 
 | KRDict API | Supplies Korean dictionary entries and details. | It provides the project's selected Korean-English dictionary. The user supplies the key, stored locally; only lookup terms are sent. |
 | IndexedDB | Stores vocabulary, dictionary cache, sentences, screenshots and audio clips. | It supports larger structured local records and keeps the user's collection on their device. |
 | `chrome.storage.local` | Stores settings such as the KRDict key and Anki configuration. | It is the browser's built-in local store for extension settings. |
-| AnkiConnect | Sends notes and media to Anki Desktop and imports known words from a selected deck. | It reuses the user's existing Anki note type and local collection; review scheduling stays in Anki. |
+| Korean Reader Desktop | Imports mined cards and Anki packages and runs local FSRS, practice and stats. | Study and media stay local. |
 | Vitest + Vue Test Utils + jsdom | Tests services and UI components. | They provide fast automated checks without requiring a browser for every change. Chrome fixture checks cover extension flows where browser behavior matters. |
 
-The background service worker is the single owner of the extension's stored data and network calls. It can stop when idle under Manifest V3, so operations are message-driven and the worker wakes when needed. Dictionary lookups contact KRDict; AnkiConnect calls go to the local Anki Desktop endpoint. The current build stores vocabulary and progress locally. The [Phase 10 plan](account-sync.md) describes proposed account-scoped storage and Firebase sync.
+The background service worker is the single owner of the extension's stored data and network calls. It can stop when idle under Manifest V3, so operations are message-driven and the worker wakes when needed. Dictionary lookups contact KRDict; Mined cards and known-word counts go to Korean Reader Desktop over loopback. The current build stores vocabulary and progress locally. The [Phase 10 plan](account-sync.md) describes proposed account-scoped storage and Firebase sync.
 
-Current status is Phase 8. Screenshot/audio capture, Anki known-word imports and definition selection are implemented; their remaining live checks are listed in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
+Current status and live checks are listed in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
 
 ## 1. Purpose
 
 Korean Reader is a personal Chrome Manifest V3 extension for learning Korean from YouTube. This document records the runtime structure and the decisions that must remain consistent as features are added.
 
-The extension covers YouTube captions and the Phase 9 transcript sidebar, interactive words, dictionary lookup, local vocabulary management, progress statistics and Anki sync. Phase 8 added screenshot and audio capture, import tools and selectable definitions. Remaining live checks are tracked in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
+The extension covers YouTube captions and the Phase 9 transcript sidebar, interactive words, dictionary lookup, local vocabulary management, and local delivery to Desktop. Phase 8 added screenshot and audio capture, import tools and selectable definitions. Remaining live checks are tracked in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
 
 ## 2. Runtime Components
 
 | Component | Location | Responsibility |
 |---|---|---|
-| Background service worker | `entrypoints/background.ts` | Owns IndexedDB, settings, KRDict and AnkiConnect requests; coordinates messages |
+| Background service worker | `entrypoints/background.ts` | Owns IndexedDB, settings, KRDict and desktop bridge requests and coordinates messages |
 | Content script | `entrypoints/content.ts` | Runs on YouTube, reads captions, renders the custom subtitle overlay and dictionary popup in a Shadow DOM |
-| Toolbar popup | `entrypoints/popup/` + `components/MiningPanel.vue` | Vocabulary review and Anki synchronisation UI |
+| Toolbar popup | `entrypoints/popup/` + `components/MiningPanel.vue` | Transcript and page parsing controls |
 | Options page | `entrypoints/options/` + `components/SettingsPanel.vue` | Settings UI, including the local KRDict key |
-| Services | `services/` | Isolated YouTube, dictionary, Korean, Anki and storage logic |
+| Services | `services/` | Isolated YouTube, dictionary, Korean, desktop bridge and storage logic |
 | Shared types | `types/` | Message payloads and shared data types |
 
 ## 3. Data Ownership
@@ -45,7 +45,7 @@ The background service worker is the single source of truth for application data
 
 - IndexedDB is opened and modified only by the background service worker.
 - Settings and the KRDict API key live in `chrome.storage.local` and are read by the background.
-- The content script never reads the API key, never opens extension-origin IndexedDB and never calls KRDict or AnkiConnect directly.
+- The content script never reads the API key, never opens extension-origin IndexedDB and never calls KRDict or the desktop bridge directly.
 - The popup and options page request data through the background rather than keeping separate copies of application state.
 - Messages are defined in `types/messages.ts` and validated before use.
 
@@ -76,7 +76,7 @@ Dictionary popup
 
 Toolbar popup
   ├─ reads vocabulary summary ─────────────────────► background / IndexedDB
-  └─ Sync to Anki ─────────────────────────────────► background ──► AnkiConnect
+  └─ Send mined entry ─────────────────────────────► background ──► Desktop
 ```
 
 ## 5. Storage Model
@@ -93,11 +93,9 @@ Object stores:
 ### `chrome.storage.local`
 
 - KRDict API key.
-- Default Anki deck.
-- Anki note type and field mapping.
 - Subtitle appearance preferences.
 - Other small user settings.
-- `vocabularyRevision` — change notification for subtitle tabs, the toolbar popup and Statistics (see Vocabulary Model).
+- `vocabularyRevision` — change notification for subtitle tabs, and other extension consumers (see Vocabulary Model).
 
 Do not store the API key in source code, a committed `.env` file or the built bundle.
 
@@ -109,7 +107,7 @@ The stored record extends the dictionary entry with its known status, creation a
 - Repeating the same subtitle text from the same video leaves the stored record as it was. A different context can be saved explicitly using **Save Sentence**.
 - Mining marks the word as known. The dictionary popup's **Known** action uses the same background storage operation as known-word imports. It preserves existing data, and a newly marked word starts with no mined contexts. Settings can toggle known status and edit English definitions. The Settings list (`VocabularyManager.vue`) holds records in a `shallowRef`, caches each record's lower-cased search text, debounces search by 250 ms, and renders 50 entries per page with a load-more control. Changing the search, filter or sort order returns to the first page; edits keep the revealed page.
 - Subtitle tabs read known headwords from the background and refresh when the vocabulary revision changes. The background reads them through the `status` index (`getAllKeys('known')`), so screenshots and audio are not loaded. A revision for a single-word change (Known, Mine Word, status toggle, delete) carries `known`/`unknown` headword lists, which tabs apply to their cached set. A revision without these lists, such as after an Anki import, makes tabs reload the full set. Sub-word known checks (`services/korean/dictionary-forms.ts`) decompose Kiwi morphemes into lexical units across endings, particles, productive suffixes (`들`, `쯤`, `씩`, `끼리`), and copula (`VCP`) boundaries, require all parts (including explicit `이다`) to be known, treat colloquial contraction aliases symmetrically, and check unspaced compound nouns as a whole first before splitting into constituent parts (`resolveRenderTokens`). Unmatched clickable sub-words are underlined, while standalone particles and productive suffixes render as plain text without underlines.
-- JSON export includes the complete vocabulary collection. Anki sync uses the stored contexts and saves the returned note ID and sync time.
+- JSON export includes the complete vocabulary collection. Desktop import uses stored contexts and accepts legacy Anki identifiers in older exports.
 
 ## 7. Subtitle Overlay
 
@@ -126,7 +124,7 @@ Implemented behaviour (Phase 1 and Phase 2):
   placeholder soft-font stack and makes only the subtitle word spans interactive.
 - Clicking a word pauses the active YouTube video before opening the dictionary lookup.
 - An explicit mine action records up to 12 seconds from the video element. It uses matching text-track cue times when available. Otherwise it seeks slightly before the first observation and stops when the selected rendered caption changes during replay. Roll-up timing uses the observations of the words in the grouped phrase.
-- The content script records audio as WebM/Opus with no additional Chrome permission. It discards clips that are silent, interrupted or missing a usable playback range. The background worker validates and stores the clip with its sentence and uploads it to AnkiConnect during explicit sync.
+- The content script records audio as WebM/Opus with no additional Chrome permission. It discards clips that are silent, interrupted or missing a usable playback range. The background worker validates and stores the clip with its sentence and delivers it to Desktop with the saved context.
 - Kiwi tokenization runs through the background `tokenize` message before native captions are
   hidden. If analysis fails, native captions remain visible.
 - When Korean captions stop, native captions are restored after a 500 ms delay. If extraction never produces Korean text, native captions were never hidden.
@@ -186,7 +184,7 @@ Implemented:
 - Local vocabulary persistence, mining controls, a toolbar management panel and JSON export.
 - Unit, component and service tests plus a successful production build.
 
-- AnkiConnect discovery, mapping, single and bulk sync, and existing-note sentence updates. See `docs/anki-integration.md`.
+- Offline Anki package import, known-word import and same-computer delivery. See [Anki import](anki-integration.md) and [desktop architecture](desktop-architecture.md).
 
 Key Phase 1 modules:
 

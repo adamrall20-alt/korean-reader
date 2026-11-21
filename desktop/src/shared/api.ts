@@ -92,6 +92,7 @@ export interface ImportSummary {
   skippedInvalid: number;
   mediaSaved: number;
   totalCards: number;
+  missingMedia?: number;
 }
 
 export interface ImportResult {
@@ -105,18 +106,6 @@ export interface ImportResult {
 export interface DeleteCardResult {
   ok: boolean;
   error?: string;
-}
-
-export interface AnkiDecksResult {
-  ok: boolean;
-  decks?: string[];
-  error?: string;
-}
-
-export interface AnkiImportProgress {
-  phase: 'fetching' | 'importing';
-  processed: number;
-  total: number;
 }
 
 export type ReviewRatingValue = 1 | 2 | 3 | 4;
@@ -167,7 +156,44 @@ export interface UndoReviewResult {
   error?: string;
 }
 
+export interface PracticeQuestion {
+  id: string;
+  type: 'meaning' | 'cloze';
+  before: string;
+  after: string;
+  target: string | null;
+  focusWord: string | null;
+  options: string[];
+}
+
+export interface PracticeFeedback {
+  correct: boolean;
+  correctIndex: number;
+  headword: string;
+  meaning: string;
+  sentence: string;
+  imageDataUrl?: string;
+  audioDataUrl?: string;
+}
+
+export interface DesktopStudyStats {
+  knownWords: number | null;
+  knownHistory: import('../../../types/statistics').KnownWordPoint[];
+  totalReviews: number;
+  timedReviews: number;
+  reviewTimeMs: number;
+  recallRate: number | null;
+  learnedCards: number;
+  streak: number;
+  recentReviews: Array<{ day: string; count: number }>;
+  practiceAnswers: number;
+  practiceAccuracy: number | null;
+}
+
 export interface DesktopApi {
+  getStudyStats(): Promise<DesktopStudyStats>;
+  startPractice(): Promise<PracticeQuestion[]>;
+  answerPractice(id: string, choice: number): Promise<PracticeFeedback>;
   getSampleEntry(): Promise<VocabularyEntry>;
   getRuntimeInfo(): Promise<DesktopRuntimeInfo>;
   openExternalUrl(url: string): Promise<OpenExternalResult>;
@@ -176,19 +202,20 @@ export interface DesktopApi {
   getCardDetail(cardId: string): Promise<DesktopCardDetail | null>;
   getLibraryStats(): Promise<DesktopLibraryStats>;
   deleteCard(cardId: string): Promise<DeleteCardResult>;
-  listAnkiDecks?(): Promise<AnkiDecksResult>;
-  importAnkiDeck?(deckName: string): Promise<ImportResult>;
+  importAnkiPackage(): Promise<ImportResult>;
   getReviewQueue?(): Promise<ReviewQueueSummary>;
   getNextReviewCard?(): Promise<NextReviewCardResult>;
-  submitReview?(cardId: string, rating: ReviewRatingValue): Promise<SubmitReviewResult>;
+  submitReview?(cardId: string, rating: ReviewRatingValue, durationMs?: number): Promise<SubmitReviewResult>;
   undoLastReview?(): Promise<UndoReviewResult>;
   getReviewSettings?(): Promise<DesktopReviewSettings>;
   saveReviewSettings?(settings: Partial<DesktopReviewSettings>): Promise<DesktopReviewSettings>;
   onLibraryUpdated?(callback: (summary: ImportSummary) => void): () => void;
-  onAnkiImportProgress?(callback: (progress: AnkiImportProgress) => void): () => void;
 }
 
 export const DESKTOP_IPC_CHANNELS = {
+  getStudyStats: 'desktop:get-study-stats',
+  startPractice: 'desktop:start-practice',
+  answerPractice: 'desktop:answer-practice',
   getSampleEntry: 'desktop:get-sample-entry',
   getRuntimeInfo: 'desktop:get-runtime-info',
   openExternalUrl: 'desktop:open-external-url',
@@ -197,8 +224,7 @@ export const DESKTOP_IPC_CHANNELS = {
   getCardDetail: 'desktop:get-card-detail',
   getLibraryStats: 'desktop:get-library-stats',
   deleteCard: 'desktop:delete-card',
-  listAnkiDecks: 'desktop:list-anki-decks',
-  importAnkiDeck: 'desktop:import-anki-deck',
+  importAnkiPackage: 'desktop:import-anki-package',
   getReviewQueue: 'desktop:get-review-queue',
   getNextReviewCard: 'desktop:get-next-review-card',
   submitReview: 'desktop:submit-review',
@@ -206,7 +232,6 @@ export const DESKTOP_IPC_CHANNELS = {
   getReviewSettings: 'desktop:get-review-settings',
   saveReviewSettings: 'desktop:save-review-settings',
   libraryUpdated: 'desktop:library-updated',
-  ankiImportProgress: 'desktop:anki-import-progress',
 } as const;
 
 export function isSafeExternalUrl(rawUrl: string): boolean {

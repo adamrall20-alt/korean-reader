@@ -1,6 +1,6 @@
 # DESIGN_BRIEF.md — Korean Reader
 
-**Release baseline:** v1.0.0 (19 November 2026). The local YouTube-to-Anki workflow is the released scope. Optional account sync remains a prototype; future proposals are tracked in ROADMAP.md.
+**Current scope:** Mine in Chrome and study locally in Korean Reader Desktop. The earlier [PDF brief](Project%20Design%20Brief%20%E2%80%94%20Korean%20Reader.pdf) records the original v1.0 direction.
 
 ## 1. Project Overview
 
@@ -14,7 +14,7 @@
 
 Create a free, personal Korean language-learning and vocabulary-mining tool.
 
-The application will allow users to interact with Korean subtitles on YouTube, look up individual words in a Korean-English dictionary, save vocabulary and synchronise collected words with Anki.
+The application will allow users to interact with Korean subtitles on YouTube, look up individual words in a Korean-English dictionary, save vocabulary and study it in Korean Reader Desktop.
 
 The application is intended exclusively for personal use.
 
@@ -22,7 +22,7 @@ The application is intended exclusively for personal use.
 
 Provide a streamlined workflow for learning Korean through native content.
 
-The user should be able to watch Korean YouTube videos, understand unfamiliar vocabulary and save useful words to Anki without interrupting their viewing experience.
+The user should be able to watch Korean YouTube videos, understand unfamiliar vocabulary and save useful words for desktop study without interrupting their viewing experience.
 
 ## 2. Core User Workflow
 
@@ -36,14 +36,14 @@ The primary workflow is:
 6. Select the "Mine Word" button to save it.
 7. Open the vocabulary mining panel.
 8. Review collected words.
-9. Select an Anki deck.
-10. Synchronise selected vocabulary through AnkiConnect.
+9. Open Korean Reader Desktop.
+10. Review or practise with mined vocabulary.
 
 Clicking a word must never automatically mine it.
 
 Mining requires an explicit "Mine Word" action. The adjacent "Known" action saves the dictionary headword's local known status.
 
-Vocabulary must only be transferred to Anki when the user explicitly initiates synchronisation.
+The same-computer desktop bridge sends only saved mined entries as study cards.
 
 ## 3. Core Features
 
@@ -131,13 +131,13 @@ If a word has already been mined, indicate that it is already in the vocabulary 
 
 Do not automatically create duplicate vocabulary entries. One vocabulary entry is allowed per dictionary headword.
 
-Allow the user to save additional example sentences for previously mined words. Additional sentences are stored in the vocabulary entry. When syncing to Anki, all saved sentences are placed in the note's Sentence field, separated by a newline.
+Allow the user to save additional example sentences for previously mined words. Additional sentences are stored in the vocabulary entry. Desktop displays the saved contexts on the matching study card.
 
 Known/unknown status rules:
 
 - A word that has not been marked before defaults to unknown.
 - Mining a word marks it as known.
-- Selecting "Known" marks the dictionary headword as known without saving a mined sentence or creating an Anki card.
+- Selecting "Known" marks the dictionary headword as known without saving a mined sentence or creating a study card.
 - A stored noun, pronoun, adverb, or predicate can match across particles and productive grammatical suffixes (`들`, `쯤`, `씩`, `끼리`), which are rendered as plain un-underlined text. For example, known `여러분` removes the underline from `여러분` in `여러분들의`, and `들`/`의` are not underlined.
 - Multi-word chunks split visually into adjacent clickable sub-words where grammatical boundaries permit, and all constituent parts (including explicit `이다` on copula constructions or fused contractions) must be known before the underline is removed.
 - Colloquial contractions and their standard equivalents (e.g., `이거` ↔ `이것`, `재밌다` ↔ `재미있다`) share known status.
@@ -160,89 +160,13 @@ Required functionality:
 - Display source video information.
 - Delete vocabulary entries.
 - Edit vocabulary information.
-- Select individual entries for Anki synchronisation.
-- Select multiple entries for bulk synchronisation.
 - Export vocabulary as JSON. CSV export and import are future enhancements.
 
-### 3.6 Anki Integration
+### 3.6 Desktop study and existing Anki cards
 
-Use AnkiConnect.
+The desktop companion receives mined vocabulary from Chrome on the same computer and imports Korean Reader JSON or Anki .apkg deck packages. It stores sentences, images and audio locally and keeps one schedule per headword. The package importer carries across current scheduling when the export includes it, while retaining existing Korean Reader reviews. The Chrome settings accept text-based known-word imports for reading coverage.
 
-Do not develop a separate Anki add-on or custom Anki extension.
-
-Required functionality:
-
-- Detect whether AnkiConnect is available.
-- Check the connection to Anki Desktop.
-- Retrieve available Anki decks.
-- Retrieve available note types.
-- Retrieve note fields.
-- Allow deck selection.
-- Allow note type selection.
-- Map vocabulary information to Anki fields.
-- Detect existing notes.
-- Create new notes.
-- Support bulk note creation.
-- Display synchronisation results.
-- Report errors and unsuccessful synchronisation attempts.
-
-The user must explicitly initiate synchronisation.
-
-AnkiConnect is responsible for creating notes in Anki. Review scheduling and flashcard reviews remain entirely within Anki.
-
-### Anki Card Structure
-
-The application provides a built-in default Anki note type:
-
-**Korean Reader**
-
-When connecting to AnkiConnect or syncing with `Korean Reader` selected, the extension automatically creates the `Korean Reader` note type if it does not yet exist in Anki. Existing users can continue using **Kimchi Sentence Mining** or any other custom note type in Settings without modifying their existing card templates.
-
-The note type contains the following fields:
-
-1. Focus Word
-2. Sentence
-3. Definition
-4. Pronunciation
-5. Image
-6. Audio
-
-The application must populate these fields using information collected during vocabulary mining.
-
-One Anki card is allowed per vocabulary headword. The extension must never create duplicate notes for the same word. Duplicate detection is based on the dictionary headword.
-
-The Sentence field contains the original subtitle sentence. If the user has saved additional example sentences for the word, they are appended in the same field, separated by newlines.
-
-The Image field contains the captured video frame when available. The Audio field contains the original audio for a mined subtitle when available. Missing optional media must not prevent note creation.
-
-#### Front of Card
-
-The front of the card displays the following elements in order:
-
-1. Mined subtitle audio.
-2. Image.
-3. Sentence.
-
-The focus word must be highlighted in orange wherever it appears in the sentence.
-
-#### Back of Card
-
-The back of the card displays:
-
-- English definition.
-- Korean focus word.
-- Pronunciation information.
-
-Hanja definitions and character breakdowns are not required.
-
-#### Important Requirements
-
-- Automatically create the built-in `Korean Reader` note type when missing, with clean Front/Back templates and orange focus-word highlighting.
-- Preserve full compatibility with existing custom note types such as `Kimchi Sentence Mining` without modifying their templates.
-- Populate the mapped fields with the appropriate information.
-- Missing optional information must not prevent a note from being created.
-- Preserve the original Korean sentence.
-- Ensure the focus word is correctly identified and highlighted.
+Desktop Review uses FSRS and configurable daily limits. Quick practice shows meaning and sentence completion questions based on saved examples. The app records quiz answers separately from due dates and review ratings.
 
 ### 3.7 Settings
 
@@ -250,22 +174,16 @@ Provide configuration for:
 
 - Dictionary preferences.
 - KRDict API credentials. The key is entered in Settings and stored locally; it is never committed to source control or read by the content script.
-- Anki connection.
-- Default Anki deck.
-- Anki note type.
-- Field mapping.
 - Subtitle appearance, including the custom subtitle font.
 - Vocabulary management.
 
 ### 3.8 Statistics
 
-The toolbar opens Statistics in a new tab. **Start tracking** saves the current local known-word count as the starting point. The graph shows changes from that point forward, including words mined, marked known, imported, or removed from the known vocabulary.
+Desktop Stats shows the Chrome profile's known-word count and how it changes over time. It also shows recorded desktop reviews, time spent reviewing, 30-day review activity, streaks, graduated cards, recall rate and practice accuracy.
 
-The page can also show the Anki deck selected in Settings, with reviews left today, scheduled reviews for the next seven days, and the percentage of unique deck words that Korean Reader has marked known.
+### 3.9 Accounts and progress sync
 
-### 3.9 Accounts and progress sync (planned)
-
-Phase 10 adds optional Google sign-in and shared known-word progress inside the extension. The account carries the known-word list and Statistics graph across Chrome profiles. The current guest workflow, local mined entries and live Anki figures continue to be available. See the [Phase 10 plan](docs/account-sync.md) for migration, offline behaviour and launch scope.
+The configured Chrome extension keeps its optional Google/Firebase prototype under Settings → Google account. The desktop app studies locally. See the [account sync plan](docs/account-sync.md) and [desktop sync options](docs/desktop-sync-options.md).
 
 ## 4. Storage and Privacy
 
@@ -306,7 +224,7 @@ The first functional release must support the complete core workflow:
 5. Display a dictionary popup.
 6. Save vocabulary using an explicit Mine Word button.
 7. Display saved vocabulary.
-8. Connect to AnkiConnect.
-9. Send selected vocabulary to Anki.
+8. Send mined cards to Korean Reader Desktop.
+9. Study with local FSRS and Quick Practice.
 
 A reliable implementation of these features is more important than additional functionality.

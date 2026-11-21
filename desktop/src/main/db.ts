@@ -268,4 +268,31 @@ export function runMigrations(db: DatabaseSync): void {
       throw error;
     }
   }
+
+  if (!db.prepare('SELECT 1 FROM schema_migrations WHERE version = 5').get()) {
+    db.exec('BEGIN');
+    try {
+      db.exec(`
+        ALTER TABLE review_logs ADD COLUMN duration_ms INTEGER;
+        CREATE TABLE known_word_history (day TEXT PRIMARY KEY, at INTEGER NOT NULL, count INTEGER NOT NULL);
+        CREATE TABLE archived_review_stats (rating INTEGER NOT NULL, reviewed_at TEXT NOT NULL, duration_ms INTEGER);
+        CREATE TABLE archived_practice_stats (correct INTEGER NOT NULL);
+        CREATE VIEW study_review_history AS
+          SELECT rating, reviewed_at AS at, duration_ms FROM review_logs UNION ALL
+          SELECT rating, reviewed_at AS at, duration_ms FROM archived_review_stats;
+        CREATE VIEW study_practice_history AS
+          SELECT correct FROM practice_results UNION ALL SELECT correct FROM archived_practice_stats;
+        CREATE TRIGGER archive_study_stats BEFORE DELETE ON cards BEGIN
+          INSERT INTO archived_review_stats SELECT rating, reviewed_at, duration_ms FROM review_logs WHERE card_id = OLD.id;
+          INSERT INTO archived_practice_stats SELECT correct FROM practice_results WHERE card_id = OLD.id;
+        END;
+      `);
+      db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (5, ?)').run(new Date().toISOString());
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
 }

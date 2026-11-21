@@ -1,13 +1,16 @@
 import fs from 'node:fs';
 import os from 'node:os';
+import { Readable } from 'node:stream';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDesktopDatabase } from '../desktop/src/main/db';
-import { startDesktopBridge } from '../desktop/src/main/bridge';
+import { createBridgeHandler } from '../desktop/src/main/bridge';
 import { listCards } from '../desktop/src/main/library';
+import { getStudyStats } from '../desktop/src/main/stats';
 import { LocalMediaStore } from '../desktop/src/main/media';
 import { createSampleMinedEntry } from '../desktop/src/shared/fixtures';
-import { pushEntriesToDesktop, syncMissingEntriesToDesktop } from '../services/desktop/bridge';
+import { pushEntriesToDesktop, pushKnownHistory, syncMissingEntriesToDesktop } from '../services/desktop/bridge';
 import type { VocabularyEntry } from '../types/vocabulary';
 
 const tempDirs: string[] = [];
@@ -31,14 +34,20 @@ describe('Extension-to-Desktop auto-import bridge', () => {
     const media = new LocalMediaStore(path.join(dir, 'media'));
     const onImport = vi.fn();
 
-    const bridge = await startDesktopBridge({
-      db: desktopDb.db,
-      mediaStore: media,
-      port: 0,
-      onImport,
+    const handler = createBridgeHandler({ db: desktopDb.db, mediaStore: media, onImport });
+    const baseUrl = 'http://127.0.0.1:17421';
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      const request = Object.assign(Readable.from(init?.body ? [Buffer.from(String(init.body))] : []), {
+        url: new URL(url).pathname, method: init?.method ?? 'GET', headers: { origin: new Headers(init?.headers).get('Origin') ?? undefined },
+      });
+      let status = 200;
+      let body = '';
+      await handler(request as unknown as IncomingMessage, {
+        writeHead(code: number) { status = code; },
+        end(value: string) { body = value; },
+      } as unknown as ServerResponse);
+      return new Response(body, { status });
     });
-
-    const baseUrl = `http://127.0.0.1:${bridge.port}`;
     try {
       // 1. Push a newly mined word
       const sample = createSampleMinedEntry();
@@ -83,8 +92,11 @@ describe('Extension-to-Desktop auto-import bridge', () => {
         headers: { Origin: 'https://evil.example' },
       });
       expect(forbidden.status).toBe(403);
+      await pushKnownHistory({ baseline: { at: Date.now(), count: 2100 }, days: [] }, baseUrl);
+      expect(getStudyStats(desktopDb.db).knownWords).toBe(2100);
+      expect(listCards(desktopDb.db)).toHaveLength(2);
     } finally {
-      await bridge.close();
+      vi.unstubAllGlobals();
       desktopDb.close();
     }
   });
