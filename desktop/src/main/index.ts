@@ -6,6 +6,7 @@ import {
   isSafeExternalUrl,
   type AnkiDecksResult,
   type DeleteCardResult,
+  type DesktopReviewSettings,
   type DesktopRuntimeInfo,
   type ImportResult,
   type OpenExternalResult,
@@ -26,6 +27,7 @@ import {
   submitReview,
   undoLastReview,
 } from './review';
+import { getReviewSettings, saveReviewSettings } from './settings';
 
 let database: DesktopDatabase | null = null;
 let mediaStore: LocalMediaStore | null = null;
@@ -214,6 +216,21 @@ function registerIpcHandlers(): void {
     const { db } = ensureStorage();
     return undoLastReview(db.db);
   });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getReviewSettings, () => {
+    const { db } = ensureStorage();
+    return getReviewSettings(db.db);
+  });
+
+  ipcMain.handle(
+    DESKTOP_IPC_CHANNELS.saveReviewSettings,
+    (_event, patch: unknown) => {
+      const { db } = ensureStorage();
+      const safePatch: Partial<DesktopReviewSettings> =
+        patch && typeof patch === 'object' ? (patch as Partial<DesktopReviewSettings>) : {};
+      return saveReviewSettings(db.db, safePatch);
+    },
+  );
 }
 
 function createMainWindow(): BrowserWindow {

@@ -40,7 +40,7 @@ describe('Phase D1 local database, media store, and JSON importer', () => {
       const versions = desktopDb.db
         .prepare('SELECT version FROM schema_migrations')
         .all() as Array<{ version: number }>;
-      expect(versions.map((v) => v.version)).toEqual([1, 2]);
+      expect(versions.map((v) => v.version)).toEqual([1, 2, 3]);
     } finally {
       desktopDb.close();
     }

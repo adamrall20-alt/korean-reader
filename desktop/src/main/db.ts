@@ -162,4 +162,29 @@ export function runMigrations(db: DatabaseSync): void {
       throw error;
     }
   }
+
+  const appliedV3 = db
+    .prepare('SELECT version FROM schema_migrations WHERE version = 3')
+    .get() as { version?: number } | undefined;
+
+  if (!appliedV3) {
+    db.exec('BEGIN');
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+      db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)').run(
+        3,
+        new Date().toISOString(),
+      );
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  }
 }

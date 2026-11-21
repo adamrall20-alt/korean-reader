@@ -12,8 +12,9 @@ import {
   type ReviewQueueSummary,
 } from '../shared/api';
 import ReviewView from './ReviewView.vue';
+import SettingsView from './SettingsView.vue';
 
-const activeTab = ref<'review' | 'library'>('library');
+const activeTab = ref<'review' | 'library' | 'settings'>('library');
 const reviewViewRef = ref<InstanceType<typeof ReviewView> | null>(null);
 const reviewDueCount = ref(0);
 
@@ -306,10 +307,18 @@ function handleQueueChanged(queue: ReviewQueueSummary) {
   reviewDueCount.value = queue.totalDue;
 }
 
-function switchTab(tab: 'review' | 'library') {
+function switchTab(tab: 'review' | 'library' | 'settings') {
   activeTab.value = tab;
   if (tab === 'library') {
     void refreshLibrary(true);
+  }
+}
+
+async function handleSettingsSaved() {
+  const api = window.koreanReaderDesktop;
+  if (api?.getReviewQueue) {
+    const nextQueue = await api.getReviewQueue();
+    reviewDueCount.value = nextQueue.totalDue;
   }
 }
 
@@ -354,6 +363,14 @@ onBeforeUnmount(() => {
             @click="switchTab('library')"
           >
             Library ({{ stats.totalCards }})
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-3 py-1 font-medium transition-colors"
+            :class="activeTab === 'settings' ? 'bg-accent text-white' : 'text-muted hover:text-paper'"
+            @click="switchTab('settings')"
+          >
+            Settings
           </button>
         </nav>
 
@@ -474,7 +491,13 @@ onBeforeUnmount(() => {
           v-if="activeTab === 'review'"
           ref="reviewViewRef"
           @open-library="switchTab('library')"
+          @open-settings="switchTab('settings')"
           @queue-changed="handleQueueChanged"
+        />
+
+        <SettingsView
+          v-else-if="activeTab === 'settings'"
+          @settings-saved="handleSettingsSaved"
         />
 
         <template v-else>

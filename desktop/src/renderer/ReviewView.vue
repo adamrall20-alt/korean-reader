@@ -10,6 +10,7 @@ import {
 
 const emit = defineEmits<{
   (e: 'open-library'): void;
+  (e: 'open-settings'): void;
   (e: 'queue-changed', queue: ReviewQueueSummary): void;
 }>();
 
@@ -21,6 +22,9 @@ const queue = ref<ReviewQueueSummary>({
   dueReviews: 0,
   totalDue: 0,
   reviewedToday: 0,
+  dailyNewLimit: 20,
+  dailyReviewLimit: 200,
+  dailyLimitReached: false,
   canUndo: false,
 });
 
@@ -49,6 +53,22 @@ const extraContexts = computed(() => {
   return card.contexts.filter((c) => c.id !== primary.id);
 });
 
+const reviewImageDataUrl = computed(() => {
+  return (
+    primaryContext.value?.imageDataUrl ||
+    currentCard.value?.contexts.find((c) => Boolean(c.imageDataUrl))?.imageDataUrl ||
+    ''
+  );
+});
+
+const reviewAudioDataUrl = computed(() => {
+  return (
+    primaryContext.value?.audioDataUrl ||
+    currentCard.value?.contexts.find((c) => Boolean(c.audioDataUrl))?.audioDataUrl ||
+    ''
+  );
+});
+
 function splitHighlight(sentence: string, originalForm: string, headword: string) {
   const target = originalForm && sentence.includes(originalForm)
     ? originalForm
@@ -69,6 +89,7 @@ function splitHighlight(sentence: string, originalForm: string, headword: string
 function replayAudio() {
   const el = audioEl.value;
   if (!el) return;
+  el.load();
   el.currentTime = 0;
   void el.play().catch(() => {
     // Ignore autoplay restrictions
@@ -93,7 +114,7 @@ async function loadNextCard() {
 
     if (result.card) {
       await nextTick();
-      if (primaryContext.value?.audioDataUrl) {
+      if (reviewAudioDataUrl.value) {
         replayAudio();
       }
     }
@@ -243,7 +264,8 @@ defineExpose({
           Review: <strong>{{ queue.dueReviews }}</strong>
         </span>
         <span class="text-muted">
-          · Reviewed today: <strong class="text-paper">{{ queue.reviewedToday }}</strong>
+          · Reviewed today:
+          <strong class="text-paper">{{ queue.reviewedToday }} / {{ queue.dailyReviewLimit }}</strong>
         </span>
       </div>
 
@@ -281,10 +303,15 @@ defineExpose({
       v-else-if="!currentCard"
       class="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-interface/15 bg-ink-soft p-10 text-center"
     >
-      <div class="text-4xl">🎉</div>
-      <h2 class="text-xl font-semibold text-paper">All caught up for now!</h2>
+      <div class="text-4xl">{{ queue.dailyLimitReached ? '✅' : '🎉' }}</div>
+      <h2 class="text-xl font-semibold text-paper">
+        {{ queue.dailyLimitReached ? 'Daily review limit reached' : 'All caught up for now!' }}
+      </h2>
       <p class="max-w-md text-sm text-muted">
-        <template v-if="queue.reviewedToday > 0">
+        <template v-if="queue.dailyLimitReached">
+          You have reached your daily limit of {{ queue.dailyReviewLimit }} reviews. You can adjust daily limits in Settings.
+        </template>
+        <template v-else-if="queue.reviewedToday > 0">
           You have completed {{ queue.reviewedToday }} review{{ queue.reviewedToday === 1 ? '' : 's' }} today.
         </template>
         <template v-else>
@@ -293,6 +320,15 @@ defineExpose({
       </p>
       <div class="flex items-center gap-3 pt-1">
         <button
+          v-if="queue.dailyLimitReached"
+          type="button"
+          class="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          @click="emit('open-settings')"
+        >
+          Open Settings
+        </button>
+        <button
+          v-else
           type="button"
           class="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
           @click="emit('open-library')"
@@ -317,10 +353,11 @@ defineExpose({
       <!-- Card Front -->
       <div class="flex flex-col items-center gap-5 text-center">
         <!-- Audio -->
-        <div v-if="primaryContext?.audioDataUrl" class="flex items-center gap-2">
+        <div v-if="reviewAudioDataUrl" class="flex items-center gap-2">
           <audio
+            :key="currentCard.id"
             ref="audioEl"
-            :src="primaryContext.audioDataUrl"
+            :src="reviewAudioDataUrl"
             @play="isPlayingAudio = true"
             @ended="isPlayingAudio = false"
             @pause="isPlayingAudio = false"
@@ -337,10 +374,10 @@ defineExpose({
 
         <!-- Image -->
         <img
-          v-if="primaryContext?.imageDataUrl"
-          :src="primaryContext.imageDataUrl"
+          v-if="reviewImageDataUrl"
+          :src="reviewImageDataUrl"
           :alt="currentCard.headword"
-          class="max-h-60 w-auto rounded-xl border border-interface/15 object-contain"
+          class="max-h-64 w-auto rounded-xl border border-interface/15 object-contain"
         />
 
         <!-- Sentence with orange focus-word highlight -->
@@ -416,11 +453,20 @@ defineExpose({
         <!-- Extra contexts -->
         <div
           v-if="extraContexts.length > 0"
-          class="mt-1 flex flex-col gap-1.5 rounded-xl border border-interface/15 bg-ink p-3 text-xs text-muted"
+          class="mt-1 flex flex-col gap-2 rounded-xl border border-interface/15 bg-ink p-3 text-xs text-muted"
         >
           <div class="font-semibold uppercase tracking-wide">Other examples</div>
-          <div v-for="ctx in extraContexts" :key="ctx.id" class="text-paper">
-            {{ ctx.sentence }}
+          <div v-for="ctx in extraContexts" :key="ctx.id" class="flex flex-col gap-1.5 text-paper">
+            <span>{{ ctx.sentence }}</span>
+            <div v-if="ctx.imageDataUrl || ctx.audioDataUrl" class="flex flex-wrap items-center gap-2">
+              <img
+                v-if="ctx.imageDataUrl"
+                :src="ctx.imageDataUrl"
+                :alt="ctx.sentence"
+                class="h-14 w-auto rounded-md border border-interface/15 object-cover"
+              />
+              <audio v-if="ctx.audioDataUrl" :src="ctx.audioDataUrl" controls class="h-8 max-w-xs" />
+            </div>
           </div>
         </div>
       </div>

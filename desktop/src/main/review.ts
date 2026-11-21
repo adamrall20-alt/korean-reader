@@ -10,6 +10,7 @@ import {
   type Grade,
 } from 'ts-fsrs';
 import type {
+  DesktopReviewSettings,
   NextReviewCardResult,
   ReviewQueueSummary,
   ReviewRatingPreview,
@@ -19,6 +20,7 @@ import type {
 } from '../shared/api';
 import { getCardDetail } from './library';
 import type { LocalMediaStore } from './media';
+import { getReviewSettings } from './settings';
 
 export const DEFAULT_DAILY_NEW_LIMIT = 20;
 const LEARN_AHEAD_MS = 20 * 60 * 1000;
@@ -129,13 +131,23 @@ function getScheduleRow(db: DatabaseSync, cardId: string): ScheduleRow | null {
 export function getReviewQueueSummary(
   db: DatabaseSync,
   now = new Date(),
-  dailyNewLimit = DEFAULT_DAILY_NEW_LIMIT,
+  settingsOverride?: Partial<DesktopReviewSettings>,
 ): ReviewQueueSummary {
+  const storedSettings = getReviewSettings(db);
+  const dailyNewLimit =
+    settingsOverride?.dailyNewLimit !== undefined
+      ? Math.max(0, Math.round(settingsOverride.dailyNewLimit))
+      : storedSettings.dailyNewLimit;
+  const dailyReviewLimit =
+    settingsOverride?.dailyReviewLimit !== undefined
+      ? Math.max(0, Math.round(settingsOverride.dailyReviewLimit))
+      : storedSettings.dailyReviewLimit;
+
   const nowIso = now.toISOString();
   const learnAheadIso = new Date(now.getTime() + LEARN_AHEAD_MS).toISOString();
   const dayStartIso = startOfLocalDayIso(now);
 
-  const dueLearning = Number(
+  const rawDueLearning = Number(
     (
       db
         .prepare(
@@ -145,7 +157,7 @@ export function getReviewQueueSummary(
     )?.count ?? 0,
   );
 
-  const dueReviews = Number(
+  const rawDueReviews = Number(
     (
       db
         .prepare('SELECT COUNT(*) AS count FROM schedules WHERE state = 2 AND due_at <= ?')
@@ -174,9 +186,6 @@ export function getReviewQueueSummary(
     )?.count ?? 0,
   );
 
-  const remainingNewQuota = Math.max(0, dailyNewLimit - newIntroducedToday);
-  const newAvailable = Math.min(totalNew, remainingNewQuota);
-
   const reviewedToday = Number(
     (
       db
@@ -194,12 +203,41 @@ export function getReviewQueueSummary(
       )?.count ?? 0,
     ) > 0;
 
+  const remainingTotalQuota = Math.max(0, dailyReviewLimit - reviewedToday);
+  const dailyLimitReached = remainingTotalQuota === 0;
+
+  if (dailyLimitReached) {
+    return {
+      newAvailable: 0,
+      dueLearning: 0,
+      dueReviews: 0,
+      totalDue: 0,
+      reviewedToday,
+      dailyNewLimit,
+      dailyReviewLimit,
+      dailyLimitReached: true,
+      canUndo,
+    };
+  }
+
+  const remainingNewQuota = Math.max(0, dailyNewLimit - newIntroducedToday);
+  const dueLearning = Math.min(rawDueLearning, remainingTotalQuota);
+  const dueReviews = Math.min(rawDueReviews, Math.max(0, remainingTotalQuota - dueLearning));
+  const newAvailable = Math.min(
+    totalNew,
+    remainingNewQuota,
+    Math.max(0, remainingTotalQuota - dueLearning - dueReviews),
+  );
+
   return {
     newAvailable,
     dueLearning,
     dueReviews,
     totalDue: dueLearning + dueReviews + newAvailable,
     reviewedToday,
+    dailyNewLimit,
+    dailyReviewLimit,
+    dailyLimitReached: false,
     canUndo,
   };
 }
@@ -208,9 +246,16 @@ export function getNextReviewCard(
   db: DatabaseSync,
   mediaStore: LocalMediaStore,
   now = new Date(),
-  dailyNewLimit = DEFAULT_DAILY_NEW_LIMIT,
+  settingsOverride?: Partial<DesktopReviewSettings>,
 ): NextReviewCardResult {
-  const queue = getReviewQueueSummary(db, now, dailyNewLimit);
+  const queue = getReviewQueueSummary(db, now, settingsOverride);
+  if (queue.dailyLimitReached || queue.totalDue === 0) {
+    return {
+      card: null,
+      ratingPreviews: [],
+      queue,
+    };
+  }
   const nowIso = now.toISOString();
   const learnAheadIso = new Date(now.getTime() + LEARN_AHEAD_MS).toISOString();
 

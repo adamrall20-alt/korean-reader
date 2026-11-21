@@ -121,12 +121,20 @@ export interface AnkiImportProgress {
 
 export type ReviewRatingValue = 1 | 2 | 3 | 4;
 
+export interface DesktopReviewSettings {
+  dailyNewLimit: number;
+  dailyReviewLimit: number;
+}
+
 export interface ReviewQueueSummary {
   newAvailable: number;
   dueLearning: number;
   dueReviews: number;
   totalDue: number;
   reviewedToday: number;
+  dailyNewLimit: number;
+  dailyReviewLimit: number;
+  dailyLimitReached: boolean;
   canUndo: boolean;
 }
 
@@ -173,6 +181,8 @@ export interface DesktopApi {
   getNextReviewCard?(): Promise<NextReviewCardResult>;
   submitReview?(cardId: string, rating: ReviewRatingValue): Promise<SubmitReviewResult>;
   undoLastReview?(): Promise<UndoReviewResult>;
+  getReviewSettings?(): Promise<DesktopReviewSettings>;
+  saveReviewSettings?(settings: Partial<DesktopReviewSettings>): Promise<DesktopReviewSettings>;
   onLibraryUpdated?(callback: (summary: ImportSummary) => void): () => void;
   onAnkiImportProgress?(callback: (progress: AnkiImportProgress) => void): () => void;
 }
@@ -192,6 +202,8 @@ export const DESKTOP_IPC_CHANNELS = {
   getNextReviewCard: 'desktop:get-next-review-card',
   submitReview: 'desktop:submit-review',
   undoLastReview: 'desktop:undo-last-review',
+  getReviewSettings: 'desktop:get-review-settings',
+  saveReviewSettings: 'desktop:save-review-settings',
   libraryUpdated: 'desktop:library-updated',
   ankiImportProgress: 'desktop:anki-import-progress',
 } as const;

@@ -1,8 +1,10 @@
+// @vitest-environment jsdom
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { importAnkiDeck, mapAnkiCardToSchedule } from '../desktop/src/main/anki-import';
 import { openDesktopDatabase } from '../desktop/src/main/db';
 import { importVocabularyJson } from '../desktop/src/main/importer';
@@ -14,6 +16,9 @@ import {
   submitReview,
   undoLastReview,
 } from '../desktop/src/main/review';
+import { getReviewSettings, saveReviewSettings } from '../desktop/src/main/settings';
+import ReviewView from '../desktop/src/renderer/ReviewView.vue';
+import SettingsView from '../desktop/src/renderer/SettingsView.vue';
 
 const tempDirs: string[] = [];
 
@@ -259,5 +264,203 @@ describe('Phase D2: Retain Anki scheduling on import', () => {
       server.close();
       database.close();
     }
+  });
+});
+
+describe('Phase D2: Review settings and media rendering', () => {
+  it('persists and clamps dailyNewLimit and dailyReviewLimit', () => {
+    const { database } = createTestEnv();
+    try {
+      expect(getReviewSettings(database.db)).toEqual({
+        dailyNewLimit: 20,
+        dailyReviewLimit: 200,
+      });
+
+      const saved = saveReviewSettings(database.db, {
+        dailyNewLimit: -5,
+        dailyReviewLimit: 15000,
+      });
+      expect(saved).toEqual({
+        dailyNewLimit: 0,
+        dailyReviewLimit: 9999,
+      });
+
+      const updated = saveReviewSettings(database.db, {
+        dailyNewLimit: 15,
+        dailyReviewLimit: 50,
+      });
+      expect(updated).toEqual({
+        dailyNewLimit: 15,
+        dailyReviewLimit: 50,
+      });
+      expect(getReviewSettings(database.db)).toEqual({
+        dailyNewLimit: 15,
+        dailyReviewLimit: 50,
+      });
+    } finally {
+      database.close();
+    }
+  });
+
+  it('enforces dailyReviewLimit and dailyNewLimit in the review queue', () => {
+    const { database, mediaStore } = createTestEnv();
+    try {
+      const now = new Date('2026-11-21T10:00:00.000Z');
+      importVocabularyJson(
+        database.db,
+        mediaStore,
+        JSON.stringify([
+          {
+            headword: '사과',
+            definitions: ['apple'],
+            contexts: [
+              {
+                sentence: '사과를 먹어요.',
+                originalForm: '사과를',
+                sourceUrl: 'https://www.youtube.com/watch?v=1',
+                sourceTitle: 'V1',
+                minedAt: now.toISOString(),
+              },
+            ],
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+          },
+          {
+            headword: '바나나',
+            definitions: ['banana'],
+            contexts: [
+              {
+                sentence: '바나나를 먹어요.',
+                originalForm: '바나나를',
+                sourceUrl: 'https://www.youtube.com/watch?v=2',
+                sourceTitle: 'V2',
+                minedAt: now.toISOString(),
+              },
+            ],
+            createdAt: now.toISOString(),
+            updatedAt: now.toISOString(),
+          },
+        ]),
+        now,
+      );
+
+      saveReviewSettings(database.db, { dailyNewLimit: 2, dailyReviewLimit: 1 });
+
+      const first = getNextReviewCard(database.db, mediaStore, now);
+      expect(first.card).not.toBeNull();
+      expect(first.queue.totalDue).toBe(1);
+      expect(first.queue.dailyLimitReached).toBe(false);
+
+      const submitted = submitReview(database.db, first.card!.id, 4, now);
+      expect(submitted.ok).toBe(true);
+
+      const second = getNextReviewCard(database.db, mediaStore, now);
+      expect(second.card).toBeNull();
+      expect(second.queue.dailyLimitReached).toBe(true);
+      expect(second.queue.totalDue).toBe(0);
+      expect(second.queue.reviewedToday).toBe(1);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('renders card image and audio (including secondary context fallback) in ReviewView', async () => {
+    const loadSpy = vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    const playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+
+    (window as unknown as { koreanReaderDesktop?: unknown }).koreanReaderDesktop = {
+      getNextReviewCard: vi.fn().mockResolvedValue({
+        card: {
+          id: 'card-1',
+          headword: '연습',
+          definitions: ['practice'],
+          koreanDefinitions: [],
+          preferredContextId: 'ctx-1',
+          scheduleState: 0,
+          dueAt: new Date().toISOString(),
+          reps: 0,
+          lapses: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          contexts: [
+            {
+              id: 'ctx-1',
+              sentence: '매일 연습해요.',
+              originalForm: '연습해요',
+              sourceUrl: 'https://www.youtube.com/watch?v=abc',
+              sourceTitle: 'Video 1',
+              hasImage: false,
+              hasAudio: false,
+              minedAt: new Date().toISOString(),
+            },
+            {
+              id: 'ctx-2',
+              sentence: '집에서 연습해요.',
+              originalForm: '연습해요',
+              sourceUrl: 'https://www.youtube.com/watch?v=def',
+              sourceTitle: 'Video 2',
+              hasImage: true,
+              hasAudio: true,
+              minedAt: new Date().toISOString(),
+              imageDataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+              audioDataUrl: 'data:audio/wav;base64,UklGRiQAAABXQVZF',
+            },
+          ],
+        },
+        ratingPreviews: [],
+        queue: {
+          newAvailable: 1,
+          dueLearning: 0,
+          dueReviews: 0,
+          totalDue: 1,
+          reviewedToday: 0,
+          dailyNewLimit: 20,
+          dailyReviewLimit: 200,
+          dailyLimitReached: false,
+          canUndo: false,
+        },
+      }),
+      openExternalUrl: vi.fn(),
+    };
+
+    const wrapper = mount(ReviewView);
+    await flushPromises();
+
+    const img = wrapper.find('img');
+    expect(img.exists()).toBe(true);
+    expect(img.attributes('src')).toBe('data:image/png;base64,iVBORw0KGgo=');
+
+    const audio = wrapper.find('audio');
+    expect(audio.exists()).toBe(true);
+    expect(audio.attributes('src')).toBe('data:audio/wav;base64,UklGRiQAAABXQVZF');
+    expect(loadSpy).toHaveBeenCalled();
+    expect(playSpy).toHaveBeenCalled();
+
+    loadSpy.mockRestore();
+    playSpy.mockRestore();
+  });
+
+  it('loads and saves daily limits in SettingsView', async () => {
+    const saveMock = vi.fn().mockResolvedValue({ dailyNewLimit: 15, dailyReviewLimit: 120 });
+    (window as unknown as { koreanReaderDesktop?: unknown }).koreanReaderDesktop = {
+      getReviewSettings: vi.fn().mockResolvedValue({ dailyNewLimit: 25, dailyReviewLimit: 180 }),
+      saveReviewSettings: saveMock,
+    };
+
+    const wrapper = mount(SettingsView);
+    await flushPromises();
+
+    const newInput = wrapper.find('#daily-new-limit');
+    const reviewInput = wrapper.find('#daily-review-limit');
+    expect((newInput.element as HTMLInputElement).value).toBe('25');
+    expect((reviewInput.element as HTMLInputElement).value).toBe('180');
+
+    await newInput.setValue('15');
+    await reviewInput.setValue('120');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(saveMock).toHaveBeenCalledWith({ dailyNewLimit: 15, dailyReviewLimit: 120 });
+    expect(wrapper.text()).toContain('Settings saved.');
   });
 });
