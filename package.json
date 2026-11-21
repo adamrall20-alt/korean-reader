@@ -14,11 +14,16 @@
     "compile": "vue-tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
+    "desktop:build": "node desktop/build.mjs",
+    "desktop:start": "npm run desktop:build && electron .output/desktop/main/index.cjs",
+    "desktop:compile": "vue-tsc -p desktop/tsconfig.json --noEmit",
+    "desktop:test": "vitest run tests/desktop-foundation.test.ts",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
     "firebase": "^13.4.0",
     "kiwi-nlp": "^0.24.1",
+    "ts-fsrs": "^6.0.0",
     "vue": "^3.5.45"
   },
   "devDependencies": {
@@ -28,6 +33,7 @@
     "@vue/compiler-sfc": "^3.5.45",
     "@vue/test-utils": "^2.6.0",
     "@wxt-dev/module-vue": "^1.0.3",
+    "electron": "^45.4.1",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.5",
     "typescript": "~5.9.3",
