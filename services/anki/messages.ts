@@ -1,5 +1,6 @@
 import { browser } from 'wxt/browser';
 import { AnkiClient } from '@/services/anki/client';
+import { ensureKoreanReaderModel } from '@/services/anki/model';
 import { listVocabulary, markHeadwordsKnown, saveMachineTranslation } from '@/services/storage/vocabulary';
 import { readDeckStatistics } from './statistics';
 import { previewKnownWords } from '@/services/anki/import';
@@ -98,8 +99,14 @@ export async function handleAnkiMessage(message: AnkiMessage): Promise<AnkiRespo
 
   const version = await client.request('version', undefined);
   if (typeof version !== 'number' || version < 6) throw new Error('Update AnkiConnect to a version that supports API v6.');
-  const [decks, models] = await Promise.all([
+  const [decks, existingModels] = await Promise.all([
     client.request('deckNames', undefined), client.request('modelNames', undefined),
   ]);
+  let models = existingModels;
+  try {
+    models = await ensureKoreanReaderModel(client, existingModels);
+  } catch {
+    // Allow connecting with existing note types even if creating the default note type fails.
+  }
   return { ok: true, decks, models };
 }

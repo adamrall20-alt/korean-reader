@@ -1,7 +1,8 @@
 import { AnkiClient, type AnkiNote, type AnkiNoteInfo } from '@/services/anki/client';
 import { plainText } from '@/services/anki/fields';
+import { ensureKoreanReaderModel } from '@/services/anki/model';
 import { getVocabulary, listVocabulary, recordAnkiSync } from '@/services/storage/vocabulary';
-import { ANKI_DEFAULT_FIELDS, ANKI_FIELD_ROLES, type AnkiSettings, type AnkiSyncResult } from '@/types/anki';
+import { ANKI_DEFAULT_FIELDS, ANKI_DEFAULT_MODEL_NAME, ANKI_FIELD_ROLES, type AnkiSettings, type AnkiSyncResult } from '@/types/anki';
 import { isSubtitleAudio, SUBTITLE_AUDIO_PREFIX } from '@/types/audio';
 import type { VocabularyEntry } from '@/types/vocabulary';
 
@@ -199,9 +200,12 @@ async function updateExistingNote(
 }
 
 export async function validateAnkiSettings(client: AnkiClient, settings: AnkiSettings): Promise<void> {
-  const [decks, models] = await Promise.all([
+  const [decks, existingModels] = await Promise.all([
     client.request('deckNames', undefined), client.request('modelNames', undefined),
   ]);
+  const models = settings.modelName === ANKI_DEFAULT_MODEL_NAME
+    ? await ensureKoreanReaderModel(client, existingModels)
+    : existingModels;
   if (!decks.includes(settings.deckName)) throw new Error('Choose an available Anki deck.');
   if (!models.includes(settings.modelName)) throw new Error('Choose an available Anki note type.');
 

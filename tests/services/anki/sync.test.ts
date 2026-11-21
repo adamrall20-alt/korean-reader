@@ -59,7 +59,7 @@ describe('Anki sync', () => {
     expect(calls).toHaveBeenCalledWith('addNote', {
       note: {
         deckName: 'Korean',
-        modelName: 'Kimchi Sentence Mining',
+        modelName: 'Korean Reader',
         fields: {
           'Focus Word': '먹다',
           Sentence: '밥을 &lt;<span style="color: #f59e0b">먹어요</span>&gt; &amp; 물을 마셔요.',
@@ -476,5 +476,65 @@ describe('Anki sync', () => {
     for (let index = 20; index < 25; index += 1) {
       expect(results).toContainEqual({ headword: `단어${index}`, status: 'created' });
     }
+  });
+
+  it('auto-creates the Korean Reader note type with matching fields and templates when missing from Anki', async () => {
+    const created: Array<{ action: string; params: Record<string, unknown> }> = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const { action, params } = JSON.parse(String(init?.body));
+      created.push({ action, params });
+      switch (action) {
+        case 'deckNames': return Response.json({ result: ['Korean'], error: null });
+        case 'modelNames': return Response.json({ result: ['Basic'], error: null });
+        case 'createModel': return Response.json({ result: { id: 999 }, error: null });
+        case 'modelFieldNames': return Response.json({ result: Object.values(ANKI_DEFAULT_FIELDS), error: null });
+        case 'findNotes': return Response.json({ result: [], error: null });
+        case 'canAddNotes': return Response.json({ result: [true], error: null });
+        case 'addNote': return Response.json({ result: 55, error: null });
+        default: throw new Error(action);
+      }
+    });
+
+    await expect(syncVocabulary(settings, ['먹다'])).resolves.toEqual([{ headword: '먹다', status: 'created' }]);
+    const createCall = created.find((call) => call.action === 'createModel');
+    expect(createCall?.params).toEqual({
+      modelName: 'Korean Reader',
+      inOrderFields: ['Focus Word', 'Sentence', 'Definition', 'Pronunciation', 'Image', 'Audio'],
+      css: expect.stringContaining('.kr-sentence span { color: #f59e0b;'),
+      cardTemplates: [
+        {
+          Name: 'Card 1',
+          Front: expect.stringContaining('{{Sentence}}'),
+          Back: expect.stringContaining('{{Definition}}'),
+        },
+      ],
+    });
+  });
+
+  it('does not auto-create a missing custom note type like Kimchi Sentence Mining', async () => {
+    const customSettings = { ...settings, modelName: 'Kimchi Sentence Mining' };
+    const actions: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const { action } = JSON.parse(String(init?.body));
+      actions.push(action);
+      if (action === 'deckNames') return Response.json({ result: ['Korean'], error: null });
+      if (action === 'modelNames') return Response.json({ result: ['Basic'], error: null });
+      throw new Error(action);
+    });
+
+    await expect(syncVocabulary(customSettings, ['먹다'])).rejects.toThrow('Choose an available Anki note type.');
+    expect(actions).not.toContain('createModel');
+  });
+
+  it('surfaces an error if AnkiConnect fails to create the Korean Reader note type', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const { action } = JSON.parse(String(init?.body));
+      if (action === 'deckNames') return Response.json({ result: ['Korean'], error: null });
+      if (action === 'modelNames') return Response.json({ result: ['Basic'], error: null });
+      if (action === 'createModel') return Response.json({ result: null, error: 'Model creation failed' });
+      throw new Error(action);
+    });
+
+    await expect(syncVocabulary(settings, ['먹다'])).rejects.toThrow('Model creation failed');
   });
 });

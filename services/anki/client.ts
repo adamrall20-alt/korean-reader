@@ -17,12 +17,27 @@ export interface AnkiNoteInfo {
   fields: Record<string, { value: string }>;
 }
 
+export interface AnkiCardTemplate {
+  Name: string;
+  Front: string;
+  Back: string;
+}
+
+export interface AnkiCreateModelParams {
+  modelName: string;
+  inOrderFields: string[];
+  css?: string;
+  isCloze?: boolean;
+  cardTemplates: AnkiCardTemplate[];
+}
+
 interface Actions {
   requestPermission: [undefined, { permission: string; requireApiKey?: boolean }];
   version: [undefined, number];
   deckNames: [undefined, string[]];
   modelNames: [undefined, string[]];
   modelFieldNames: [{ modelName: string }, string[]];
+  createModel: [AnkiCreateModelParams, unknown];
   deckNamesAndIds: [undefined, Record<string, number>];
   getDeckStats: [{ decks: string[] }, Record<string, { review_count: number }>];
   findCards: [{ query: string }, number[]];

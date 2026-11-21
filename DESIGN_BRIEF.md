@@ -188,11 +188,11 @@ AnkiConnect is responsible for creating notes in Anki. Review scheduling and fla
 
 ### Anki Card Structure
 
-The application must support the user's existing Anki note type:
+The application provides a built-in default Anki note type:
 
-**Kimchi Sentence Mining**
+**Korean Reader**
 
-Do not create a new note type or replace the existing card structure.
+When connecting to AnkiConnect or syncing with `Korean Reader` selected, the extension automatically creates the `Korean Reader` note type if it does not yet exist in Anki. Existing users can continue using **Kimchi Sentence Mining** or any other custom note type in Settings without modifying their existing card templates.
 
 The note type contains the following fields:
 
@@ -233,10 +233,9 @@ Hanja definitions and character breakdowns are not required.
 
 #### Important Requirements
 
-- Preserve compatibility with the existing Kimchi Sentence Mining note type.
-- Do not create a replacement note type.
-- Do not modify existing Anki card templates.
-- Populate the existing fields with the appropriate information.
+- Automatically create the built-in `Korean Reader` note type when missing, with clean Front/Back templates and orange focus-word highlighting.
+- Preserve full compatibility with existing custom note types such as `Kimchi Sentence Mining` without modifying their templates.
+- Populate the mapped fields with the appropriate information.
 - Missing optional information must not prevent a note from being created.
 - Preserve the original Korean sentence.
 - Ensure the focus word is correctly identified and highlighted.

@@ -20,11 +20,13 @@ export interface AnkiSettings {
   fields: Record<AnkiFieldRole, string>;
 }
 
+export const ANKI_DEFAULT_MODEL_NAME = 'Korean Reader';
+
 export const DEFAULT_ANKI_SETTINGS: AnkiSettings = {
   port: 8765,
   apiKey: '',
   deckName: '',
-  modelName: 'Kimchi Sentence Mining',
+  modelName: ANKI_DEFAULT_MODEL_NAME,
   fields: ANKI_DEFAULT_FIELDS,
 };
 

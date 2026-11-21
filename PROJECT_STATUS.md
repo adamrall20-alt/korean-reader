@@ -6,7 +6,9 @@
 
 **Current milestone:** v1.0 release version and documentation. Phase 10 cloud sync remains an optional prototype; no next feature milestone has been approved.
 
-**Last Updated:** 20 November 2026
+**Last Updated:** 21 November 2026
+
+**Built-in Korean Reader Anki note type — 21 November 2026:** Added `services/anki/model.ts` and AnkiConnect `createModel` support in `services/anki/client.ts`. New installations default to the `Korean Reader` note type with the 6 fields (`Focus Word`, `Sentence`, `Definition`, `Pronunciation`, `Image`, `Audio`), Front/Back templates (Audio → Image → Sentence on the front; Definition, Focus Word, and Pronunciation on the back), and orange focus-word highlighting (`#f59e0b`). Connecting to Anki or syncing with `Korean Reader` selected automatically creates the note type if it does not yet exist in Anki, while existing saved settings (such as `Kimchi Sentence Mining`) remain untouched. Live Anki Desktop creation and card rendering verification remain pending.
 
 **Phase 10 prototype:** The opt-in Chrome test build supports Google sign-in wiring, explicit known-word and history import, and test edits with an account-specific offline queue. All 103 tests passed with the emulator, including the 13,000-word import, two-client merge and account isolation. Type checking and both Chrome builds passed. An isolated Chrome profile verified the stable extension ID, signed-out account messaging and guest history. The owner confirmed live sign-in and sync in the separate test build after Firestore tester approval. The normal unpacked build can now enable the same panel using an OAuth client for its existing extension ID. The normal build was rebuilt with its own OAuth client and checked in a clean Chrome profile under the original extension ID. Live sign-in on the existing installation and Firebase Spark usage measurements remain pending. Account deletion and launch registration controls remain open. See the [prototype setup and test steps](docs/account-sync-setup.md).
 

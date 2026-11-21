@@ -362,3 +362,9 @@ Additional dictionary sources and learner-facing grammar explanations remain lon
 - [x] Handle loading, empty vocabulary, analysis failure and stale results after navigation.
 
 Full-video coverage is available only when YouTube provides the full transcript. No changes to installation or unknown-word lists are included in this milestone.
+
+## Built-in Korean Reader Anki Note Type — 21 November 2026
+
+- [x] Add AnkiConnect `createModel` support and a built-in `Korean Reader` note type definition (`Focus Word`, `Sentence`, `Definition`, `Pronunciation`, `Image`, `Audio`) with Front/Back templates and orange focus-word highlighting.
+- [x] Set `Korean Reader` as the default note type for new installations while preserving saved `Kimchi Sentence Mining` and other custom note type selections.
+- [x] Automatically create `Korean Reader` in Anki when missing during AnkiConnect connection or sync validation.

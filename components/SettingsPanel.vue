@@ -133,7 +133,7 @@ const sections = [
   {
     id: 'anki',
     title: 'Anki',
-    description: 'AnkiConnect connection, default deck and Kimchi Sentence Mining field mapping.',
+    description: 'AnkiConnect connection, default deck, note type and field mapping.',
   },
   {
     id: 'appearance',
