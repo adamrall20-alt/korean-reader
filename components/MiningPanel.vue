@@ -2,6 +2,7 @@
 import AnkiPanel from '@/components/AnkiPanel.vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { OPEN_TRANSCRIPT } from '@/services/youtube/transcript';
+import { TOGGLE_PARSE_PAGE } from '@/services/webpage/parser';
 import { browser } from 'wxt/browser';
 import { VOCABULARY_REVISION_KEY, type VocabularySummary, type VocabularyResponse } from '@/types/vocabulary';
 import logo from '@/assets/New logo update.png';
@@ -12,6 +13,8 @@ const minedEntries = computed(() => summary.value?.minedEntries ?? []);
 const knownCount = computed(() => summary.value?.knownCount);
 const error = ref('');
 const sidebarError = ref('');
+const parseError = ref('');
+const parsing = ref(false);
 async function openSidebar() {
   sidebarError.value = '';
   try {
@@ -22,6 +25,23 @@ async function openSidebar() {
     window.close();
   } catch {
     sidebarError.value = 'Open or refresh a YouTube video, then try again.';
+  }
+}
+async function parsePage() {
+  if (parsing.value) return;
+  parseError.value = '';
+  parsing.value = true;
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) throw new Error();
+    await browser.scripting.executeScript({ target: { tabId: tab.id }, files: ['/page-parser.js'] });
+    const response = await browser.tabs.sendMessage(tab.id, { type: TOGGLE_PARSE_PAGE });
+    if (!response?.ok) throw new Error(response?.error);
+    window.close();
+  } catch {
+    parseError.value = 'Open a standard webpage (not a Chrome internal page), then try again.';
+  } finally {
+    parsing.value = false;
   }
 }
 const version = browser.runtime.getManifest().version;
@@ -73,6 +93,8 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
       <AnkiPanel :vocabulary="minedEntries" :known-count="knownCount" @synced="loadVocabulary" />
       <button type="button" class="w-full rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10" @click="openSidebar">Open Sidebar</button>
       <p v-if="sidebarError" class="text-xs text-danger" role="alert">{{ sidebarError }}</p>
+      <button type="button" :disabled="parsing" class="w-full rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10 disabled:opacity-50" @click="parsePage">{{ parsing ? 'Parsing…' : 'Parse Page' }}</button>
+      <p v-if="parseError" class="text-xs text-danger" role="alert">{{ parseError }}</p>
       <div v-if="error" class="text-xs text-danger" role="alert">{{ error }} <button class="underline" @click="loadVocabulary">Reload</button></div>
       <p class="text-xs text-muted">Version {{ version }}</p>
     </section>

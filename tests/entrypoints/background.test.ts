@@ -64,18 +64,19 @@ describe('background entrypoint', () => {
     await import('@/entrypoints/background');
   });
 
-  it('accepts a valid Known action from YouTube and notifies subtitle tabs after saving', async () => {
+  it('accepts a valid Known action from webpages and notifies tabs after saving', async () => {
     const messageListener = listeners.message[0]!;
     const sender = { url: 'https://www.youtube.com/watch?v=abcdefghijk' };
+    const webpageSender = { url: 'https://example.com/article' };
     const sendResponse = vi.fn();
     const message = { type: 'mark-word-known', headword: '여러분' };
     expect(messageListener({ ...message, headword: ' ' }, sender, sendResponse)).toBe(false);
-    expect(messageListener(message, { url: 'https://example.com/' }, sendResponse)).toBe(false);
+    expect(messageListener(message, { url: 'file:///tmp/test.html' }, sendResponse)).toBe(false);
     expect(sendResponse).not.toHaveBeenCalled();
 
     markHeadwordsKnown.mockResolvedValueOnce(1);
     const response = await new Promise((resolve) => {
-      expect(messageListener(message, sender, resolve)).toBe(true);
+      expect(messageListener(message, webpageSender, resolve)).toBe(true);
     });
     expect(markHeadwordsKnown).toHaveBeenCalledExactlyOnceWith(['여러분']);
     expect(setStorage).toHaveBeenCalledExactlyOnceWith({
@@ -114,16 +115,16 @@ describe('background entrypoint', () => {
     expect(setStorage).toHaveBeenLastCalledWith({ interfaceTheme: 'light' });
   });
 
-  it('serves known headwords from the status index to YouTube tabs', async () => {
+  it('serves known headwords from the status index to webpages', async () => {
     const listener = listeners.message[0]!;
-    const youtube = { url: 'https://www.youtube.com/watch?v=abcdefghijk' };
+    const webpage = { url: 'https://example.com/article' };
     listKnownHeadwords.mockResolvedValueOnce(['먹다', '학생']);
-    await expect(new Promise((resolve) => listener({ type: 'get-known-headwords' }, youtube, resolve)))
+    await expect(new Promise((resolve) => listener({ type: 'get-known-headwords' }, webpage, resolve)))
       .resolves.toEqual({ ok: true, headwords: ['먹다', '학생'] });
     listKnownHeadwords.mockRejectedValueOnce(new Error('Storage unavailable'));
-    await expect(new Promise((resolve) => listener({ type: 'get-known-headwords' }, youtube, resolve)))
+    await expect(new Promise((resolve) => listener({ type: 'get-known-headwords' }, webpage, resolve)))
       .resolves.toEqual({ ok: false });
-    expect(listener({ type: 'get-known-headwords' }, { url: 'https://example.com/' }, vi.fn())).toBe(false);
+    expect(listener({ type: 'get-known-headwords' }, { url: 'file:///tmp/test.html' }, vi.fn())).toBe(false);
   });
 
   it('sends only the changed headword to YouTube tabs and keeps the summary private to extension pages', async () => {

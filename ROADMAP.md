@@ -368,3 +368,10 @@ Full-video coverage is available only when YouTube provides the full transcript.
 - [x] Add AnkiConnect `createModel` support and a built-in `Korean Reader` note type definition (`Focus Word`, `Sentence`, `Definition`, `Pronunciation`, `Image`, `Audio`) with Front/Back templates and orange focus-word highlighting.
 - [x] Set `Korean Reader` as the default note type for new installations while preserving saved `Kimchi Sentence Mining` and other custom note type selections.
 - [x] Automatically create `Korean Reader` in Anki when missing during AnkiConnect connection or sync validation.
+
+## Webpage Korean Parsing — 21 November 2026
+
+- [x] Add `activeTab` and `scripting` manifest permissions and an on-demand unlisted `page-parser` script.
+- [x] Add a **Parse Page** button to the toolbar popup to toggle Korean text parsing on any standard webpage.
+- [x] Tokenise visible Korean text nodes in batches with Kiwi, underline unknown words, and reuse the shared dictionary popup, Known action, and Mine Word workflow with page sentence/title/URL context.
+- [x] Restore the original webpage DOM cleanly when toggling parsing off.

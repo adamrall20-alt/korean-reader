@@ -13,8 +13,8 @@ export default defineConfig({
     const name = testBuild ? 'Korean Reader (Account Test)' : 'Korean Reader';
     return {
       name,
-      description: 'Personal Korean vocabulary mining for YouTube.',
-      permissions: accountEnabled ? ['storage', 'identity'] : ['storage'],
+      description: 'Korean vocabulary mining for YouTube and Korean webpages.',
+      permissions: accountEnabled ? ['storage', 'activeTab', 'scripting', 'identity'] : ['storage', 'activeTab', 'scripting'],
       ...(accountEnabled && clientId ? {
         ...(testBuild ? { key: prototypeExtensionKey } : {}),
         oauth2: { client_id: clientId, scopes: ['openid', 'email', 'profile'] },

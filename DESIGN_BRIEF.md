@@ -72,6 +72,10 @@ The header beside **Korean transcript** shows the percentage of unique Korean le
 
 Opening the sidebar analyses all loaded Korean subtitle lines in sequential batches, reusing cached analysis. The percentage updates when known status changes and remains based on the entire loaded transcript during search. It shows **Calculating…** until analysis completes, **No words** for an empty vocabulary, or **Coverage unavailable** on analysis failure. Collected-caption fallback shows **(partial)** and updates as lines arrive; it cannot describe subtitles YouTube has not supplied.
 
+### 3.1.2 Webpage Korean Parsing
+
+The toolbar popup includes a **Parse Page** button that parses Korean text on any standard webpage on demand using Chrome's `activeTab` and `scripting` permissions. Visible Korean text nodes are tokenised in batches with Kiwi, unknown words are underlined in the user's configured underline colour, and clicking any parsed word opens the shared dictionary popup with Known and Mine Word actions (capturing the surrounding sentence, page title and URL). Clicking **Parse Page** again restores the original webpage DOM.
+
 ### 3.2 Interactive Korean Words
 
 - Split Korean subtitles into individually clickable words.

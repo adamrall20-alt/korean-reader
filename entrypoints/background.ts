@@ -182,9 +182,9 @@ export default defineBackground(() => {
     }
 
     const fromExtensionPage = sender.url?.startsWith(browser.runtime.getURL('/'));
-    const fromYouTube = /^https?:\/\/(?:[\w-]+\.)*youtube\.com\//.test(sender.url ?? '');
+    const fromWebPage = /^https?:\/\//.test(sender.url ?? '');
 
-    if (fromYouTube && typeof message === 'object' && message !== null &&
+    if (fromWebPage && typeof message === 'object' && message !== null &&
       'type' in message && message.type === 'get-known-headwords') {
       void listKnownHeadwords().then(
         (headwords) => sendResponse({ ok: true, headwords } satisfies KnownHeadwordsResponse),
@@ -195,7 +195,7 @@ export default defineBackground(() => {
 
     if (isVocabularyMessage(message)) {
       const fromWordPopup = message.type === 'mine-word' || message.type === 'mark-word-known';
-      if (fromWordPopup ? !fromYouTube : !fromExtensionPage) return false;
+      if (fromWordPopup ? !fromWebPage : !fromExtensionPage) return false;
 
       void handleVocabularyMessage(message).then(async (response) => {
         if (response.ok && (message.type === 'mark-word-known' || message.type === 'set-vocabulary-status' ||
@@ -215,7 +215,7 @@ export default defineBackground(() => {
     if (message && typeof message === 'object' && 'type' in message) {
       const { type } = message;
       if (type === 'get-preferences' || type === 'set-interface-theme' || type === 'set-subtitle-appearance') {
-        if (!fromExtensionPage && (type !== 'get-preferences' || !fromYouTube)) return false;
+        if (!fromExtensionPage && (type !== 'get-preferences' || !fromWebPage)) return false;
 
         const saveAndRead = async (): Promise<PreferencesResponse> => {
           const stored = await browser.storage.local.get([THEME_KEY, SUBTITLE_APPEARANCE_KEY]);
