@@ -11,7 +11,8 @@ import {
 } from '@/types/vocabulary';
 import { readKnownWordHistory } from '@/services/storage/statistics';
 import { getVocabulary, listKnownHeadwords, listVocabulary, markHeadwordsKnown, normalizeHeadword } from '@/services/storage/vocabulary';
-import { pushEntriesToDesktop, pushKnownHistory, syncMissingEntriesToDesktop } from '@/services/desktop/bridge';
+import { applyDesktopKnownWords, listKnownChanges } from '@/services/storage/known-sync';
+import { exchangeKnownWords, pushEntriesToDesktop, pushKnownHistory, syncMissingEntriesToDesktop } from '@/services/desktop/bridge';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
 import { headwordAliases, nominalCopulaHeadwords } from '@/services/korean/dictionary-forms';
@@ -29,6 +30,37 @@ import type {
 } from '@/types/messages';
 
 const KRDICT_API_KEY_STORAGE = 'krDictApiKey';
+const KNOWN_LINK_STORAGE = 'desktopKnownLinkCode';
+const KNOWN_SYNC_ALARM = 'desktop-known-words';
+let knownSyncInFlight: Promise<boolean> | undefined;
+let knownSyncQueued = false;
+
+function syncDesktopKnownWords(): Promise<boolean> {
+  if (knownSyncInFlight) {
+    knownSyncQueued = true;
+    return knownSyncInFlight;
+  }
+  knownSyncInFlight = (async () => {
+    try {
+      const code = (await browser.storage.local.get(KNOWN_LINK_STORAGE))[KNOWN_LINK_STORAGE];
+      if (typeof code !== 'string') return false;
+      const changed = await applyDesktopKnownWords(await exchangeKnownWords(code, await listKnownChanges()));
+      if (changed) {
+        await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: { id: crypto.randomUUID() } });
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      knownSyncInFlight = undefined;
+      if (knownSyncQueued) {
+        knownSyncQueued = false;
+        void syncDesktopKnownWords();
+      }
+    }
+  })();
+  return knownSyncInFlight;
+}
 
 async function syncDesktopKnownHistory(): Promise<boolean> {
   try {
@@ -78,6 +110,7 @@ async function autoSyncDesktopAfterMine(headword: string): Promise<void> {
 /** Without changes, YouTube tabs reload every known headword; with changes, they patch their cached set. */
 async function notifyVocabularyChanged(changes?: { known: string[]; unknown: string[] }) {
   const revision: VocabularyRevision = { id: crypto.randomUUID(), ...changes };
+  void syncDesktopKnownWords();
   void syncDesktopKnownHistory();
   await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: revision }).catch((error) => {
     console.warn('[Korean Reader] Could not notify subtitle tabs of vocabulary changes.', error);
@@ -152,6 +185,15 @@ function isClearDictionaryCacheMessage(message: unknown): message is ClearDictio
 }
 
 export default defineBackground(() => {
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === KNOWN_SYNC_ALARM) void syncDesktopKnownWords();
+  });
+  void browser.storage.local.get(KNOWN_LINK_STORAGE).then((stored) => {
+    if (stored[KNOWN_LINK_STORAGE]) {
+      void browser.alarms.create(KNOWN_SYNC_ALARM, { periodInMinutes: 1 });
+      void syncDesktopKnownWords();
+    }
+  });
   console.info('[Korean Reader] Background service worker started.');
   void runDesktopCatchUp();
   void syncDesktopKnownHistory();
@@ -292,8 +334,35 @@ export default defineBackground(() => {
         );
         return true;
       }
+      if (message.type === 'desktop-known-link-status' || message.type === 'unlink-desktop-known' ||
+          message.type === 'link-desktop-known') {
+        const update = async () => {
+          if (message.type === 'desktop-known-link-status') {
+            return { ok: true, linked: Boolean((await browser.storage.local.get(KNOWN_LINK_STORAGE))[KNOWN_LINK_STORAGE]) };
+          }
+          if (message.type === 'unlink-desktop-known') {
+            await knownSyncInFlight;
+            await browser.storage.local.remove(KNOWN_LINK_STORAGE);
+            await browser.alarms.clear(KNOWN_SYNC_ALARM);
+            return { ok: true, linked: false };
+          }
+          const code = 'code' in message ? message.code : undefined;
+          if (typeof code !== 'string' || !/^[A-Za-z0-9_-]{32}$/.test(code)) return { ok: false };
+          await knownSyncInFlight;
+          const words = await exchangeKnownWords(code, await listKnownChanges(false));
+          const changed = await applyDesktopKnownWords(words);
+          await browser.storage.local.set({ [KNOWN_LINK_STORAGE]: code });
+          await browser.alarms.create(KNOWN_SYNC_ALARM, { periodInMinutes: 1 });
+          if (changed) await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: { id: crypto.randomUUID() } });
+          void syncDesktopKnownWords();
+          return { ok: true, linked: true };
+        };
+        void update().then(sendResponse, () => sendResponse({ ok: false }));
+        return true;
+      }
       if (message.type === 'sync-desktop-history') {
-        void syncDesktopKnownHistory().then((ok) => sendResponse({ ok }));
+        void Promise.all([syncDesktopKnownHistory(), syncDesktopKnownWords()])
+          .then(([ok, knownSynced]) => sendResponse({ ok, knownSynced }));
         return true;
       }
       if (message.type === 'import-known-headwords') {

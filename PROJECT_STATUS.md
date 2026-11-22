@@ -4,16 +4,30 @@
 
 **Status:** Chrome mines words and sends cards to Korean Reader Desktop. Desktop handles local review, practice and Stats. The Chrome popup shows the local known-word count. Firebase has retired.
 
-**Current milestone:** Desktop D3 implementation. The owner confirmed D2 review verification and the prior D4 and D5 feature implementation. Current D4 uses offline Anki packages. Mac packaging and backup/restore are D6.
+**Current milestone:** D8 Wi-Fi sync implementation is ready for live acceptance. D6 portable backup and Mac packaging and D7 Windows packaging remain open.
 
-**Last updated:** 21 November 2026
+**Last updated:** 22 November 2026
+
+## Desktop branding and Profile — 22 November 2026
+
+The desktop Profile shows a placeholder penguin avatar, editable local username, review level, and vocabulary rank. Each recorded SRS rating earns one XP. Level 2 takes 25 XP and each subsequent level takes five more XP than the previous one. Undo removes the review's XP. Vocabulary ranks use Korean titles and Known-word milestones from 0 to 30,000. Existing history is included.
+
+The macOS development bundle uses the Korean Reader name and penguin logo. Desktop startup checks for an existing study database before choosing a new app data location. Release signing, notarisation, and the Windows installer remain separate release work.
+
+The macOS packaging fix bundles the SRS and archive libraries into the Electron main process. The build rejects unpackaged module imports. The extracted ZIP passed signature verification and an isolated startup and FSRS runtime check. A graphical launch could not be confirmed from the workspace.
+
+## Local Wi-Fi sync implementation — 22 November 2026
+
+- Desktop Settings finds a nearby peer and shows a six-digit code on both devices for one-time approval. The pairing survives restarts. Automatic sync checks roughly every eight seconds while both apps are running, and Settings offers manual sync and unpairing. Encrypted transfers combine definitions and contexts by headword. Both reviews survive overlapping study, and the latest valid rating provides the schedule. Deletes and review undos propagate.
+- Chrome can link to Desktop on the same computer using a local code. It migrates existing Known words, persists offline Known changes, and refreshes subtitle highlighting and the popup count after reconciliation.
+- Automated tests use two independent libraries and simulated network discovery and transport. They cover startup, missed changes during offline use, unchanged libraries, persistent pairing, and manual sync. A real socket check is skipped in the workspace because local listening is restricted. Live Wi-Fi and two-profile Chrome acceptance, Windows packaging, and D6 portable backup and restore remain open. [Setup and verification](docs/desktop-sync-options.md).
 
 ## Desktop D3, study stats and Anki import update — 21 November 2026
 
 - **Practice.** Up to ten untimed four-choice questions from saved examples. Weighted selection favours recent material and words with difficult reviews. Meaning questions use highlighted saved surface forms, distinct local options, keyboard controls, answer feedback and a missed-word summary. Sentence completion was removed after owner feedback. Results stay in `practice_results` and leave SRS history and due dates intact.
 - **Stats.** Desktop charts Chrome’s known-word snapshots and shows lifetime local reviews, recorded review time, 30-day review activity, current streak, graduated cards, recall rate and practice accuracy. Older local reviews contribute to review totals. Timing begins with this update and undo subtracts the review and its time. The review-limit screen shows the penguin.
 - **Anki import.** Desktop opens modern and legacy `.apkg` files. It copies supported media, maps common note fields and preserves available schedules without changing cards already reviewed locally. Chrome imports known words from Anki notes text or Kimchi Reader CSV. AnkiConnect and the Chrome Statistics page have been removed. Earlier AnkiConnect implementation details below are historical.
-- **Delivery and sync.** The D5 bridge carries known-word snapshots as well as mined cards. The Firebase account panel, background code, permissions and configuration were removed. Chrome now reports known-history delivery and offers a local JSON fallback. The desktop graph refreshes after accepted delivery. [Google Drive](docs/desktop-sync-options.md) is the first option to explore after portable backup/restore.
+- **Delivery and sync.** The D5 bridge carries known-word snapshots as well as mined cards. The Firebase account panel, background code, permissions and configuration were removed. Chrome now reports known-history delivery and offers a local JSON fallback. The desktop graph refreshes after accepted delivery.
 
 **Follow-up verification:** Both production builds and type checks pass. The Chrome manifest keeps the dictionary and loopback permissions and omits OAuth and Chrome Identity.
 

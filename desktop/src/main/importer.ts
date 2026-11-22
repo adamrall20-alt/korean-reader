@@ -68,7 +68,7 @@ function toOptionalNumber(value: unknown): number | null {
 
 function toIsoTimestamp(value: unknown, fallback: string): string {
   if (typeof value === 'string' && !Number.isNaN(Date.parse(value))) {
-    return value;
+    return new Date(value).toISOString();
   }
   return fallback;
 }
@@ -159,6 +159,7 @@ export function importVocabularyEntries(
   const findCardStmt = db.prepare(
     'SELECT id, preferred_context_id FROM cards WHERE headword = ?',
   );
+  const findDeletionStmt = db.prepare('SELECT deleted_at FROM card_deletions WHERE headword = ?');
   const insertCardStmt = db.prepare(
     `INSERT INTO cards (
        id, headword, pronunciation, part_of_speech, frequency_rank,
@@ -282,6 +283,12 @@ export function importVocabularyEntries(
         | { id?: string; preferred_context_id?: string | null }
         | undefined;
 
+      const deletedAt = findDeletionStmt.get(headword)?.deleted_at;
+      if (!existingCard?.id && typeof deletedAt === 'string' && updatedAt <= deletedAt) {
+        skippedInvalid += 1;
+        continue;
+      }
+
       let cardId: string;
       let firstContextId: string | null = existingCard?.preferred_context_id ?? null;
 
@@ -297,7 +304,7 @@ export function importVocabularyEntries(
           JSON.stringify(koreanDefinitions),
           null,
           ankiNoteId,
-          createdAt,
+          typeof deletedAt === 'string' && createdAt <= deletedAt ? updatedAt : createdAt,
           updatedAt,
         );
 

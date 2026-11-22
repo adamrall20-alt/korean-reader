@@ -189,7 +189,29 @@ export interface DesktopStudyStats {
   practiceAccuracy: number | null;
 }
 
+export interface WifiSyncState {
+  pairing: boolean;
+  automatic: boolean;
+  paired?: { id: string; name: string };
+  nearby: Array<{ id: string; name: string }>;
+  online: boolean;
+  syncing: boolean;
+  lastSyncAt?: number;
+  error?: string;
+}
+
 export interface DesktopApi {
+  getProfileUsername(): Promise<string>;
+  saveProfileUsername(name: string): Promise<string>;
+  getKnownWordsCode(reset?: boolean): Promise<string>;
+  getWifiSyncState(): Promise<WifiSyncState>;
+  findWifiDevices(): Promise<void>;
+  stopWifiDiscovery(): Promise<void>;
+  pairWifiDevice(id: string): Promise<void>;
+  forgetWifiDevice(): Promise<void>;
+  setWifiAutomatic(enabled: boolean): Promise<void>;
+  syncWifiNow(): Promise<void>;
+  onWifiSyncStatus(callback: (message: string) => void): () => void;
   importKnownHistory?(): Promise<{ ok: boolean; cancelled?: boolean; error?: string }>;
   onKnownHistoryUpdated?(callback: () => void): () => void;
   getStudyStats(): Promise<DesktopStudyStats>;
@@ -214,6 +236,17 @@ export interface DesktopApi {
 }
 
 export const DESKTOP_IPC_CHANNELS = {
+  getProfileUsername: 'desktop:get-profile-username',
+  saveProfileUsername: 'desktop:save-profile-username',
+  getKnownWordsCode: 'desktop:get-known-words-code',
+  getWifiSyncState: 'desktop:wifi-sync-state',
+  findWifiDevices: 'desktop:find-wifi-devices',
+  stopWifiDiscovery: 'desktop:stop-wifi-discovery',
+  pairWifiDevice: 'desktop:pair-wifi-device',
+  forgetWifiDevice: 'desktop:forget-wifi-device',
+  setWifiAutomatic: 'desktop:set-wifi-automatic',
+  syncWifiNow: 'desktop:sync-wifi-now',
+  wifiSyncStatus: 'desktop:wifi-sync-status',
   getStudyStats: 'desktop:get-study-stats',
   importKnownHistory: 'desktop:import-known-history',
   knownHistoryUpdated: 'desktop:known-history-updated',

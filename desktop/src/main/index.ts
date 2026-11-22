@@ -2,7 +2,8 @@ import { createPracticeSession } from './practice';
 import { getStudyStats, saveKnownWordHistory } from './stats';
 import fs from 'node:fs';
 import path from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import os from 'node:os';
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, safeStorage, shell } from 'electron';
 import {
   DESKTOP_IPC_CHANNELS,
   isSafeExternalUrl,
@@ -21,18 +22,123 @@ import { openDesktopDatabase, type DesktopDatabase } from './db';
 import { startDesktopBridge, type DesktopBridgeServer } from './bridge';
 import { importVocabularyJson } from './importer';
 import { deleteCard, getCardDetail, getLibraryStats, listCards } from './library';
+import { getKnownWordsCode, resetKnownWordsCode } from './known-words';
 import { LocalMediaStore } from './media';
+import { getProfileUsername, saveProfileUsername } from './profile';
 import {
   getNextReviewCard,
   getReviewQueueSummary,
   submitReview,
   undoLastReview,
 } from './review';
+import { AutoWifiSync } from './auto-wifi-sync';
+import { DEVICE_ID, randomToken, readIdentity, type TrustedDevice } from './wifi-pairing';
 import { getReviewSettings, saveReviewSettings } from './settings';
+
+const APP_NAME = 'Korean Reader';
+const iconPath = path.join(__dirname, '../app-icon.png');
+
+function configureDesktopIdentity(): void {
+  const appData = app.getPath('appData');
+  const branded = path.join(appData, APP_NAME);
+  const current = app.getPath('userData');
+  const override = app.commandLine.getSwitchValue('user-data-dir');
+  const existing = [branded, current, path.join(appData, 'korean-reader'), path.join(appData, 'Electron'), path.join(appData, 'electron')]
+    .find((directory) => fs.existsSync(path.join(directory, 'korean-reader.sqlite')));
+  const data = override ? path.resolve(override) : existing ?? branded;
+  fs.mkdirSync(data, { recursive: true });
+  app.setPath('userData', data);
+  app.setName(APP_NAME);
+  if (process.platform === 'win32') app.setAppUserModelId('com.koreanreader.desktop');
+}
+
+configureDesktopIdentity();
 
 let database: DesktopDatabase | null = null;
 let mediaStore: LocalMediaStore | null = null;
 let bridgeServer: DesktopBridgeServer | null = null;
+let wifiSync: AutoWifiSync | undefined;
+let wifiSyncReady: Promise<AutoWifiSync> | undefined;
+let quitting = false;
+
+function notifySync(message: string): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    win.webContents.send(DESKTOP_IPC_CHANNELS.wifiSyncStatus, message);
+    if (message === 'Sync complete.') {
+      win.webContents.send(DESKTOP_IPC_CHANNELS.knownHistoryUpdated);
+    }
+  }
+}
+
+async function confirmWifiPair(name: string, code: string): Promise<boolean> {
+  const result = await dialog.showMessageBox({
+    type: 'question',
+    title: 'Pair Korean Reader',
+    message: `Does ${name} show ${code}?`,
+    detail: 'Only approve if both screens show the same six digits. The paired device can merge library changes, including deletions and review undos.',
+    buttons: ['Cancel', 'Codes match'],
+    defaultId: 0,
+    cancelId: 0,
+  });
+  return result.response === 1;
+}
+
+function ensureWifiSync(): Promise<AutoWifiSync> {
+  wifiSyncReady ??= createWifiSync().catch((error) => {
+    wifiSyncReady = undefined;
+    throw error;
+  });
+  return wifiSyncReady;
+}
+
+async function createWifiSync(): Promise<AutoWifiSync> {
+  const { db, media } = ensureStorage();
+  const settings = db.db.prepare('SELECT value FROM settings WHERE key = ?');
+  const upsert = db.db.prepare(`INSERT INTO settings VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`);
+  const savedId = settings.get('wifiDeviceId')?.value;
+  const id = typeof savedId === 'string' && DEVICE_ID.test(savedId) ? savedId : randomToken();
+  if (id !== savedId) upsert.run('wifiDeviceId', id, new Date().toISOString());
+  const raw = settings.get('wifiPeer')?.value;
+  let trusted: TrustedDevice | undefined;
+  if (typeof raw === 'string' && await safeStorage.isAsyncEncryptionAvailable()) {
+    try {
+      const buffer = Buffer.from(raw, 'base64');
+      let result = await safeStorage.decryptStringAsync(buffer);
+      if (result.shouldReEncrypt) {
+        result = await safeStorage.decryptStringAsync(buffer);
+        if (!quitting) {
+          const encrypted = await safeStorage.encryptStringAsync(result.result);
+          if (!quitting) upsert.run('wifiPeer', encrypted.toString('base64'), new Date().toISOString());
+        }
+      }
+      const peer = JSON.parse(result.result);
+      if (typeof peer.secret === 'string' && /^[a-f0-9]{64}$/.test(peer.secret)) {
+        trusted = { ...readIdentity(peer), secret: peer.secret };
+      }
+    } catch {
+      // A deleted OS keychain item requires pairing again.
+    }
+  }
+  if (quitting) throw new Error('Wi-Fi sync has closed.');
+  wifiSync = new AutoWifiSync({
+    db: db.db,
+    media,
+    identity: { id, name: os.hostname().replace(/[\x00-\x1f\x7f]/g, '').slice(0, 100) || 'Korean Reader' },
+    trusted,
+    automatic: settings.get('wifiAutomatic')?.value !== 'off',
+    async persist(peer, automatic) {
+      const encrypted = peer && await safeStorage.encryptStringAsync(JSON.stringify(peer));
+      if (quitting) throw new Error('Wi-Fi sync has closed.');
+      if (encrypted) upsert.run('wifiPeer', encrypted.toString('base64'), new Date().toISOString());
+      else db.db.prepare('DELETE FROM settings WHERE key = ?').run('wifiPeer');
+      upsert.run('wifiAutomatic', automatic ? 'on' : 'off', new Date().toISOString());
+    },
+    confirmPair: confirmWifiPair,
+    onComplete: () => notifySync('Sync complete.'),
+  });
+  return wifiSync;
+}
 
 function ensureStorage(): { db: DesktopDatabase; media: LocalMediaStore } {
   if (!database || !mediaStore) {
@@ -57,6 +163,30 @@ async function checkSqliteAvailable(): Promise<boolean> {
 }
 
 function registerIpcHandlers(): void {
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getProfileUsername, () => getProfileUsername(ensureStorage().db.db));
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.saveProfileUsername, (_event, name: unknown) =>
+    saveProfileUsername(ensureStorage().db.db, name));
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getKnownWordsCode, (_event, reset: unknown) => {
+    const { db } = ensureStorage();
+    return reset === true ? resetKnownWordsCode(db.db) : getKnownWordsCode(db.db);
+  });
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getWifiSyncState, async () => (await ensureWifiSync()).state());
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.findWifiDevices, async () => {
+    if (!await safeStorage.isAsyncEncryptionAvailable()) throw new Error('Secure pairing storage is unavailable on this computer.');
+    return (await ensureWifiSync()).findDevices();
+  });
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.stopWifiDiscovery, async () => (await ensureWifiSync()).stopFinding());
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.pairWifiDevice, async (_event, id: unknown) => {
+    if (typeof id !== 'string' || !DEVICE_ID.test(id)) throw new Error('Invalid device.');
+    return (await ensureWifiSync()).pair(id);
+  });
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.forgetWifiDevice, async () => (await ensureWifiSync()).forget());
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.setWifiAutomatic, async (_event, enabled: unknown) => {
+    if (typeof enabled !== 'boolean') throw new Error('Invalid automatic sync setting.');
+    await (await ensureWifiSync()).setAutomatic(enabled);
+  });
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.syncWifiNow, async () => (await ensureWifiSync()).syncNow());
+
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getSampleEntry, () => createSampleMinedEntry());
 
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getRuntimeInfo, async (): Promise<DesktopRuntimeInfo> => {
@@ -248,7 +378,8 @@ function createMainWindow(): BrowserWindow {
     height: 760,
     minWidth: 760,
     minHeight: 560,
-    title: 'Korean Reader',
+    title: APP_NAME,
+    icon: iconPath,
     backgroundColor: '#111111',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -264,6 +395,7 @@ function createMainWindow(): BrowserWindow {
 }
 
 app.whenReady().then(async () => {
+  if (app.dock) app.dock.setIcon(nativeImage.createFromPath(iconPath));
   const { db, media } = ensureStorage();
   try {
     bridgeServer = await startDesktopBridge({
@@ -286,6 +418,11 @@ app.whenReady().then(async () => {
 
   registerIpcHandlers();
   createMainWindow();
+  void ensureWifiSync().then((sync) => {
+    if (sync.state().paired) return sync.activate();
+  }).catch((error) => {
+    if (!quitting) console.warn('[Korean Reader Desktop] Wi-Fi discovery unavailable:', error);
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -295,6 +432,8 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
+  quitting = true;
+  wifiSync?.close();
   void bridgeServer?.close();
   bridgeServer = null;
   database?.close();

@@ -14,8 +14,9 @@ import ReviewView from './ReviewView.vue';
 import SettingsView from './SettingsView.vue';
 import PracticeView from './PracticeView.vue';
 import StatsView from './StatsView.vue';
+import ProfileView from './ProfileView.vue';
 
-type Tab = 'review' | 'practice' | 'library' | 'stats' | 'settings';
+type Tab = 'review' | 'practice' | 'library' | 'stats' | 'profile' | 'settings';
 const activeTab = ref<Tab>('library');
 const reviewViewRef = ref<InstanceType<typeof ReviewView> | null>(null);
 const reviewDueCount = ref(0);
@@ -212,11 +213,15 @@ watch(searchQuery, () => {
   }, 180);
 });
 
+let unsubscribeWifiSync: (() => void) | undefined;
 let unsubscribeLibraryUpdates: (() => void) | null = null;
 
 onMounted(() => {
   void refreshLibrary(false);
   if (window.koreanReaderDesktop?.onLibraryUpdated) {
+    unsubscribeWifiSync = window.koreanReaderDesktop.onWifiSyncStatus((message) => {
+      if (message === 'Sync complete.') void refreshLibrary(true);
+    });
     unsubscribeLibraryUpdates = window.koreanReaderDesktop.onLibraryUpdated((summary) => {
       const parts: string[] = [];
       if (summary.cardsAdded > 0) parts.push(`${summary.cardsAdded} added`);
@@ -251,6 +256,7 @@ async function handleSettingsSaved() {
 }
 
 onBeforeUnmount(() => {
+  unsubscribeWifiSync?.();
   unsubscribeLibraryUpdates?.();
   unsubscribeLibraryUpdates = null;
 });
@@ -266,7 +272,7 @@ onBeforeUnmount(() => {
           <p class="text-xs text-muted">Desktop</p>
         </div>
 
-        <nav class="ml-4 flex items-center rounded-lg border border-interface/15 bg-ink-soft p-0.5 text-xs">
+        <nav class="ml-2 flex items-center rounded-lg border border-interface/15 bg-ink-soft p-0.5 text-xs max-[940px]:order-last max-[940px]:ml-0">
           <button
             type="button"
             class="flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition-colors"
@@ -286,6 +292,7 @@ onBeforeUnmount(() => {
               { id: 'practice', label: 'Practice' },
               { id: 'library', label: `Library (${stats.totalCards})` },
               { id: 'stats', label: 'Stats' },
+              { id: 'profile', label: 'Profile' },
               { id: 'settings', label: 'Settings' },
             ] as const"
             :key="tab.id" type="button" class="rounded-md px-3 py-1 font-medium transition-colors"
@@ -363,6 +370,7 @@ onBeforeUnmount(() => {
 
         <PracticeView v-else-if="activeTab === 'practice'" @open-library="switchTab('library')" />
         <StatsView v-else-if="activeTab === 'stats'" />
+        <ProfileView v-else-if="activeTab === 'profile'" />
         <SettingsView
           v-else-if="activeTab === 'settings'"
           @settings-saved="handleSettingsSaved"

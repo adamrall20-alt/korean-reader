@@ -402,6 +402,7 @@ export function submitReview(
         : null,
     );
 
+    db.prepare('INSERT OR IGNORE INTO review_bases VALUES (?, ?)').run(cardId, JSON.stringify(scheduleRow));
     db.prepare(
       `UPDATE schedules
        SET state = ?,
@@ -429,6 +430,8 @@ export function submitReview(
       cardId,
     );
 
+    db.prepare('UPDATE review_logs SET next_schedule_json = ? WHERE id = ?')
+      .run(JSON.stringify(getScheduleRow(db, cardId)), reviewLogId);
     db.exec('COMMIT');
   } catch (error) {
     db.exec('ROLLBACK');
@@ -450,7 +453,7 @@ export function undoLastReview(db: DatabaseSync): UndoReviewResult {
     .prepare(
       `SELECT id, card_id, prev_schedule_json
        FROM review_logs
-       ORDER BY reviewed_at DESC, rowid DESC
+       ORDER BY reviewed_at DESC, id DESC
        LIMIT 1`,
     )
     .get() as { id?: string; card_id?: string; prev_schedule_json?: string } | undefined;
@@ -459,43 +462,11 @@ export function undoLastReview(db: DatabaseSync): UndoReviewResult {
     return { ok: false, error: 'No review to undo.' };
   }
 
-  let prev: ScheduleRow;
-  try {
-    prev = JSON.parse(latest.prev_schedule_json) as ScheduleRow;
-  } catch {
-    return { ok: false, error: 'Stored undo snapshot is corrupted.' };
-  }
-
   db.exec('BEGIN');
   try {
-    db.prepare(
-      `UPDATE schedules
-       SET state = ?,
-           due_at = ?,
-           stability = ?,
-           difficulty = ?,
-           elapsed_days = ?,
-           scheduled_days = ?,
-           reps = ?,
-           lapses = ?,
-           learning_steps = ?,
-           last_review_at = ?
-       WHERE card_id = ?`,
-    ).run(
-      Number(prev.state ?? 0),
-      String(prev.due_at),
-      Number(prev.stability ?? 0),
-      Number(prev.difficulty ?? 0),
-      Number(prev.elapsed_days ?? 0),
-      Number(prev.scheduled_days ?? 0),
-      Number(prev.reps ?? 0),
-      Number(prev.lapses ?? 0),
-      Number(prev.learning_steps ?? 0),
-      prev.last_review_at ?? null,
-      latest.card_id,
-    );
-
+    db.prepare('INSERT OR IGNORE INTO review_undos VALUES (?)').run(latest.id);
     db.prepare('DELETE FROM review_logs WHERE id = ?').run(latest.id);
+    restoreLatestSchedule(db, latest.card_id);
     db.exec('COMMIT');
   } catch (error) {
     db.exec('ROLLBACK');
@@ -509,4 +480,25 @@ export function undoLastReview(db: DatabaseSync): UndoReviewResult {
     ok: true,
     restoredCardId: latest.card_id,
   };
+}
+
+
+export function restoreLatestSchedule(db: DatabaseSync, cardId: string): void {
+  const review = db.prepare(
+    'SELECT next_schedule_json AS snapshot FROM review_logs WHERE card_id = ? ORDER BY reviewed_at DESC, id DESC LIMIT 1',
+  ).get(cardId);
+  const base = db.prepare('SELECT schedule_json AS snapshot FROM review_bases WHERE card_id = ?').get(cardId);
+  const snapshot = review?.snapshot ?? base?.snapshot;
+  if (typeof snapshot !== 'string') return;
+  const schedule = JSON.parse(snapshot) as ScheduleRow;
+  db.prepare(`
+    INSERT INTO schedules (card_id, state, due_at, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, learning_steps, last_review_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(card_id) DO UPDATE SET state = excluded.state, due_at = excluded.due_at,
+      stability = excluded.stability, difficulty = excluded.difficulty, elapsed_days = excluded.elapsed_days,
+      scheduled_days = excluded.scheduled_days, reps = excluded.reps, lapses = excluded.lapses,
+      learning_steps = excluded.learning_steps, last_review_at = excluded.last_review_at
+  `).run(cardId, schedule.state, schedule.due_at, schedule.stability, schedule.difficulty,
+    schedule.elapsed_days, schedule.scheduled_days, schedule.reps, schedule.lapses,
+    schedule.learning_steps ?? 0, schedule.last_review_at);
 }

@@ -99,6 +99,11 @@ export class LocalMediaStore {
     return `data:${row.mime_type};base64,${bytes.toString('base64')}`;
   }
 
+  hasFile(relPath: string): boolean {
+    const absolute = this.resolveSafePath(relPath);
+    return absolute !== null && fs.existsSync(absolute);
+  }
+
   resolveSafePath(relPath: string): string | null {
     if (!relPath || path.isAbsolute(relPath) || relPath.includes('..')) {
       return null;

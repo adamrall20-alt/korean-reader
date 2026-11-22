@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DesktopKnownLink from './DesktopKnownLink.vue';
 import VocabularyManager from '@/components/VocabularyManager.vue';
 import KnownWordsImport from '@/components/KnownWordsImport.vue';
 import { onMounted, ref } from 'vue';
@@ -299,7 +300,10 @@ const sections = [
               </button>
             </div>
             <KnownWordsImport v-else-if="section.id === 'import-known'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
-            <details v-else-if="section.id === 'storage'" class="mt-4 border-t border-interface/10 pt-4"><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary><VocabularyManager :key="vocabularyRevision" /></details>
+            <template v-else-if="section.id === 'storage'">
+              <DesktopKnownLink />
+              <details class="mt-4 border-t border-interface/10 pt-4"><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary><VocabularyManager :key="vocabularyRevision" /></details>
+            </template>
           </section>
         </div>
       </div>

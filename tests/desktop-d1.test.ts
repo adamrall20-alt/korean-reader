@@ -40,7 +40,7 @@ describe('Phase D1 local database, media store, and JSON importer', () => {
       const versions = desktopDb.db
         .prepare('SELECT version FROM schema_migrations')
         .all() as Array<{ version: number }>;
-      expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4, 5]);
+      expect(versions.map((v) => v.version)).toEqual([1, 2, 3, 4, 5, 6]);
     } finally {
       desktopDb.close();
     }
@@ -171,6 +171,17 @@ describe('Phase D1 local database, media store, and JSON importer', () => {
     const sample = createSampleMinedEntry();
     const openExternalUrl = vi.fn().mockResolvedValue({ ok: true });
     const mockApi: DesktopApi = {
+      getProfileUsername: vi.fn(),
+      saveProfileUsername: vi.fn(),
+      getKnownWordsCode: vi.fn(),
+      getWifiSyncState: vi.fn().mockResolvedValue({ automatic: true, pairing: false, nearby: [], online: false, syncing: false }),
+      findWifiDevices: vi.fn(),
+      pairWifiDevice: vi.fn(),
+      stopWifiDiscovery: vi.fn(),
+      forgetWifiDevice: vi.fn(),
+      setWifiAutomatic: vi.fn(),
+      syncWifiNow: vi.fn(),
+      onWifiSyncStatus: vi.fn(),
       getStudyStats: vi.fn(),
       startPractice: vi.fn(),
       answerPractice: vi.fn(),

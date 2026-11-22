@@ -1,24 +1,32 @@
-# Desktop sync options
+# Desktop sync design
 
-**Decision on 21 November 2026.** Explore Google Drive first. The Firebase prototype has retired. Study data stays local while hosting and backup options are evaluated. The desktop library currently lives in local SQLite and a media folder. The local Chrome bridge delivers mined cards and known-word count snapshots to the desktop app on the same computer.
+On 22 November 2026, the owner chose direct Wi-Fi sync for paired desktop apps. Both apps keep their SQLite library and managed media locally. The devices must be awake and reachable on the same network during a sync. Each can be used independently between syncs.
 
-| Option | What it would do | Main trade-off |
-| --- | --- | --- |
-| Google Drive folder | Save versioned backups to a folder chosen by the user. Drive copies closed backup files between computers, and Korean Reader restores the chosen snapshot. | Straightforward and portable. Restore is an explicit action and changes on two machines need a merge step. |
-| Google Drive API | Sign in with Google, store app-specific manifests and media in Drive, and exchange changes across devices. | Works across different networks without a dedicated Korean Reader server. OAuth onboarding, retry, conflict handling and quota use still need product and engineering work. |
-| Website with a hosted backend | Publish an app endpoint for uploading and merging card and review changes. A browser client could use the same account and data later. | Gives the project control of the sync experience, and adds backend hosting, account security and operations. A static site can host downloads but cannot by itself merge private user libraries. |
-| Local Wi-Fi | Pair two devices on the same network and exchange updates directly over an authenticated connection. | Avoids cloud storage. Both devices need to be online together and able to see each other on the network. |
+## Pairing and transfer
 
-## Proposed sequence
+1. On both computers open **Settings → Sync over Wi-Fi → Find nearby devices**. Select the other computer on either one and compare the six digits on both screens. Choose **Codes match** on both to approve the pair.
+2. Each installation remembers one paired device. With **Sync automatically** enabled on both devices, the app checks for updates roughly every eight seconds while both are running on the same local network. **Sync now** is available if you turn automatic syncing off. **Forget device** removes permission to access this library.
+3. Each device sends a versioned library manifest on a transfer. Audio and screenshots move separately and only when missing on the receiving device. A failed transfer can leave verified files cached for the next attempt. Each device commits the metadata merge in a database transaction.
+4. Discovery uses IPv4 broadcast on UDP port 17422. The network must allow devices to reach each other. Guest networks can isolate clients and block discovery. Pairing and transfer are separate from Chrome's local link code and from the D6 portable backup and restore.
 
-1. Build the D6 backup and restore format. Include version metadata, cards and contexts, attachments keyed by hash, schedules, local review and practice history, known-word counts and preferences. Restore validates the archive before writing. Exclude credentials.
-2. Let the user choose a backup destination. A folder synced by Drive can carry snapshots between devices. Keep the live SQLite database and its WAL on local storage and let the app make a consistent export.
-3. Prototype Google Drive API sync only after confirming the user wants changes on multiple active devices to merge automatically. Give records and review events stable IDs. Upload attachments once by hash. Merge card edits and later deletions deterministically, deduplicate reviews, and order concurrent reviews consistently before deriving a schedule. Validate a two-device offline editing and review scenario before using the real collection.
-4. If web access becomes a priority, prototype a private web library with sign-in, card metadata in a database and media in private object storage. Start with upload and restore of backups before adding two-way sync.
+## Cards and reviews
 
-Google Drive offers a hidden application data folder scoped to the app. It suits automatic sync, while a normal Drive folder suits backups the user can see and copy. [Google Drive API app data documentation](https://developers.google.com/workspace/drive/api/guides/appdata)
+- Use the normalized headword to match independently created cards. Merge unique definitions and sentences, retaining attachments for those contexts. Use the latest explicit edit for single-value fields with a stable tie-break for equal revisions. Map contexts, media, and review records to the merged card.
+- Deduplicate reviews by stable event ID. Keep both valid ratings when the same card is reviewed on two devices. Use the schedule saved by the most recent valid review, ordered by review time with a stable tie-break. Preserve the imported schedule baseline for cards without a valid local review.
+- Retain explicit records of deletes and review undos. An undone review leaves active history and its schedule stops taking priority. If no valid review remains, use the pre-review baseline. Ensure stale peers cannot restore deleted records.
 
-## Free hosting for a private web library
+## Known words
+
+- Desktop stores individual normalized headwords and their Known status. On first link, import the existing Known list from each Chrome profile and combine those lists with the desktop library's Known list. Keep Known status separate from whether a study card exists.
+- On each computer, select **Show Chrome link code** in Desktop Settings and paste the code into **Korean Reader Extension Settings → Storage → Link Known words to Desktop**. A link code authorizes that local profile to exchange Known statuses. **Reset Chrome links** revokes the current code.
+- Chrome reads and caches Known statuses over the existing same-computer bridge. Highlighting and Known actions continue when Desktop is closed. Chrome saves offline Known and unmark actions in a persistent queue, exchanges them on reconnect or the next one-minute check, and refreshes the popup count and subtitle highlighting.
+- Sync Known changes between desktops as explicit per-word revisions, including unmarks. Use a consistent tie-break for concurrent edits. Preserve existing daily count snapshots as historical data and start recording from the merged list once the migration runs. Separate daily totals from different Chrome profiles cannot reconstruct a historical combined count.
+
+## Acceptance checks
+
+Test both directions on two populated libraries with overlapping headwords. Cover discovery, matching and declined pairing, app restart, automatic and manual sync, forgetting a device, missing media, interrupted transfers, offline review of the same card, undo, deletion, and offline Known edits in both Chrome profiles. Verify that imported scheduling state survives, the merged due dates agree, and synced Known words update subtitle highlighting.
+
+## Previously evaluated web hosting
 
 Cloudflare Workers can serve the site and its API, with D1 holding card text, schedules and review events, and R2 holding audio, images and backup packages. D1 includes 5 GB of total storage on Workers Free. R2 Standard includes 10 GB-month and monthly operation allowances, with paid usage above those allowances. R2 requires an active subscription. [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) · [R2 pricing](https://developers.cloudflare.com/r2/pricing/) · [R2 setup](https://developers.cloudflare.com/r2/get-started/)
 

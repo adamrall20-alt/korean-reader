@@ -39,6 +39,8 @@ export function saveKnownWordHistory(db: DatabaseSync, raw: unknown): void {
 
 export function getStudyStats(db: DatabaseSync, now = new Date()): DesktopStudyStats {
   const knownHistory = db.prepare('SELECT at, count FROM known_word_history ORDER BY at').all() as unknown as KnownWordPoint[];
+  const savedWords = db.prepare('SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE known = 1) AS known FROM known_words')
+    .get() as { total: number; known: number };
   const review = db.prepare(`SELECT COUNT(*) AS total, COUNT(duration_ms) AS timed,
     COALESCE(SUM(duration_ms), 0) AS duration, COALESCE(SUM(rating != 1), 0) AS recalled
     FROM study_review_history`).get() as { total: number; timed: number; duration: number; recalled: number };
@@ -58,7 +60,7 @@ export function getStudyStats(db: DatabaseSync, now = new Date()): DesktopStudyS
   const recent = new Date(now);
   recent.setDate(recent.getDate() - 29);
   return {
-    knownWords: knownHistory.at(-1)?.count ?? null,
+    knownWords: savedWords.total ? savedWords.known : knownHistory.at(-1)?.count ?? null,
     knownHistory,
     totalReviews: review.total,
     timedReviews: review.timed,

@@ -101,3 +101,22 @@ export async function pushKnownHistory(history: KnownWordHistory, baseUrl = DESK
     return false;
   }
 }
+
+export async function exchangeKnownWords(
+  code: string,
+  changes: import('@/types/known-sync').KnownWordChange[],
+): Promise<import('@/types/known-sync').KnownWordChange[]> {
+  const response = await fetchWithTimeout(`${DESKTOP_BRIDGE_URL}/known-words`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, changes }),
+  });
+  if (!response.ok) throw new Error('Desktop is unavailable or the Known words code is invalid.');
+  const payload = await response.json() as { words?: unknown };
+  if (!Array.isArray(payload.words) || payload.words.length > 500_000 || !payload.words.every((word) =>
+    word && typeof word.headword === 'string' && word.headword === word.headword.trim().normalize('NFC') &&
+    word.headword.length > 0 && word.headword.length <= 512 && typeof word.known === 'boolean' &&
+    Number.isSafeInteger(word.revision) && word.revision >= 0
+  )) throw new Error('Desktop returned an invalid Known word list.');
+  return payload.words;
+}

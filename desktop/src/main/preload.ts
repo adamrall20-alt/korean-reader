@@ -8,6 +8,21 @@ import {
 } from '../shared/api';
 
 const desktopApi: DesktopApi = {
+  getProfileUsername: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getProfileUsername),
+  saveProfileUsername: (name) => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.saveProfileUsername, name),
+  getKnownWordsCode: (reset) => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getKnownWordsCode, reset),
+  getWifiSyncState: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.getWifiSyncState),
+  findWifiDevices: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.findWifiDevices),
+  stopWifiDiscovery: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.stopWifiDiscovery),
+  pairWifiDevice: (id) => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.pairWifiDevice, id),
+  forgetWifiDevice: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.forgetWifiDevice),
+  setWifiAutomatic: (enabled) => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.setWifiAutomatic, enabled),
+  syncWifiNow: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.syncWifiNow),
+  onWifiSyncStatus: (callback) => {
+    const listener = (_event: unknown, message: string) => callback(message);
+    ipcRenderer.on(DESKTOP_IPC_CHANNELS.wifiSyncStatus, listener);
+    return () => ipcRenderer.removeListener(DESKTOP_IPC_CHANNELS.wifiSyncStatus, listener);
+  },
   importKnownHistory: () => ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.importKnownHistory),
   onKnownHistoryUpdated: (callback) => {
     const listener = () => callback();

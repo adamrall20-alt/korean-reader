@@ -209,6 +209,19 @@ export function getLibraryStats(db: DatabaseSync, now = new Date()): DesktopLibr
 }
 
 export function deleteCard(db: DatabaseSync, cardId: string): boolean {
-  const result = db.prepare('DELETE FROM cards WHERE id = ?').run(cardId);
-  return Number(result.changes ?? 0) > 0;
+  const card = db.prepare('SELECT headword FROM cards WHERE id = ?').get(cardId);
+  if (typeof card?.headword !== 'string') return false;
+
+  db.exec('BEGIN');
+  try {
+    db.prepare(`INSERT INTO card_deletions VALUES (?, ?)
+      ON CONFLICT(headword) DO UPDATE SET deleted_at = MAX(deleted_at, excluded.deleted_at)`)
+      .run(card.headword, new Date().toISOString());
+    db.prepare('DELETE FROM cards WHERE id = ?').run(cardId);
+    db.exec('COMMIT');
+    return true;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }

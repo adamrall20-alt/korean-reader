@@ -1,3 +1,5 @@
+import { copyFileSync } from 'node:fs';
+import { isBuiltin } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
@@ -7,6 +9,22 @@ import { build } from 'vite';
 const desktopDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(desktopDir, '..');
 const outDir = path.resolve(rootDir, '.output/desktop');
+
+function verifyDesktopDependencies() {
+  return {
+    name: 'verify-desktop-dependencies',
+    generateBundle(_options, bundle) {
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type !== 'chunk') continue;
+        for (const dependency of [...chunk.imports, ...chunk.dynamicImports]) {
+          if (dependency !== 'electron' && !isBuiltin(dependency) && !Object.hasOwn(bundle, dependency)) {
+            this.error(`Desktop bundle depends on an unpackaged module: ${dependency}`);
+          }
+        }
+      }
+    },
+  };
+}
 
 async function buildDesktop() {
   // 1. Build Vue 3 + Tailwind renderer
@@ -26,9 +44,11 @@ async function buildDesktop() {
     },
   });
 
-  // 2. Build Electron main process (CommonJS for Electron)
+  // 2. Build a self-contained Electron main process (CommonJS for Electron)
   await build({
     configFile: false,
+    plugins: [verifyDesktopDependencies()],
+    ssr: { noExternal: true },
     resolve: {
       alias: {
         '@': rootDir,
@@ -52,6 +72,8 @@ async function buildDesktop() {
   // 3. Build Electron preload script (CommonJS for sandboxed preload)
   await build({
     configFile: false,
+    plugins: [verifyDesktopDependencies()],
+    ssr: { noExternal: true },
     resolve: {
       alias: {
         '@': rootDir,
@@ -74,3 +96,4 @@ async function buildDesktop() {
 }
 
 await buildDesktop();
+copyFileSync(path.join(rootDir, 'assets', 'New logo update.png'), path.join(outDir, 'app-icon.png'));

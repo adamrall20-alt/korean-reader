@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WifiSyncSettings from './WifiSyncSettings.vue';
 import { onMounted, ref } from 'vue';
 import type { DesktopReviewSettings } from '../shared/api';
 
@@ -140,5 +141,6 @@ onMounted(() => {
         </div>
       </form>
     </section>
+    <WifiSyncSettings />
   </div>
 </template>

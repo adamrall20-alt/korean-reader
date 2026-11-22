@@ -8,6 +8,17 @@ import App from '../desktop/src/renderer/App.vue';
 function createMockDesktopApi(overrides: Partial<DesktopApi> = {}): DesktopApi {
   const sample = createSampleMinedEntry();
   return {
+    getProfileUsername: vi.fn(),
+    saveProfileUsername: vi.fn(),
+    getKnownWordsCode: vi.fn(),
+    getWifiSyncState: vi.fn().mockResolvedValue({ automatic: true, pairing: false, nearby: [], online: false, syncing: false }),
+    findWifiDevices: vi.fn(),
+    pairWifiDevice: vi.fn(),
+    stopWifiDiscovery: vi.fn(),
+    forgetWifiDevice: vi.fn(),
+    setWifiAutomatic: vi.fn(),
+    syncWifiNow: vi.fn(),
+    onWifiSyncStatus: vi.fn(),
     getStudyStats: vi.fn(),
     startPractice: vi.fn(),
     answerPractice: vi.fn(),

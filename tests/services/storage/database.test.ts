@@ -104,7 +104,7 @@ describe('IndexedDB connection reuse', () => {
     expect(second).toBe(db);
     expect(third).toBe(db);
     expect(open).toHaveBeenCalledTimes(1);
-    expect(open).toHaveBeenCalledWith('korean-reader', 3);
+    expect(open).toHaveBeenCalledWith('korean-reader', 4);
   });
 
   it('clears the cached connection when opening fails asynchronously or throws synchronously', async () => {

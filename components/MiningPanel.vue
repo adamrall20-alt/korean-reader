@@ -59,6 +59,7 @@ async function sendHistory() {
   try {
     const response = await browser.runtime.sendMessage({ type: 'sync-desktop-history' });
     desktopStatus.value = response?.ok ? 'sent' : 'unavailable';
+    if (response?.knownSynced) await loadKnownWords();
   } catch {
     desktopStatus.value = 'unavailable';
   }

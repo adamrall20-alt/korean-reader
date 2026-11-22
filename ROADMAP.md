@@ -2,7 +2,7 @@
 
 ## Current desktop milestone
 
-[The desktop plan](DESKTOP_APP_PLAN.md) tracks D0–D7. D2 is owner-verified. D3 practice and desktop Stats are implemented, alongside D4 offline Anki import and D5 loopback delivery. The Chrome Statistics and AnkiConnect interfaces were retired. Study data stays local. [Hosted storage and Google Drive](docs/desktop-sync-options.md) are future options.
+[The desktop plan](DESKTOP_APP_PLAN.md) tracks D0–D8. D2 is owner-verified. D3 practice and desktop Stats are implemented, alongside D4 offline Anki import and D5 loopback delivery. The Chrome Statistics and AnkiConnect interfaces were retired. Study data stays local. [Local Wi-Fi sync and shared Known words](docs/desktop-sync-options.md) are implemented for D8, with live cross-device verification pending.
 
 The following dated extension milestones record the features available in their original releases.
 

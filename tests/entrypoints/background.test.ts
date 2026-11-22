@@ -14,6 +14,22 @@ const { listeners, getVocabulary, markHeadwordsKnown, setStorage, listKnownHeadw
   },
 }));
 
+const knownSync = vi.hoisted(() => ({
+  list: vi.fn().mockResolvedValue([]),
+  apply: vi.fn().mockResolvedValue(false),
+  exchange: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock('@/services/storage/known-sync', () => ({
+  listKnownChanges: knownSync.list,
+  applyDesktopKnownWords: knownSync.apply,
+}));
+
+vi.mock('@/services/desktop/bridge', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/services/desktop/bridge')>(),
+  exchangeKnownWords: knownSync.exchange,
+}));
+
 vi.mock('@/services/storage/vocabulary', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/services/storage/vocabulary')>(),
   getVocabulary,
@@ -33,6 +49,7 @@ vi.mock('@/services/dictionary/cache', () => ({
 
 vi.mock('wxt/browser', () => ({
   browser: {
+    alarms: { onAlarm: { addListener: vi.fn() }, create: vi.fn(), clear: vi.fn() },
     storage: { local: { get: async () => ({ krDictApiKey: 'test-key' }), set: setStorage } },
     runtime: {
       getURL: (path: string) => `chrome-extension://test${path}`,
@@ -62,6 +79,28 @@ describe('background entrypoint', () => {
     vi.spyOn(console, 'info').mockImplementation(() => {});
     vi.stubGlobal('defineBackground', (main: () => void) => main());
     await import('@/entrypoints/background');
+  });
+
+  it('uses an explicit Chrome link to exchange the existing Known list and protects the link from webpages', async () => {
+    const messageListener = listeners.message[0]!;
+    const code = 'A'.repeat(32);
+    const message = { type: 'link-desktop-known', code };
+    const saved = [{ headword: '학교', known: true, revision: 0 }];
+    const merged = [...saved, { headword: '수업', known: true, revision: 42 }];
+    knownSync.list.mockResolvedValueOnce(saved);
+    knownSync.exchange.mockResolvedValueOnce(merged);
+    knownSync.apply.mockResolvedValueOnce(true);
+    expect(messageListener(message, { url: 'https://example.com' }, vi.fn())).toBe(false);
+
+    const response = await new Promise((resolve) => {
+      expect(messageListener(message, { url: 'chrome-extension://test/options.html' }, resolve)).toBe(true);
+    });
+    expect(response).toEqual({ ok: true, linked: true });
+    expect(knownSync.list).toHaveBeenCalledWith(false);
+    expect(knownSync.exchange).toHaveBeenCalledWith(code, saved);
+    expect(knownSync.apply).toHaveBeenCalledWith(merged);
+    expect(setStorage).toHaveBeenCalledWith({ desktopKnownLinkCode: code });
+    expect(setStorage).toHaveBeenCalledWith({ 'vocabularyRevision': expect.any(Object) });
   });
 
   it('accepts a valid Known action from webpages and notifies tabs after saving', async () => {

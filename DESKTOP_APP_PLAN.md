@@ -24,7 +24,7 @@ The desktop home screen should answer two questions at a glance. How many cards 
 - **Study identity.** Default to one scheduled card per NFC-normalised headword, with multiple saved contexts and one preferred sentence. Preserve imported contexts and alternate meanings. Use stable source IDs and content matching to merge confirmed overlaps. Preview uncertain matches and let the user keep them distinct. Later imports must preserve learned schedules and user edits.
 - **Local storage.** Evaluate SQLite for structured data and managed local files for attachments. Commit each review event and its next due date together. Store attachment references and load media when a card is opened. Version imports, backups and schema migrations.
 - **Scheduling.** Evaluate the TypeScript FSRS implementation against the desktop runtime. Keep a review log so updates, undo and restored data can be verified. Use a consistent local study day when building daily queues.
-- **Scope.** The first two platform releases use local storage, local question generation and Chrome for mining. Cross-computer sync of cards, media and review progress, mobile, and mining directly inside the desktop app require separate product decisions. [Google Drive is the preferred option to explore](docs/desktop-sync-options.md).
+- **Scope.** The first two platform releases use local storage, local question generation and Chrome for mining. Cross-computer sync of cards, media and review progress, mobile, and mining directly inside the desktop app require separate product decisions. [Phase D8 covers the approved Wi-Fi sync design](docs/desktop-sync-options.md).
 
 ## Phase D0 — Desktop Foundation and Feasibility
 
@@ -123,8 +123,6 @@ Tasks:
 
 **Completion criteria:** The owner has an installable Mac app and has completed the full mine-to-review workflow with Anki closed. Backup restoration and a packaged update have been exercised.
 
-See [desktop sync options](docs/desktop-sync-options.md) for the proposed Google Drive path after portable backups.
-
 ## Phase D7 — Windows Release
 
 **Goal:** Deliver the same mining and study workflow on Windows from the shared desktop codebase.
@@ -138,6 +136,22 @@ Tasks:
 - [ ] Publish supported OS and architecture details with install and troubleshooting steps after the owner approves the release.
 
 **Completion criteria:** A clean Windows installation can pair with Chrome, import real material, receive newly mined words, complete both study modes and restore a portable backup.
+
+## Phase D8 — Local Wi-Fi Sync
+
+**Goal.** Let paired desktop installations exchange study data directly over the local network and share Known words with their Chrome profiles.
+
+- [x] Use a versioned, validated library manifest for the first transfer and later merges. The standalone D6 backup and restore remains open.
+- [x] Discover nearby devices and compare a six-digit code once. Store the trusted peer, check automatically for updates, and provide manual sync and unpairing.
+- [x] Merge cards by normalized headword and transfer missing media by hash. Preserve distinct definitions and sentences and apply newer explicit edits to single-value fields.
+- [x] Keep both review histories and use the schedule from the most recent valid review. Propagate deletions and review undos and make retries safe.
+- [x] Import existing Chrome Known lists into Desktop. Cache Known statuses in Chrome, queue offline edits, and exchange individual word changes through the same-computer bridge.
+- [x] Exercise overlapping libraries, competing reviews, undo, deletion, missing media, Known changes, and interrupted transport in automated tests. Test automatic sync, idle checks, app restart, declined pairing, and forgetting a peer.
+- [ ] Verify with two physical devices and two Chrome profiles, including firewall prompts and a populated Windows installation.
+
+**Completion criteria.** Two paired computers converge on the same library, due dates, and Known words after offline use and a Wi-Fi sync. Each app remains usable independently.
+
+See the [Wi-Fi sync design](docs/desktop-sync-options.md) for the merge and migration rules.
 
 ## Milestone workflow
 

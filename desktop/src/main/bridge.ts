@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import type { DatabaseSync } from 'node:sqlite';
 import type { ImportSummary } from '../shared/api';
 import { importVocabularyJson } from './importer';
+import { exchangeKnownWordChanges, recordMergedKnownCount } from './known-words';
 import { saveKnownWordHistory } from './stats';
 import type { LocalMediaStore } from './media';
 
@@ -102,9 +103,22 @@ export function createBridgeHandler({ db, mediaStore, onImport, onKnownHistory }
       return;
     }
 
+    if (req.method === 'POST' && url.pathname === '/known-words') {
+      try {
+        const words = exchangeKnownWordChanges(db, JSON.parse(await readRequestBody(req)));
+        sendJson(res, 200, { ok: true, words }, origin);
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Could not sync Known words.' }, origin);
+        return;
+      }
+      onKnownHistory?.();
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/known-history') {
       try {
         saveKnownWordHistory(db, JSON.parse(await readRequestBody(req)));
+        if (db.prepare('SELECT 1 FROM known_words LIMIT 1').get()) recordMergedKnownCount(db);
         sendJson(res, 200, { ok: true }, origin);
       } catch (error) {
         sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : 'Could not save history.' }, origin);

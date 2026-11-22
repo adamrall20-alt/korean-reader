@@ -298,6 +298,8 @@ describe('Phase D2: Review settings and media rendering', () => {
   it('loads and saves daily limits in SettingsView', async () => {
     const saveMock = vi.fn().mockResolvedValue({ dailyNewLimit: 15, dailyReviewLimit: 120 });
     (window as unknown as { koreanReaderDesktop?: unknown }).koreanReaderDesktop = {
+      getWifiSyncState: vi.fn().mockResolvedValue({ automatic: true, pairing: false, nearby: [], online: false, syncing: false }),
+      onWifiSyncStatus: vi.fn(),
       getReviewSettings: vi.fn().mockResolvedValue({ dailyNewLimit: 25, dailyReviewLimit: 180 }),
       saveReviewSettings: saveMock,
     };

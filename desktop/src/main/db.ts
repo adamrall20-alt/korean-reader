@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { migrateSyncSchema } from './sync-schema';
 
 export interface DesktopDatabase {
   db: DatabaseSync;
@@ -295,4 +296,5 @@ export function runMigrations(db: DatabaseSync): void {
     }
   }
 
+  migrateSyncSchema(db);
 }

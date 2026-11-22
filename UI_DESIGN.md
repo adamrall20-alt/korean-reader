@@ -38,6 +38,10 @@ Use a softer, rounded sans-serif for the custom subtitle overlay and interface. 
 
 Korean subtitle text should be comfortable to read over video. Prefer clear glyph shapes and generous line height over decorative typography.
 
+### Desktop profile
+
+The desktop tab bar includes **Profile**. The profile shows a penguin placeholder, an editable username, and separate progress indicators for review level and vocabulary rank. The rank uses a Korean title with an English translation. The penguin reading logo is the desktop app icon.
+
 ## 2. Design Priorities
 
 Development should prioritise:

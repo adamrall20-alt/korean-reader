@@ -57,7 +57,9 @@ In the project checkout, install dependencies with `npm install` and run `npm ru
 
 **Review** uses local FSRS. **Practice** generates up to ten A/B/C/D questions from saved sentences. **Stats** shows known-word history, review time and totals, and practice accuracy. The Chrome popup shows your local known-word count and sends history to Desktop. Stats updates when it arrives. If the popup says Desktop is unavailable, choose **Retry** or **Export history**, then use **Stats → Import history** in Desktop.
 
-The desktop app currently runs from source. See the [desktop plan](DESKTOP_APP_PLAN.md) for Mac and Windows packaging.
+To sync two computers on the same network, open **Desktop Settings → Sync over Wi-Fi**. Choose **Find nearby devices** on both, select the other computer on either one, and confirm the matching six digits. The apps remember each other and sync automatically while both are running. To share Known words with Chrome, show the Chrome link code in Desktop Settings and enter it in **Extension Settings → Storage**. [Wi-Fi sync setup](docs/desktop-sync-options.md).
+
+On macOS, `npm run desktop:start` builds and opens the local **Korean Reader.app**. To build a ZIP without opening the app, run `npm run desktop:package:mac` and find `Korean-Reader-mac.zip` in `.output/desktop-mac`. Extract the app to a local folder outside cloud-synced Documents. The **Profile** tab lets you set a username and see your review level and vocabulary rank. See the [desktop plan](DESKTOP_APP_PLAN.md) for release packaging.
 
 ## Update an existing installation
 
@@ -133,7 +135,7 @@ Implemented:
 - Selectable dictionary definitions when mining.
 - Component tests, type checking and production builds (see the dated verification log in PROJECT_STATUS.md).
 
-Chrome mining uses a KRDict API key for live lookups. See the [architecture guide](docs/architecture.md) for data ownership and the [desktop sync discussion](docs/desktop-sync-options.md) for future Google Drive support.
+Chrome mining uses a KRDict API key for live lookups. See the [architecture guide](docs/architecture.md) for data ownership and the [desktop sync design](docs/desktop-sync-options.md) for local Wi-Fi and Chrome Known words.
 
 ## Project Structure
 

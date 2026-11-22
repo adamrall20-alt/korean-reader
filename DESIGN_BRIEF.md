@@ -183,7 +183,11 @@ Desktop Stats shows the Chrome profile's known-word count and how it changes ove
 
 ### 3.9 Accounts and progress sync
 
-Chrome and Desktop keep study data on the device. See [desktop sync options](docs/desktop-sync-options.md) for possible future hosting.
+Chrome and Desktop keep study data on the device. [Phase D8](docs/desktop-sync-options.md) adds optional direct Wi-Fi sync between paired desktop apps and shares Known words with their Chrome profiles.
+
+### 3.10 Desktop profile
+
+The local Profile has a placeholder penguin avatar and editable username. Lifetime SRS reviews provide level XP and the desktop Known count determines the vocabulary rank. Review history and Known data follow the desktop sync rules. The username is stored per installation.
 
 ## 4. Storage and Privacy
 

@@ -184,11 +184,11 @@ IndexedDB access is centralised in the background service worker. Content script
 
 ### Known-word history
 
-The IndexedDB statistics store keeps a baseline and the latest known-word count for each date. Chrome snapshots are delivered to Desktop over the loopback bridge and stored in SQLite. The Stats page lives in Desktop.
+The IndexedDB statistics store keeps a baseline and the latest known-word count for each date. Chrome snapshots are delivered to Desktop over the loopback bridge and stored in SQLite. A separate IndexedDB store persists Known word revisions and offline changes. Chrome can link to Desktop with a local code and exchange Known statuses over the bridge. The Stats page lives in Desktop.
 
 ## 7. Desktop study and Anki package import
 
-Electron runs the Vue renderer and holds SQLite and filesystem access in the main process. TypeScript FSRS schedules cards from review ratings. A separate SQL table stores multiple-choice results. Desktop imports .apkg ZIP packages using `fflate`, Node SQLite and Node Zstandard decompression for modern collections and media. See [desktop architecture](docs/desktop-architecture.md) for the database and IPC details.
+Electron runs the Vue renderer and holds SQLite and filesystem access in the main process. Profile stores the username in SQLite settings and calculates its progress from the Stats review history and Known-word count. TypeScript FSRS schedules cards from review ratings. A separate SQL table stores multiple-choice results. Desktop imports .apkg ZIP packages using `fflate`, Node SQLite and Node Zstandard decompression for modern collections and media. See [desktop architecture](docs/desktop-architecture.md) for the database and IPC details.
 
 ## 8. Application Architecture
 
