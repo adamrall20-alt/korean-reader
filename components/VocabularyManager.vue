@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { downloadJson } from '@/services/storage/download';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { browser } from 'wxt/browser';
 import type { VocabularyContext, VocabularyEntry, VocabularyMessage, VocabularyResponse } from '@/types/vocabulary';
@@ -93,19 +94,15 @@ async function deleteWord(headword: string) {
 }
 
 function sourceLink(context: VocabularyContext): string {
-  return context.timestamp === undefined
-    ? context.sourceUrl
-    : `${context.sourceUrl}&t=${Math.floor(context.timestamp)}s`;
+  if (context.timestamp === undefined) return context.sourceUrl;
+  const url = URL.parse(context.sourceUrl);
+  if (!url) return context.sourceUrl;
+  url.searchParams.set('t', `${Math.floor(context.timestamp)}s`);
+  return url.href;
 }
 
 function exportVocabulary() {
-  const file = new Blob([JSON.stringify(entries.value, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(file);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'korean-reader-vocabulary.json';
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadJson('korean-reader-vocabulary.json', JSON.stringify(entries.value, null, 2));
 }
 
 onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));

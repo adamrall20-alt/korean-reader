@@ -16,9 +16,9 @@ describe('SettingsPanel', () => {
 
     expect(wrapper.get('h1').text()).toBe('Settings');
 
-    for (const category of ['General', 'Dictionary', 'Import known words', 'Appearance', 'Storage']) {
+    for (const category of ['General', 'Dictionary', 'Anki', 'Known words transfer', 'Appearance', 'Storage']) {
       expect(text).toContain(category);
-      expect(wrapper.find(`#${category === 'Import known words' ? 'import-known' : category.toLowerCase()}`).exists()).toBe(true);
+      expect(wrapper.find(`#${category === 'Known words transfer' ? 'import-known' : category.toLowerCase()}`).exists()).toBe(true);
     }
   });
 
@@ -72,10 +72,10 @@ describe('SettingsPanel', () => {
     await flushPromises();
     expect(section.text()).toContain('학생');
     expect(sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'import-known-headwords' }));
-    await section.get('button').trigger('click');
+    await section.get('button[data-import]').trigger('click');
     await flushPromises();
     expect(sendMessage).toHaveBeenCalledWith({ type: 'import-known-headwords', headwords: ['학생'] });
-    expect(section.text()).toContain('1 words marked known.');
+    expect(section.text()).toContain('1 word marked known.');
     sendMessage.mockReset();
   });
 });

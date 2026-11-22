@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DesktopKnownLink from './DesktopKnownLink.vue';
+import AnkiPanel from './AnkiPanel.vue';
 import VocabularyManager from '@/components/VocabularyManager.vue';
 import KnownWordsImport from '@/components/KnownWordsImport.vue';
 import { onMounted, ref } from 'vue';
@@ -132,9 +132,14 @@ const sections = [
     description: 'KRDict API key, lookup preferences and local dictionary cache controls.',
   },
   {
+    id: 'anki',
+    title: 'Anki',
+    description: 'Connect AnkiConnect, choose your deck and note type, or import known words from a deck.',
+  },
+  {
     id: 'import-known',
-    title: 'Import known words',
-    description: 'Bring in known words from an Anki notes export or Kimchi Reader CSV.',
+    title: 'Known words transfer',
+    description: 'Move known words between computers or import a list from Anki or Kimchi Reader.',
   },
   {
     id: 'appearance',
@@ -300,9 +305,9 @@ const sections = [
                 {{ clearingCache ? 'Clearing…' : 'Clear dictionary cache' }}
               </button>
             </div>
+            <AnkiPanel v-else-if="section.id === 'anki'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
             <KnownWordsImport v-else-if="section.id === 'import-known'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
             <template v-else-if="section.id === 'storage'">
-              <DesktopKnownLink />
               <details class="mt-4 border-t border-interface/10 pt-4"><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary><VocabularyManager :key="vocabularyRevision" /></details>
             </template>
           </section>

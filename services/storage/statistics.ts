@@ -18,10 +18,9 @@ export function recordKnownWordCount(transaction: IDBTransaction) {
   const store = transaction.objectStore(STATISTICS_STORE);
   const baseline = store.get(BASELINE);
   baseline.onsuccess = () => {
-    if (!baseline.result) return;
     const now = new Date();
     const count = countKnown(transaction);
-    count.onsuccess = () => store.put({ at: now.getTime(), count: count.result }, localDay(now));
+    count.onsuccess = () => store.put({ at: now.getTime(), count: count.result }, baseline.result ? localDay(now) : BASELINE);
   };
 }
 

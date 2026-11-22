@@ -1,13 +1,11 @@
 # Subtitle audio capture
 
-## Current state
+## Capture flow
 
-Audio capture is implemented. When the user mines a subtitle, the extension can replay that subtitle, record its audio, and restore the video to the point where it was paused. The recording is stored locally with the sentence and delivered to Korean Reader Desktop on the same computer with the mined card. A vocabulary JSON export can also carry the stored clip into Desktop.
+When the user mines a YouTube sentence, the extension can replay the cue and record it from the video element's media stream. It restores playback position afterward. The WebM/Opus clip stays with the local mining context and is attached to the Anki note on sync when its Audio field is available.
 
-Capture uses the YouTube video element's media stream and stores WebM/Opus audio. It does not record continuously or use the microphone. Missing or unusable audio does not prevent saving the vocabulary entry.
+Audio capture uses the video's own stream and only runs for a requested cue. A missing or unusable clip does not prevent mining.
 
 ## Verification and limitations
 
-Isolated Chrome verification with local video and segmented MediaSource fixtures passed. Both timed cue bounds and rendered-caption boundaries produced playable audio, the paused position was restored, and advertisements were skipped.
-
-Live YouTube capture, caption-boundary accuracy on live material, and playback in a real desktop review remain to be verified. Rendered and rolling captions use estimated boundaries. Protected media or ranges that cannot be replayed may not produce audio. See [PROJECT_STATUS.md](../PROJECT_STATUS.md#phase-8-audio-capture--17-november-2026) for the dated record.
+Isolated Chrome fixtures previously verified both timed cues and rendered-caption ranges, playable audio, restored paused position and advertisement skipping. Live YouTube timing and playback in Anki clients still need verification. Rendered and rolling captions use estimated ranges, and protected media may be unavailable for recording.

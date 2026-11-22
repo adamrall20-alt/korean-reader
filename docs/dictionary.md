@@ -1,4 +1,4 @@
-# Dictionary Integration — Korean Reader
+# Dictionary integration
 
 ## Status
 
@@ -12,7 +12,7 @@ Preferred dictionary: National Institute of Korean Language (KRDict).
 - Use the official API where available.
 - Investigate registration, authentication, rate limits and response formats before implementation.
 
-## API Key
+## API key
 
 The user has obtained a KRDict API key.
 
@@ -23,7 +23,7 @@ The user has obtained a KRDict API key.
 - The key must never be committed to Git, written into source code, or injected into the built bundle.
 - `.env` files are gitignored, but the preferred storage location is still extension settings rather than a build-time environment variable.
 
-## Lookup Flow
+## Lookup flow
 
 1. The content script sends the selected Korean word and Kiwi morphemes to the background.
 2. The background reads the locally stored KRDict API key.
@@ -32,7 +32,7 @@ The user has obtained a KRDict API key.
 5. For a matching search result with a target code, it requests English translations, pronunciation, conjugations, Hanja and examples from the entry endpoint. Search definitions remain usable if the details request fails.
 6. The worker normalizes the XML, caches the resolved entry and returns it to the popup.
 
-## What the Popup Displays
+## Popup content
 
 - Korean dictionary headword.
 - Original subtitle form.
@@ -46,9 +46,9 @@ The user has obtained a KRDict API key.
 
 Once a lookup returns an entry, **Known** saves its dictionary headword locally. The selected subtitle form remains visible in the popup. Subtitle underlines use Kiwi's morphology to match known headwords, so 여러분들의 can match 여러분 through the plural suffix 들 and the particle 의.
 
-## Morphological Analysis
+## Morphological analysis
 
-Kiwi runs as bundled WebAssembly in the background worker. See `docs/architecture.md`.
+Kiwi runs as bundled WebAssembly in the background worker. See [Architecture](architecture.md).
 
 The analyser is responsible for:
 
@@ -59,14 +59,13 @@ The analyser is responsible for:
 
 ## Caching
 
-- Cache dictionary results in IndexedDB.
 - Cache dictionary results in IndexedDB using versioned headword (`headword-v2`) and ordered, normalized candidate-list (`exact-v5`) keys so different analyses of the same spelling resolve independently and stale cache versions (`headword-v1`, `exact-v4`) refresh automatically. Older cache keys are ignored and can be removed from Settings.
 - Store the original response metadata needed to render definitions and examples.
 - Avoid repeated API requests for the same lookup.
 - Provide a way to clear the cache from Settings.
 - Cached entries remain until the user clears them, with schema versioning for future changes.
 
-## Error Handling
+## Error handling
 
 Handle at least:
 
@@ -87,14 +86,11 @@ Show a useful message in the dictionary popup rather than failing silently.
 - Do not send the user's vocabulary to KRDict; only send the lookup term required for the dictionary request.
 - Do not expose the key to YouTube page scripts.
 
-## Open Questions
+## Open questions
 
 - Rate limits and request throttling.
 - Context-based selection among homonyms with the same headword.
 
-## Phase 12 — Kimchi Reader Format (STDICT Fallback Deferred)
+## Deferred source
 
-Phase 12.1 aligns KRDict dictionary output with Kimchi Reader's definition formatting using the user's existing KRDict key:
-
-- **KRDict formatting (implemented):** `services/dictionary/krdict.ts` preserves `<![CDATA[...]]>` text cleanly and formats English translations as `trans_word: trans_dfn` when both `<trans_word>` and `<trans_dfn>` are present (omitting duplicate identical values case-insensitively and falling back to whichever tag exists). Both `/search` and `/view` entry lookups use this formatting, and cache keys bumped to `headword-v2` / `exact-v5` so older cached entries refresh automatically.
-- **STDICT fallback (deferred):** Integrating the National Institute of Korean Language's **STDICT** (표준국어대사전, `https://stdict.korean.go.kr/`) Open API (Task 12.3) was deferred at the product owner's request due to registration issues obtaining an STDICT API key. No additional API key is required for the current dictionary setup.
+STDICT was evaluated as a Korean monolingual fallback. Integration is deferred until API access is available.

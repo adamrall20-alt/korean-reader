@@ -46,7 +46,6 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
 
   let host: HTMLDivElement | null = null;
   let app: App<Element> | null = null;
-  let mountPoint: HTMLDivElement | null = null;
 
   let recording: { videoId: string; controller: AbortController } | undefined;
   const recordingHere = () => recording?.videoId === getYouTubeVideoId(doc.location.href);
@@ -88,7 +87,6 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
     shadow.append(style);
 
     const point = doc.createElement('div');
-    mountPoint = point;
     shadow.append(point);
 
     app = createApp({
@@ -174,7 +172,6 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
     app = null;
     host?.remove();
     host = null;
-    mountPoint = null;
     state.lines = [];
     state.visible = false;
   }

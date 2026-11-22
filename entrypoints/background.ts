@@ -1,3 +1,6 @@
+import { isKnownHeadwordList } from '@/services/storage/known-words';
+import { handleAnkiMessage, isAnkiMessage } from '@/services/anki/messages';
+import type { HistoryResponse } from '@/types/statistics';
 import {
   DEFAULT_SUBTITLE_APPEARANCE, isSubtitleAppearance, SUBTITLE_APPEARANCE_KEY, THEME_KEY,
   type InterfaceTheme, type PreferencesResponse,
@@ -10,9 +13,7 @@ import {
   VOCABULARY_REVISION_KEY, type KnownHeadwordsResponse, type VocabularyMessage, type VocabularyRevision,
 } from '@/types/vocabulary';
 import { readKnownWordHistory } from '@/services/storage/statistics';
-import { getVocabulary, listKnownHeadwords, listVocabulary, markHeadwordsKnown, normalizeHeadword } from '@/services/storage/vocabulary';
-import { applyDesktopKnownWords, listKnownChanges } from '@/services/storage/known-sync';
-import { exchangeKnownWords, pushEntriesToDesktop, pushKnownHistory, syncMissingEntriesToDesktop } from '@/services/desktop/bridge';
+import { getVocabulary, listKnownHeadwords, markHeadwordsKnown, normalizeHeadword } from '@/services/storage/vocabulary';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
 import { headwordAliases, nominalCopulaHeadwords } from '@/services/korean/dictionary-forms';
@@ -30,88 +31,9 @@ import type {
 } from '@/types/messages';
 
 const KRDICT_API_KEY_STORAGE = 'krDictApiKey';
-const KNOWN_LINK_STORAGE = 'desktopKnownLinkCode';
-const KNOWN_SYNC_ALARM = 'desktop-known-words';
-let knownSyncInFlight: Promise<boolean> | undefined;
-let knownSyncQueued = false;
-
-function syncDesktopKnownWords(): Promise<boolean> {
-  if (knownSyncInFlight) {
-    knownSyncQueued = true;
-    return knownSyncInFlight;
-  }
-  knownSyncInFlight = (async () => {
-    try {
-      const code = (await browser.storage.local.get(KNOWN_LINK_STORAGE))[KNOWN_LINK_STORAGE];
-      if (typeof code !== 'string') return false;
-      const changed = await applyDesktopKnownWords(await exchangeKnownWords(code, await listKnownChanges()));
-      if (changed) {
-        await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: { id: crypto.randomUUID() } });
-      }
-      return true;
-    } catch {
-      return false;
-    } finally {
-      knownSyncInFlight = undefined;
-      if (knownSyncQueued) {
-        knownSyncQueued = false;
-        void syncDesktopKnownWords();
-      }
-    }
-  })();
-  return knownSyncInFlight;
-}
-
-async function syncDesktopKnownHistory(): Promise<boolean> {
-  try {
-    const history = await readKnownWordHistory(true);
-    return history ? await pushKnownHistory(history) : false;
-  } catch {
-    return false;
-  }
-}
-
-let desktopCatchUpComplete = false;
-let desktopCatchUpInFlight: Promise<void> | null = null;
-
-async function runDesktopCatchUp(): Promise<void> {
-  if (desktopCatchUpComplete) return;
-  if (desktopCatchUpInFlight) return desktopCatchUpInFlight;
-  desktopCatchUpInFlight = (async () => {
-    try {
-      const entries = await listVocabulary();
-      const result = await syncMissingEntriesToDesktop(entries);
-      if (result.reachable) {
-        desktopCatchUpComplete = true;
-      }
-    } catch {
-      // Desktop app is optional; ignore when offline or storage is unavailable.
-    } finally {
-      desktopCatchUpInFlight = null;
-    }
-  })();
-  return desktopCatchUpInFlight;
-}
-
-async function autoSyncDesktopAfterMine(headword: string): Promise<void> {
-  try {
-    const entry = await getVocabulary(headword);
-    if (entry && entry.contexts.length > 0) {
-      const pushed = await pushEntriesToDesktop([entry]);
-      if (pushed && !desktopCatchUpComplete) {
-        await runDesktopCatchUp();
-      }
-    }
-  } catch {
-    // Desktop app is optional; never disrupt mining.
-  }
-}
-
 /** Without changes, YouTube tabs reload every known headword; with changes, they patch their cached set. */
 async function notifyVocabularyChanged(changes?: { known: string[]; unknown: string[] }) {
   const revision: VocabularyRevision = { id: crypto.randomUUID(), ...changes };
-  void syncDesktopKnownWords();
-  void syncDesktopKnownHistory();
   await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: revision }).catch((error) => {
     console.warn('[Korean Reader] Could not notify subtitle tabs of vocabulary changes.', error);
   });
@@ -185,18 +107,7 @@ function isClearDictionaryCacheMessage(message: unknown): message is ClearDictio
 }
 
 export default defineBackground(() => {
-  browser.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === KNOWN_SYNC_ALARM) void syncDesktopKnownWords();
-  });
-  void browser.storage.local.get(KNOWN_LINK_STORAGE).then((stored) => {
-    if (stored[KNOWN_LINK_STORAGE]) {
-      void browser.alarms.create(KNOWN_SYNC_ALARM, { periodInMinutes: 1 });
-      void syncDesktopKnownWords();
-    }
-  });
   console.info('[Korean Reader] Background service worker started.');
-  void runDesktopCatchUp();
-  void syncDesktopKnownHistory();
 
   browser.runtime.onInstalled.addListener((details) => {
     console.info(`[Korean Reader] Extension ${details.reason}.`);
@@ -263,7 +174,7 @@ export default defineBackground(() => {
     const fromExtensionPage = sender.url?.startsWith(browser.runtime.getURL('/'));
     const fromWebPage = /^https?:\/\//.test(sender.url ?? '');
 
-    if (fromWebPage && typeof message === 'object' && message !== null &&
+    if ((fromWebPage || fromExtensionPage) && typeof message === 'object' && message !== null &&
       'type' in message && message.type === 'get-known-headwords') {
       void listKnownHeadwords().then(
         (headwords) => sendResponse({ ok: true, headwords } satisfies KnownHeadwordsResponse),
@@ -280,9 +191,6 @@ export default defineBackground(() => {
         if (response.ok && (message.type === 'mark-word-known' || message.type === 'set-vocabulary-status' ||
           message.type === 'delete-vocabulary' || (message.type === 'mine-word' && response.outcome !== 'existing'))) {
           await notifyVocabularyChanged(knownStatusChanges(message));
-        }
-        if (response.ok && message.type === 'mine-word') {
-          void autoSyncDesktopAfterMine(message.entry.headword);
         }
         sendResponse(response);
       }).catch((error: unknown) => {
@@ -323,61 +231,39 @@ export default defineBackground(() => {
       }
     }
 
-    // Only extension pages can read or change dictionary settings.
+    // Only extension pages can access settings, bulk imports and AnkiConnect.
     if (!fromExtensionPage) return false;
 
     if (message && typeof message === 'object' && 'type' in message) {
       if (message.type === 'get-known-word-history') {
         void readKnownWordHistory(true).then(
-          (history) => sendResponse({ ok: true, history }),
-          () => sendResponse({ ok: false }),
+          (history) => sendResponse({ ok: true, history } satisfies HistoryResponse),
+          () => sendResponse({ ok: false, error: 'Could not access known-word history.' } satisfies HistoryResponse),
         );
-        return true;
-      }
-      if (message.type === 'desktop-known-link-status' || message.type === 'unlink-desktop-known' ||
-          message.type === 'link-desktop-known') {
-        const update = async () => {
-          if (message.type === 'desktop-known-link-status') {
-            return { ok: true, linked: Boolean((await browser.storage.local.get(KNOWN_LINK_STORAGE))[KNOWN_LINK_STORAGE]) };
-          }
-          if (message.type === 'unlink-desktop-known') {
-            await knownSyncInFlight;
-            await browser.storage.local.remove(KNOWN_LINK_STORAGE);
-            await browser.alarms.clear(KNOWN_SYNC_ALARM);
-            return { ok: true, linked: false };
-          }
-          const code = 'code' in message ? message.code : undefined;
-          if (typeof code !== 'string' || !/^[A-Za-z0-9_-]{32}$/.test(code)) return { ok: false };
-          await knownSyncInFlight;
-          const words = await exchangeKnownWords(code, await listKnownChanges(false));
-          const changed = await applyDesktopKnownWords(words);
-          await browser.storage.local.set({ [KNOWN_LINK_STORAGE]: code });
-          await browser.alarms.create(KNOWN_SYNC_ALARM, { periodInMinutes: 1 });
-          if (changed) await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: { id: crypto.randomUUID() } });
-          void syncDesktopKnownWords();
-          return { ok: true, linked: true };
-        };
-        void update().then(sendResponse, () => sendResponse({ ok: false }));
-        return true;
-      }
-      if (message.type === 'sync-desktop-history') {
-        void Promise.all([syncDesktopKnownHistory(), syncDesktopKnownWords()])
-          .then(([ok, knownSynced]) => sendResponse({ ok, knownSynced }));
         return true;
       }
       if (message.type === 'import-known-headwords') {
         const words = 'headwords' in message ? message.headwords : null;
-        if (!Array.isArray(words) || words.length > 200_000 ||
-          !words.every((word) => typeof word === 'string' && word.length <= 100 && /\p{Script=Hangul}/u.test(word))) {
+        if (!isKnownHeadwordList(words)) {
           sendResponse({ ok: false, error: 'Invalid Korean word list.' });
           return false;
         }
         void markHeadwordsKnown(words).then(async (marked) => {
-          await notifyVocabularyChanged();
+          if (marked) await notifyVocabularyChanged();
           sendResponse({ ok: true, marked });
         }).catch(() => sendResponse({ ok: false, error: 'Could not save known words.' }));
         return true;
       }
+    }
+
+    if (isAnkiMessage(message)) {
+      void handleAnkiMessage(message).then(async (response) => {
+        if (response.ok && response.markedKnown) await notifyVocabularyChanged();
+        sendResponse(response);
+      }).catch((error: unknown) => {
+        sendResponse({ ok: false, error: error instanceof Error ? error.message : 'AnkiConnect request failed.' });
+      });
+      return true;
     }
 
     if (isGetSettingsMessage(message)) {

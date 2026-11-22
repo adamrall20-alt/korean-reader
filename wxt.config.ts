@@ -6,7 +6,7 @@ export default defineConfig({
   manifest: {
     name: 'Korean Reader',
     description: 'Korean vocabulary mining for YouTube and Korean webpages.',
-    permissions: ['storage', 'alarms', 'activeTab', 'scripting'],
+    permissions: ['storage', 'activeTab', 'scripting'],
     host_permissions: ['https://krdict.korean.go.kr/*', 'http://127.0.0.1/*'],
     action: { default_title: 'Korean Reader' },
     content_security_policy: {

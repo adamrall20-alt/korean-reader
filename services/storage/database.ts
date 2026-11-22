@@ -1,9 +1,6 @@
-import type { KnownWordChange } from '@/types/known-sync';
-
 export const DICTIONARY_CACHE_STORE = 'dictionaryCache';
 export const VOCABULARY_STORE = 'vocabulary';
 
-export const KNOWN_CHANGES_STORE = 'knownChanges';
 export const STATISTICS_STORE = 'statistics';
 export const VOCABULARY_STATUS_INDEX = 'status';
 
@@ -48,18 +45,6 @@ export function openDatabase(): Promise<IDBDatabase> {
       if (event.oldVersion < 3) {
         request.transaction!.objectStore(VOCABULARY_STORE).createIndex(VOCABULARY_STATUS_INDEX, 'status');
         request.result.createObjectStore(STATISTICS_STORE);
-      }
-      if (event.oldVersion < 4) {
-        const changes = request.result.createObjectStore(KNOWN_CHANGES_STORE, { keyPath: 'headword' });
-        changes.createIndex('pending', 'pending');
-        const saved = request.transaction!.objectStore(VOCABULARY_STORE)
-          .index(VOCABULARY_STATUS_INDEX).openKeyCursor('known');
-        saved.onsuccess = () => {
-          if (!saved.result) return;
-          const entry: KnownWordChange = { headword: String(saved.result.primaryKey), known: true, revision: 0 };
-          changes.put({ ...entry, pending: 1 });
-          saved.result.continue();
-        };
       }
     };
     request.onsuccess = () => {

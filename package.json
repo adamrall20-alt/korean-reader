@@ -2,7 +2,6 @@
   "name": "korean-reader",
   "version": "1.0.0",
   "private": true,
-  "productName": "Korean Reader",
   "type": "module",
   "description": "Personal Korean language learning and vocabulary mining Chrome extension.",
   "engines": {
@@ -15,17 +14,10 @@
     "compile": "vue-tsc --noEmit",
     "test": "vitest --configLoader runner",
     "test:run": "vitest run --configLoader runner",
-    "desktop:build": "node desktop/build.mjs",
-    "desktop:start": "npm run desktop:build && node desktop/launch.mjs",
-    "desktop:package:mac": "npm run desktop:build && node desktop/package-mac.mjs",
-    "desktop:compile": "vue-tsc -p desktop/tsconfig.json --noEmit",
-    "desktop:test": "vitest run --configLoader runner tests/desktop-foundation.test.ts tests/desktop-d1.test.ts tests/desktop-bridge.test.ts tests/desktop-anki-import.test.ts tests/desktop-d2.test.ts tests/desktop-d3.test.ts tests/desktop-wifi-sync.test.ts tests/desktop-auto-wifi-sync.test.ts tests/desktop-profile.test.ts",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "fflate": "^0.8.3",
     "kiwi-nlp": "^0.24.1",
-    "ts-fsrs": "^6.0.0",
     "vue": "^3.5.45"
   },
   "devDependencies": {
@@ -35,7 +27,6 @@
     "@vue/compiler-sfc": "^3.5.45",
     "@vue/test-utils": "^2.6.0",
     "@wxt-dev/module-vue": "^1.0.3",
-    "electron": "^45.4.1",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.5",
     "typescript": "~5.9.3",

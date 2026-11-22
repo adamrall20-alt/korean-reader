@@ -1,8 +1,10 @@
+import { encodeKnownWords, parseKnownWords } from '@/services/storage/known-words';
 import { DEFAULT_SUBTITLE_APPEARANCE } from '@/types/preferences';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-const { listeners, getVocabulary, markHeadwordsKnown, setStorage, listKnownHeadwords, changeVocabulary, listVocabulary } = vi.hoisted(() => ({
+const { listeners, mineWord, getVocabulary, markHeadwordsKnown, setStorage, listKnownHeadwords, changeVocabulary, listVocabulary } = vi.hoisted(() => ({
   getVocabulary: vi.fn(),
+  mineWord: vi.fn(),
   listKnownHeadwords: vi.fn(),
   changeVocabulary: vi.fn(),
   listVocabulary: vi.fn(),
@@ -14,25 +16,10 @@ const { listeners, getVocabulary, markHeadwordsKnown, setStorage, listKnownHeadw
   },
 }));
 
-const knownSync = vi.hoisted(() => ({
-  list: vi.fn().mockResolvedValue([]),
-  apply: vi.fn().mockResolvedValue(false),
-  exchange: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock('@/services/storage/known-sync', () => ({
-  listKnownChanges: knownSync.list,
-  applyDesktopKnownWords: knownSync.apply,
-}));
-
-vi.mock('@/services/desktop/bridge', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/services/desktop/bridge')>(),
-  exchangeKnownWords: knownSync.exchange,
-}));
-
 vi.mock('@/services/storage/vocabulary', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/services/storage/vocabulary')>(),
   getVocabulary,
+  mineWord,
   markHeadwordsKnown,
   listKnownHeadwords,
   changeVocabulary,
@@ -49,7 +36,6 @@ vi.mock('@/services/dictionary/cache', () => ({
 
 vi.mock('wxt/browser', () => ({
   browser: {
-    alarms: { onAlarm: { addListener: vi.fn() }, create: vi.fn(), clear: vi.fn() },
     storage: { local: { get: async () => ({ krDictApiKey: 'test-key' }), set: setStorage } },
     runtime: {
       getURL: (path: string) => `chrome-extension://test${path}`,
@@ -81,26 +67,36 @@ describe('background entrypoint', () => {
     await import('@/entrypoints/background');
   });
 
-  it('uses an explicit Chrome link to exchange the existing Known list and protects the link from webpages', async () => {
-    const messageListener = listeners.message[0]!;
-    const code = 'A'.repeat(32);
-    const message = { type: 'link-desktop-known', code };
-    const saved = [{ headword: '학교', known: true, revision: 0 }];
-    const merged = [...saved, { headword: '수업', known: true, revision: 42 }];
-    knownSync.list.mockResolvedValueOnce(saved);
-    knownSync.exchange.mockResolvedValueOnce(merged);
-    knownSync.apply.mockResolvedValueOnce(true);
-    expect(messageListener(message, { url: 'https://example.com' }, vi.fn())).toBe(false);
+  it('round-trips 13,000 known words and only accepts bulk imports from extension pages', async () => {
+    const options = { url: 'chrome-extension://test/options.html' };
+    const webpage = { url: 'https://example.com/article' };
+    const listener = listeners.message[0]!;
+    const headwords = Array.from({ length: 13_000 }, (_, index) => `한국어${index}`);
+    listKnownHeadwords.mockResolvedValueOnce(headwords);
+    const exported = await new Promise((resolve) => listener({ type: 'get-known-headwords' }, options, resolve));
+    expect(exported).toEqual({ ok: true, headwords });
+    const words = parseKnownWords(encodeKnownWords(headwords));
+    const message = { type: 'import-known-headwords', headwords: words };
+    expect(listener(message, webpage, vi.fn())).toBe(false);
+    markHeadwordsKnown.mockResolvedValueOnce(13_000);
+    await expect(new Promise((resolve) => listener(message, options, resolve))).resolves.toEqual({ ok: true, marked: 13_000 });
+    expect(markHeadwordsKnown).toHaveBeenCalledWith(headwords);
+    expect(setStorage).toHaveBeenCalledWith({ vocabularyRevision: { id: expect.any(String) } });
+  });
 
-    const response = await new Promise((resolve) => {
-      expect(messageListener(message, { url: 'chrome-extension://test/options.html' }, resolve)).toBe(true);
-    });
-    expect(response).toEqual({ ok: true, linked: true });
-    expect(knownSync.list).toHaveBeenCalledWith(false);
-    expect(knownSync.exchange).toHaveBeenCalledWith(code, saved);
-    expect(knownSync.apply).toHaveBeenCalledWith(merged);
-    expect(setStorage).toHaveBeenCalledWith({ desktopKnownLinkCode: code });
-    expect(setStorage).toHaveBeenCalledWith({ 'vocabularyRevision': expect.any(Object) });
+  it('saves sentences mined on a regular webpage and rejects non-web source URLs', async () => {
+    const url = 'https://example.com/article?section=1';
+    const listener = listeners.message[0]!;
+    const message = {
+      type: 'mine-word',
+      entry: { headword: '학생', originalForm: '학생', definitions: ['student'], koreanDefinitions: [], examples: [] },
+      context: { sentence: '저는 학생입니다.', originalForm: '학생', sourceTitle: 'Article', sourceUrl: url },
+      machineDefinitions: [],
+    };
+    mineWord.mockResolvedValueOnce('mined');
+    await expect(new Promise((resolve) => listener(message, { url }, resolve))).resolves.toEqual({ ok: true, outcome: 'mined' });
+    expect(mineWord).toHaveBeenCalledWith(message);
+    expect(listener({ ...message, context: { ...message.context, sourceUrl: 'javascript:void(0)' } }, { url }, vi.fn())).toBe(false);
   });
 
   it('accepts a valid Known action from webpages and notifies tabs after saving', async () => {

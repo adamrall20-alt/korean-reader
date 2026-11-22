@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { listKnownHeadwords, readVocabularySummary } from '@/services/storage/vocabulary';
+import { listKnownHeadwords, markHeadwordsKnown, readVocabularySummary } from '@/services/storage/vocabulary';
 import type { VocabularyEntry } from '@/types/vocabulary';
 
 const { openDatabase } = vi.hoisted(() => ({ openDatabase: vi.fn() }));
@@ -15,6 +15,7 @@ type Request = { result: unknown; error: unknown; onsuccess: (() => void) | null
  * Requests settle in microtasks; the transaction completes in a later macrotask, after all of them.
  */
 function fakeDatabase(entries: VocabularyEntry[], options: { failCursor?: boolean } = {}) {
+  const statistics = new Map();
   const calls = { getAll: 0, getAllKeys: [] as unknown[], count: [] as unknown[] };
   const database = {
     transaction() {
@@ -24,7 +25,10 @@ function fakeDatabase(entries: VocabularyEntry[], options: { failCursor?: boolea
         oncomplete: null as (() => void) | null,
         onabort: null as (() => void) | null,
         onerror: null as (() => void) | null,
-        objectStore: () => store,
+        objectStore: (name: string) => name === 'statistics' ? {
+          get: (key: string) => request(() => statistics.get(key)),
+          put: (value: unknown, key: string) => request(() => statistics.set(key, value)),
+        } : store,
       };
       setTimeout(() => { if (!failed) transaction.oncomplete?.(); });
       const request = (result: () => unknown): Request => {
@@ -34,6 +38,12 @@ function fakeDatabase(entries: VocabularyEntry[], options: { failCursor?: boolea
       };
       const known = () => entries.filter((entry) => entry.status === 'known');
       const store = {
+        get: (headword: string) => request(() => entries.find((entry) => entry.headword === headword)),
+        put: (entry: VocabularyEntry) => request(() => {
+          const index = entries.findIndex(({ headword }) => headword === entry.headword);
+          if (index >= 0) entries[index] = entry;
+          else entries.push(entry);
+        }),
         getAll: () => { calls.getAll += 1; return request(() => entries); },
         index: () => ({
           getAllKeys: (query: unknown) => {
@@ -64,7 +74,7 @@ function fakeDatabase(entries: VocabularyEntry[], options: { failCursor?: boolea
       return transaction;
     },
   };
-  return { database, calls };
+  return { database, calls, statistics };
 }
 
 const entry = (headword: string, status: 'known' | 'unknown', mined = false): VocabularyEntry => ({
@@ -98,6 +108,23 @@ describe('vocabulary storage reads', () => {
     await expect(listKnownHeadwords()).resolves.toEqual(['먹다', '가다']);
     expect(calls.getAllKeys).toEqual(['known']);
     expect(calls.getAll).toBe(0);
+  });
+
+  it('merges known words idempotently while keeping the target’s mined contexts', async () => {
+    const mined = entry('학생', 'unknown', true);
+    const existing = entry('먹다', 'known');
+    const { database, statistics } = fakeDatabase([mined, existing]);
+    openDatabase.mockResolvedValue(database);
+    const words = ['학생', '가다', '가다'.normalize('NFD')];
+
+    await expect(markHeadwordsKnown(words)).resolves.toBe(2);
+    await expect(markHeadwordsKnown(words)).resolves.toBe(0);
+    await expect(listKnownHeadwords()).resolves.toEqual(['학생', '먹다', '가다']);
+    const summary = await readVocabularySummary();
+    expect(summary.minedEntries[0]).toMatchObject({
+      headword: '학생', status: 'known', contexts: [{ sentence: mined.contexts[0]!.sentence }],
+    });
+    expect(statistics.get('baseline')).toMatchObject({ count: 3 });
   });
 
   it('summarises the known count and mined entries without screenshots or audio', async () => {

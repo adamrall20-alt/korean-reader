@@ -16,6 +16,12 @@ function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(hasText);
 }
 
+function isWebSource(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const url = URL.parse(value);
+  return url !== null && (url.protocol === 'https:' || url.protocol === 'http:');
+}
+
 function isMineMessage(message: Record<string, unknown>): boolean {
   const { entry, context, machineDefinitions } = message;
   return isRecord(entry) && hasText(entry.headword) && hasText(entry.originalForm) &&
@@ -25,8 +31,7 @@ function isMineMessage(message: Record<string, unknown>): boolean {
     [entry.partOfSpeech, entry.pronunciation].every((value) => value === undefined || typeof value === 'string') &&
     [entry.hanja, entry.conjugations].every((value) => value === undefined || isStringList(value)) &&
     isRecord(context) && hasText(context.sentence) && context.originalForm === entry.originalForm &&
-    typeof context.sourceTitle === 'string' && typeof context.sourceUrl === 'string' &&
-    /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]+$/.test(context.sourceUrl) &&
+    typeof context.sourceTitle === 'string' && isWebSource(context.sourceUrl) &&
     (context.image === undefined || (typeof context.image === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(context.image) && context.image.length <= 8000000)) &&
     (context.audio === undefined || isSubtitleAudio(context.audio)) &&
     (context.timestamp === undefined ||

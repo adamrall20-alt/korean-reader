@@ -1,19 +1,38 @@
-# Import from Anki
+# Anki integration
 
-## Import cards into Korean Reader Desktop
+## Connect and choose a deck
 
-1. In Anki, choose **File → Export** and select **Anki Deck Package (.apkg)** and the deck you want.
-2. Tick **Include media** for sentence audio and images. Tick **Include scheduling information** to carry across each imported card's current due date and progress.
-3. In Korean Reader Desktop choose **Import Anki .apkg**, select the file and check the import summary. You can close Anki while using the imported cards.
+Install [AnkiConnect](https://ankiweb.net/shared/info/2055492159), restart Anki and open **Korean Reader Settings → Anki**. Choose **Connect Anki**, approve the extension origin if prompted and select the deck. The default port is `8765`. Change it or enter an API key only if you configured AnkiConnect to require it. Keep AnkiConnect bound to loopback.
 
-The importer recognises Anki's current compressed packages and older compatible exports. It maps common Korean Reader and Kimchi Sentence Mining field names, including **Focus Word**, **Sentence**, **Definition**, **Pronunciation**, **Image** and **Audio**. It keeps line breaks and highlighted forms where available and copies supported images and audio into the desktop media store. Unsupported notes and missing or unsupported attachments appear in the import summary.
+New configurations default to **Korean Reader**. If this note type is missing, the integration creates it. Existing connection and mapping settings can be reused. To change note types, choose the new type and click **Save defaults**.
 
-Korean Reader uses one scheduled card per headword and keeps additional sentences. If a note has several Anki cards, the importer prefers a graduated card and then the longest interval. It uses the package's due date and stored FSRS stability and difficulty when present. Earlier review histories, deck settings, suspension flags and Anki templates do not transfer. Existing reviews done in Korean Reader take precedence on reimport. Packages with no scheduling information start new cards.
+## Korean Reader note type
 
-The importer accepts packages up to 1 GB, with a 256 MB limit for the embedded collection and a 25 MB limit per attachment. Export smaller decks if needed. Test unfamiliar templates with a small export to confirm the automatic field mapping.
+| Field | Content |
+| --- | --- |
+| Focus Word | Korean dictionary headword |
+| Sentence | Saved contexts, with the focus form highlighted |
+| Definition | English definitions when available, or Korean and available local translation |
+| Pronunciation | Dictionary pronunciation where supplied |
+| Image | Screenshot when available |
+| Audio | Caption audio when captured |
 
-## Import known words for Chrome reading coverage
+Anki shows the sentence and available media on the front. The back reveals the focus word, definition and pronunciation. You can also choose an existing note type and map its fields. Focus word, sentence and definition are required.
 
-Use Chrome **Settings → Import known words**. Pick an Anki **Notes in Plain Text** export or a Kimchi Reader word-status CSV and confirm the preview. For Anki notes, the extension reads a recognised column heading such as Focus Word, or the first field when headings are absent. Kimchi Reader status 2 marks a word as known. Importing this list updates subtitle coverage. Use the desktop package import for study cards and media.
+## Sync mined words
 
-See the [Anki export manual](https://docs.ankiweb.net/exporting.html) for Anki's package settings.
+Open Anki and click **Sync to Anki** from the extension toolbar. Korean Reader checks the collection for matching focus words and its own note tags before adding notes. Additional sentences are appended to matching notes with a compatible mapping. Existing notes using another note type can be updated by selecting their mapping. If more than one exact match is found, resolve it in Anki before retrying.
+
+Local Chrome mining and use of the **Known** button are available while Anki is closed. Review schedules and media sync between Anki devices through [AnkiWeb](https://docs.ankiweb.net/syncing.html) when configured in Anki.
+
+## Import known words
+
+Use the Anki settings to preview focus words from a deck and its subdecks, then confirm the import. Existing Anki packages can be opened in Anki first. For a text export or a Korean Reader transfer file, use **Settings → Known words transfer** instead.
+
+## Troubleshoot
+
+- **Anki unreachable** — Open Anki, check the add-on is enabled and verify the port.
+- **Access denied** — Approve the extension in AnkiConnect and verify its optional API key.
+- **Note already uses another type** — Select that note type and map its fields to update it.
+- **Media or note update failed** — Keep the original extension data and retry. If a note is open for editing in Anki’s browser, close that editor before retrying.
+- **Missing reviews in Statistics** — Open Anki and select **Refresh**. Lifetime totals represent review answers for cards currently in the selected deck and its subdecks.
