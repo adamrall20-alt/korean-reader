@@ -151,6 +151,7 @@ const sections = [
 
 <template>
   <div class="min-h-screen bg-cover bg-center bg-fixed text-paper" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
+    <a href="#settings-main-content" class="skip-link">Skip to main content</a>
     <header class="relative z-10 border-b border-interface/10 bg-ink">
       <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-4">
         <img :src="logo" alt="" class="size-9 object-contain" />
@@ -161,7 +162,7 @@ const sections = [
       </div>
     </header>
 
-    <main class="mx-auto grid max-w-5xl gap-6 px-6 py-8 md:grid-cols-[190px_1fr]">
+    <main id="settings-main-content" tabindex="-1" class="mx-auto grid max-w-5xl gap-6 px-6 py-8 md:grid-cols-[190px_1fr]">
       <nav aria-label="Settings sections" class="md:sticky md:top-6 md:self-start md:max-h-[calc(100dvh-3rem)] md:overflow-y-auto">
         <p class="mb-3 px-3 text-[11px] font-medium uppercase tracking-wider text-muted">
           Categories

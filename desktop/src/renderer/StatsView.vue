@@ -109,6 +109,25 @@ function trackPoint(event: PointerEvent) {
   if (activePoint.value < 0) activePoint.value = 0;
 }
 
+function handleGraphKeydown(event: KeyboardEvent) {
+  const len = graph.value.pattern.length;
+  if (!len) return;
+  const current = activePoint.value ?? len - 1;
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    activePoint.value = Math.max(0, current - 1);
+  } else if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    activePoint.value = Math.min(len - 1, current + 1);
+  } else if (event.key === 'Home') {
+    event.preventDefault();
+    activePoint.value = 0;
+  } else if (event.key === 'End') {
+    event.preventDefault();
+    activePoint.value = len - 1;
+  }
+}
+
 onMounted(() => {
   unsubscribeHistory = window.koreanReaderDesktop?.onKnownHistoryUpdated?.(load);
   void load();
@@ -151,10 +170,10 @@ onBeforeUnmount(() => {
         </div>
         <template v-if="selected">
           <p v-if="stats.knownHistory.length === 1" class="mt-3 text-xs text-muted">First snapshot saved. The chart fills in as later days are recorded.</p>
-          <p class="my-3 text-sm text-muted"><strong class="tabular-nums text-paper">{{ number.format(selected.count) }}</strong> known · {{ date.format(selected.at) }}</p>
-          <svg viewBox="0 0 600 160" class="block w-full text-accent" role="img"
-            :aria-label="`Known words from ${date.format(graph.start)} to ${date.format(graph.end)}. Latest count ${stats.knownWords}.`"
-            @pointermove="trackPoint" @pointerleave="activePoint = undefined">
+          <p class="my-3 text-sm text-muted" role="status" aria-live="polite"><strong class="tabular-nums text-paper">{{ number.format(selected.count) }}</strong> known · {{ date.format(selected.at) }}</p>
+          <svg viewBox="0 0 600 160" class="block w-full rounded-md text-accent focus-visible:outline-2 focus-visible:outline-accent" role="img" tabindex="0"
+            :aria-label="`Known words from ${date.format(graph.start)} to ${date.format(graph.end)}. Latest count ${stats.knownWords}. Use left and right arrow keys to inspect daily points.`"
+            @pointermove="trackPoint" @pointerleave="activePoint = undefined" @keydown="handleGraphKeydown">
             <path d="M 8 36 H 592 M 8 76 H 592 M 8 116 H 592 M 8 152 H 592" stroke="currentColor" stroke-opacity="0.15" />
             <path :d="`${graph.path} V 160 H 8 Z`" fill="currentColor" fill-opacity="0.08" />
             <path :d="graph.path" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />

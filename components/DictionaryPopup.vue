@@ -213,15 +213,15 @@ watch(() => props.miningContext, () => {
 
     <p class="kr-dictionary-original">{{ originalForm }}</p>
 
-    <p v-if="loading" class="kr-dictionary-message">Looking up definition…</p>
-    <p v-else-if="error" class="kr-dictionary-message kr-dictionary-error">{{ error }}</p>
+    <p v-if="loading" class="kr-dictionary-message" role="status" aria-live="polite">Looking up definition…</p>
+    <p v-else-if="error" class="kr-dictionary-message kr-dictionary-error" role="alert">{{ error }}</p>
     <template v-else-if="entry">
       <div class="kr-dictionary-heading">
-        <h2>{{ entry.headword }}</h2>
+        <h2 lang="ko">{{ entry.headword }}</h2>
         <span v-if="entry.partOfSpeech">{{ entry.partOfSpeech }}</span>
         <span v-if="entry.frequencyRank" class="kr-frequency" :title="entry.frequencyRank > 80000 ? 'Not found in the Shiberu frequency list' : 'Shiberu frequency rank'">#{{ Math.min(entry.frequencyRank, 80000).toLocaleString('en-US') }}{{ entry.frequencyRank > 80000 ? '+' : '' }}</span>
       </div>
-      <p v-if="entry.pronunciation" class="kr-dictionary-pronunciation">
+      <p v-if="entry.pronunciation" lang="ko" class="kr-dictionary-pronunciation">
         {{ entry.pronunciation }}
       </p>
       <p v-if="entry.hanja?.length" class="kr-dictionary-pronunciation">

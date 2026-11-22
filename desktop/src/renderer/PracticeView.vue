@@ -88,10 +88,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKey));
     <template v-if="question">
       <div class="grid gap-3 rounded-xl border border-interface/15 bg-ink p-5" :key="question.id">
         <p class="text-sm font-medium text-muted">What does the highlighted word mean in this sentence?</p>
-        <p lang="ko" class="whitespace-pre-wrap text-2xl font-medium leading-relaxed">{{ question.before }}<strong class="text-[#f59e0b]">{{ question.target }}</strong>{{ question.after }}</p>
+        <p lang="ko" class="whitespace-pre-wrap text-2xl font-medium leading-relaxed">{{ question.before }}<mark class="bg-transparent font-bold text-[#f59e0b]">{{ question.target }}</mark>{{ question.after }}</p>
       </div>
-      <div class="grid gap-2 sm:grid-cols-2">
+      <div class="grid gap-2 sm:grid-cols-2" role="group" aria-label="Answer options">
         <button v-for="(option, index) in question.options" :key="option" type="button" :disabled="busy || !!feedback"
+          :aria-keyshortcuts="`${letters[index]} ${index + 1}`"
           class="flex items-center gap-3 rounded-xl border border-interface/20 bg-ink px-4 py-3 text-left font-medium enabled:hover:border-accent focus-visible:outline-2 focus-visible:outline-accent"
           :class="{ 'border-accent text-accent': feedback?.correctIndex === index, 'border-danger text-danger': feedback && choice === index && !feedback.correct }"
           @click="answer(index)">
@@ -99,7 +100,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKey));
           <span class="wrap-anywhere text-sm">{{ option }}</span>
         </button>
       </div>
-      <div v-if="feedback" role="status" class="grid gap-2 border-t border-interface/10 pt-4">
+      <div v-if="feedback" role="status" aria-live="polite" class="grid gap-2 border-t border-interface/10 pt-4">
         <p class="font-semibold" :class="feedback.correct ? 'text-accent' : 'text-danger'">
           {{ feedback.correct ? 'Correct!' : `Answer ${letters[feedback.correctIndex]} was correct.` }}
         </p>

@@ -63,6 +63,14 @@
   background: rgba(22, 163, 74, 0.28);
 }
 
+.kr-word-token:focus-visible,
+.kr-dictionary-close:focus-visible,
+.kr-mine-button:focus-visible,
+.kr-translate-button:focus-visible {
+  outline: 2px solid #b7f7c7;
+  outline-offset: 2px;
+}
+
 .kr-dictionary-popup {
   box-sizing: border-box;
   position: fixed;
@@ -251,6 +259,6 @@
 .kr-subtitles[data-theme="light"] .kr-dictionary-examples { border-color: #d4d4d4; }
 .kr-subtitles[data-theme="light"] .kr-definition-button:hover { background: #eee; }
 .kr-subtitles[data-theme="light"] .kr-definition-button[aria-pressed="true"] { background: #ddd; }
-.kr-subtitles[data-theme="light"] .kr-definition-button:focus-visible { outline-color: #15803d; }
+.kr-subtitles[data-theme="light"] :is(.kr-definition-button, .kr-dictionary-close, .kr-mine-button, .kr-translate-button):focus-visible { outline-color: #15803d; }
 
 .kr-subtitles[data-theme="light"] .kr-dictionary-heading .kr-frequency { color: #166534; }

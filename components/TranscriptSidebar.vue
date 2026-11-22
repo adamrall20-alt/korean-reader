@@ -153,6 +153,8 @@ function startResize(event: PointerEvent) {
       role="separator"
       aria-label="Transcript width"
       aria-orientation="vertical"
+      :aria-valuemin="240"
+      :aria-valuemax="620"
       :aria-valuenow="width"
       tabindex="0"
       @pointerdown="startResize"

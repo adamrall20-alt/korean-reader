@@ -182,13 +182,19 @@ it('pairs once, syncs only after changes, remembers trust, pauses automatic sync
 
   await left.controller().setAutomatic(true);
   right.add('책');
-  await vi.advanceTimersByTimeAsync(32_000);
+  right.controller().notifyLocalChange();
+  await new Promise((resolve) => setTimeout(resolve, 250));
   expect(left.cards()).toEqual(right.cards());
   expect(left.cards()).toHaveLength(4);
+  left.add('연필');
+  left.controller().notifyLocalChange();
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  expect(left.cards()).toEqual(right.cards());
+  expect(left.cards()).toHaveLength(5);
   await left.controller().forget();
   right.add('눈');
   await vi.advanceTimersByTimeAsync(24_000);
-  expect(left.cards()).toHaveLength(4);
+  expect(left.cards()).toHaveLength(5);
   expect(left.controller().state().paired).toBeUndefined();
 });
 

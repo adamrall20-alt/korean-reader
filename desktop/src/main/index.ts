@@ -70,6 +70,10 @@ function notifySync(message: string): void {
   }
 }
 
+function triggerWifiSyncOnChange(): void {
+  wifiSync?.notifyLocalChange();
+}
+
 async function confirmWifiPair(name: string, code: string): Promise<boolean> {
   const result = await dialog.showMessageBox({
     type: 'question',
@@ -239,6 +243,7 @@ function registerIpcHandlers(): void {
       const rawJson = fs.readFileSync(filePath, 'utf8');
       const { db, media } = ensureStorage();
       const summary = importVocabularyJson(db.db, media, rawJson);
+      triggerWifiSyncOnChange();
       return {
         ok: true,
         fileName: path.basename(filePath),
@@ -277,6 +282,7 @@ function registerIpcHandlers(): void {
       }
       const { db } = ensureStorage();
       const deleted = deleteCard(db.db, cardId);
+      if (deleted) triggerWifiSyncOnChange();
       return deleted ? { ok: true } : { ok: false, error: 'Card not found.' };
     },
   );
@@ -292,6 +298,7 @@ function registerIpcHandlers(): void {
     try {
       const { db, media } = ensureStorage();
       const summary = importAnkiPackage(db.db, media, filePath);
+      triggerWifiSyncOnChange();
       return { ok: true, fileName: path.basename(filePath), summary };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : 'Anki package import failed.' };
@@ -311,7 +318,9 @@ function registerIpcHandlers(): void {
   });
   ipcMain.handle(DESKTOP_IPC_CHANNELS.answerPractice, (_event, id: unknown, choice: unknown) => {
     if (!practiceSession) throw new Error('Start a practice session first.');
-    return practiceSession.answer(id, choice);
+    const feedback = practiceSession.answer(id, choice);
+    triggerWifiSyncOnChange();
+    return feedback;
   });
   ipcMain.handle(DESKTOP_IPC_CHANNELS.importKnownHistory, async () => {
     const selected = await dialog.showOpenDialog({
@@ -324,6 +333,7 @@ function registerIpcHandlers(): void {
     try {
       if (fs.statSync(filename).size > 2 * 1024 * 1024) throw new Error('The history file is too large.');
       saveKnownWordHistory(ensureStorage().db.db, JSON.parse(fs.readFileSync(filename, 'utf8')));
+      triggerWifiSyncOnChange();
       return { ok: true };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : 'Could not import known-word history.' };
@@ -346,14 +356,18 @@ function registerIpcHandlers(): void {
         return { ok: false, error: 'Invalid rating.' };
       }
       const { db } = ensureStorage();
-      return submitReview(db.db, cardId, rating as ReviewRatingValue, new Date(),
+      const result = submitReview(db.db, cardId, rating as ReviewRatingValue, new Date(),
         typeof durationMs === 'number' ? durationMs : undefined);
+      if (result.ok) triggerWifiSyncOnChange();
+      return result;
     },
   );
 
   ipcMain.handle(DESKTOP_IPC_CHANNELS.undoLastReview, () => {
     const { db } = ensureStorage();
-    return undoLastReview(db.db);
+    const result = undoLastReview(db.db);
+    if (result.ok) triggerWifiSyncOnChange();
+    return result;
   });
 
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getReviewSettings, () => {
@@ -405,11 +419,13 @@ app.whenReady().then(async () => {
         for (const win of BrowserWindow.getAllWindows()) {
           win.webContents.send(DESKTOP_IPC_CHANNELS.knownHistoryUpdated);
         }
+        triggerWifiSyncOnChange();
       },
       onImport(summary) {
         for (const win of BrowserWindow.getAllWindows()) {
           win.webContents.send(DESKTOP_IPC_CHANNELS.libraryUpdated, summary);
         }
+        triggerWifiSyncOnChange();
       },
     });
   } catch (error) {

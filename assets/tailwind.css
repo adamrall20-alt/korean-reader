@@ -14,7 +14,7 @@
   --color-surface: #f3f3f3;
   --color-accent: #16a34a;
   --color-accent-soft: #dcfce7;
-  --color-muted: #888888;
+  --color-muted: #9a9a9a;
   --color-interface: #ffffff;
   --color-danger: #fca5a5;
   --color-line: #2a2a2a;
@@ -32,12 +32,55 @@
     --color-ink-soft: #ffffff;
     --color-ink-lift: #eeeeee;
     --color-paper: #111111;
-    --color-muted: #545454;
+    --color-muted: #525252;
     --color-interface: #111111;
     --color-danger: #b91c1c;
     --color-accent: #15803d;
     --color-line: #d4d4d4;
     --reading-backdrop: rgba(247, 247, 247, 0.96);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .skip-link {
+    position: absolute;
+    left: 1rem;
+    top: 0.75rem;
+    z-index: 50;
+    transform: translateY(-200%);
+    border-radius: 0.5rem;
+    background: var(--color-accent);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #ffffff;
+    text-decoration: none;
+    transition: transform 150ms ease;
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   html,

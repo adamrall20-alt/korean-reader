@@ -156,14 +156,22 @@ const handleDocumentClick = (event: MouseEvent) => {
   }
 };
 
+const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && selectedToken.value) {
+    closePopup();
+  }
+};
+
 onMounted(() => {
   document.addEventListener('click', handleDocumentClick, true);
+  document.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('resize', repositionPopup);
   window.addEventListener('scroll', repositionPopup, true);
 });
 onBeforeUnmount(() => {
   closePopup();
   document.removeEventListener('click', handleDocumentClick, true);
+  document.removeEventListener('keydown', handleKeyDown, true);
   window.removeEventListener('resize', repositionPopup);
   window.removeEventListener('scroll', repositionPopup, true);
 });

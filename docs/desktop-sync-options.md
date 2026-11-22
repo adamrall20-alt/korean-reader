@@ -5,7 +5,7 @@ On 22 November 2026, the owner chose direct Wi-Fi sync for paired desktop apps. 
 ## Pairing and transfer
 
 1. On both computers open **Settings → Sync over Wi-Fi → Find nearby devices**. Select the other computer on either one and compare the six digits on both screens. Choose **Codes match** on both to approve the pair.
-2. Each installation remembers one paired device. With **Sync automatically** enabled on both devices, the app checks for updates roughly every eight seconds while both are running on the same local network. **Sync now** is available if you turn automatic syncing off. **Forget device** removes permission to access this library.
+2. Each installation remembers one paired device. With **Sync automatically** enabled on both devices, the app syncs immediately whenever a change occurs (reviews, undos, imports, deletions, practice answers, or Chrome deliveries) and also checks roughly every eight seconds while both are running on the same local network. **Sync now** is available if you turn automatic syncing off. **Forget device** removes permission to access this library.
 3. Each device sends a versioned library manifest on a transfer. Audio and screenshots move separately and only when missing on the receiving device. A failed transfer can leave verified files cached for the next attempt. Each device commits the metadata merge in a database transaction.
 4. Discovery uses IPv4 broadcast on UDP port 17422. The network must allow devices to reach each other. Guest networks can isolate clients and block discovery. Pairing and transfer are separate from Chrome's local link code and from the D6 portable backup and restore.
 

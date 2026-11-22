@@ -264,6 +264,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex min-h-screen flex-col bg-ink text-paper">
+    <a href="#desktop-main-content" class="skip-link">Skip to main content</a>
     <header class="sticky top-0 z-10 border-b border-interface/10 bg-ink px-6 py-3.5">
       <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
         <img :src="logo" alt="" class="size-9 shrink-0 object-contain" />
@@ -272,9 +273,10 @@ onBeforeUnmount(() => {
           <p class="text-xs text-muted">Desktop</p>
         </div>
 
-        <nav class="ml-2 flex items-center rounded-lg border border-interface/15 bg-ink-soft p-0.5 text-xs max-[940px]:order-last max-[940px]:ml-0">
+        <nav aria-label="Main sections" class="ml-2 flex items-center rounded-lg border border-interface/15 bg-ink-soft p-0.5 text-xs max-[940px]:order-last max-[940px]:ml-0">
           <button
             type="button"
+            :aria-current="activeTab === 'review' ? 'page' : undefined"
             class="flex items-center gap-1.5 rounded-md px-3 py-1 font-medium transition-colors"
             :class="activeTab === 'review' ? 'bg-accent text-white' : 'text-muted hover:text-paper'"
             @click="switchTab('review')"
@@ -295,7 +297,9 @@ onBeforeUnmount(() => {
               { id: 'profile', label: 'Profile' },
               { id: 'settings', label: 'Settings' },
             ] as const"
-            :key="tab.id" type="button" class="rounded-md px-3 py-1 font-medium transition-colors"
+            :key="tab.id" type="button"
+            :aria-current="activeTab === tab.id ? 'page' : undefined"
+            class="rounded-md px-3 py-1 font-medium transition-colors"
             :class="activeTab === tab.id ? 'bg-accent text-white' : 'text-muted hover:text-paper'"
             @click="switchTab(tab.id)">{{ tab.label }}</button>
         </nav>
@@ -305,6 +309,7 @@ onBeforeUnmount(() => {
             type="button"
             class="rounded-lg border border-interface/15 bg-ink-soft px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-ink-lift hover:text-paper"
             :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'"
+            :aria-pressed="theme === 'light'"
             @click="toggleTheme"
           >
             {{ theme === 'dark' ? 'Light' : 'Dark' }}
@@ -330,6 +335,8 @@ onBeforeUnmount(() => {
     </header>
 
     <main
+      id="desktop-main-content"
+      tabindex="-1"
       class="flex-1 bg-cover bg-fixed bg-center px-6 py-5"
       :style="{
         backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})`,
@@ -436,10 +443,11 @@ onBeforeUnmount(() => {
               No cards match "{{ searchQuery }}".
             </p>
 
-            <ul v-else class="flex max-h-[560px] flex-col gap-1.5 overflow-y-auto pr-1">
+            <ul v-else aria-label="Study card list" class="flex max-h-[560px] flex-col gap-1.5 overflow-y-auto pr-1">
               <li v-for="card in cards" :key="card.id">
                 <button
                   type="button"
+                  :aria-current="card.id === selectedCardId ? 'true' : undefined"
                   class="w-full rounded-xl border px-3.5 py-2.5 text-left transition-colors"
                   :class="
                     card.id === selectedCardId
@@ -449,7 +457,7 @@ onBeforeUnmount(() => {
                   @click="loadCardDetail(card.id)"
                 >
                   <div class="flex items-baseline justify-between gap-2">
-                    <span class="truncate text-base font-semibold text-paper">{{ card.headword }}</span>
+                    <span lang="ko" class="truncate text-base font-semibold text-paper">{{ card.headword }}</span>
                     <span v-if="card.frequencyRank" class="shrink-0 text-xs font-medium text-accent">
                       #{{ card.frequencyRank.toLocaleString() }}
                     </span>
@@ -474,8 +482,8 @@ onBeforeUnmount(() => {
             <div class="flex flex-wrap items-start justify-between gap-3 border-b border-interface/10 pb-4">
               <div>
                 <div class="flex flex-wrap items-baseline gap-2.5">
-                  <h2 class="text-3xl font-bold tracking-tight text-paper">{{ selectedCard.headword }}</h2>
-                  <span v-if="selectedCard.pronunciation" class="text-sm text-muted">
+                  <h2 lang="ko" class="text-3xl font-bold tracking-tight text-paper">{{ selectedCard.headword }}</h2>
+                  <span v-if="selectedCard.pronunciation" lang="ko" class="text-sm text-muted">
                     [{{ selectedCard.pronunciation }}]
                   </span>
                   <span
@@ -523,7 +531,7 @@ onBeforeUnmount(() => {
                 :key="ctx.id"
                 class="rounded-xl border border-interface/10 bg-ink p-4"
               >
-                <p class="text-lg leading-relaxed text-paper">
+                <p lang="ko" class="text-lg leading-relaxed text-paper">
                   <span>{{ splitHighlight(ctx.sentence, ctx.originalForm).before }}</span>
                   <mark
                     v-if="splitHighlight(ctx.sentence, ctx.originalForm).match"

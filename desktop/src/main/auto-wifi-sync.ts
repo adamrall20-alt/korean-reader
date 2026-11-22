@@ -95,6 +95,8 @@ export class AutoWifiSync {
   private transport: { server: http.Server; discovery: Awaited<ReturnType<typeof startDiscovery>> } | undefined;
   private starting: Promise<void> | undefined;
   private timer: ReturnType<typeof setInterval> | undefined;
+  private debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  private pendingChangeSync = false;
   private transfer: Awaited<ReturnType<typeof hostWifiSync>> | undefined;
   private syncing = false;
   private disposed = false;
@@ -229,6 +231,32 @@ export class AutoWifiSync {
     await this.startSync(this.activePeer, true);
   }
 
+  notifyLocalChange(): void {
+    if (this.disposed || !this.trusted) return;
+    if (!this.transport) {
+      void this.activate().catch(() => {});
+      return;
+    }
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = undefined;
+      if (this.disposed || !this.trusted || !this.transport) return;
+      this.broadcast();
+      const peer = this.activePeer;
+      if (!peer || Date.now() - peer.at > PEER_TIMEOUT_MS || !this.automatic || !peer.automatic) return;
+      if (this.syncing || this.transfer) {
+        this.pendingChangeSync = true;
+        return;
+      }
+      if ((this.lastRevisions?.local !== this.revision() || this.lastRevisions.remote !== peer.revision) &&
+          this.options.identity.id < this.trusted.id) {
+        void this.startSync(peer, false).catch(() => {
+          this.error = 'Automatic sync will retry when both devices are available.';
+        });
+      }
+    }, 150);
+  }
+
   close(): void {
     this.disposed = true;
     this.stopFinding();
@@ -275,6 +303,9 @@ export class AutoWifiSync {
   private stopTransport(): void {
     clearInterval(this.timer);
     this.timer = undefined;
+    clearTimeout(this.debounceTimer);
+    this.debounceTimer = undefined;
+    this.pendingChangeSync = false;
     this.transfer?.close();
     const current = this.transport;
     this.transport = undefined;
@@ -353,6 +384,13 @@ export class AutoWifiSync {
         this.activePeer = {
           ...endpoint, identity: this.trusted, challenge: message.challenge, revision: message.revision, automatic: message.automatic,
         };
+        const changed = (this.lastRevisions?.local !== this.revision() || this.lastRevisions.remote !== message.revision);
+        if (this.automatic && message.automatic && !this.syncing && !this.transfer && changed &&
+            this.options.identity.id < this.trusted.id) {
+          void this.startSync(this.activePeer, false).catch(() => {
+            this.error = 'Automatic sync will retry when both devices are available.';
+          });
+        }
       }
     } catch {
       // Ignore unrelated or malformed discovery datagrams.
@@ -534,5 +572,9 @@ export class AutoWifiSync {
     this.error = undefined;
     this.options.onComplete();
     this.broadcast();
+    if (this.pendingChangeSync || changedDuringTransfer) {
+      this.pendingChangeSync = false;
+      this.notifyLocalChange();
+    }
   }
 }

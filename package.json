@@ -13,13 +13,13 @@
     "build": "wxt build",
     "zip": "wxt zip",
     "compile": "vue-tsc --noEmit",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "vitest --configLoader runner",
+    "test:run": "vitest run --configLoader runner",
     "desktop:build": "node desktop/build.mjs",
     "desktop:start": "npm run desktop:build && node desktop/launch.mjs",
     "desktop:package:mac": "npm run desktop:build && node desktop/package-mac.mjs",
     "desktop:compile": "vue-tsc -p desktop/tsconfig.json --noEmit",
-    "desktop:test": "vitest run tests/desktop-foundation.test.ts tests/desktop-d1.test.ts tests/desktop-bridge.test.ts tests/desktop-anki-import.test.ts tests/desktop-d2.test.ts tests/desktop-d3.test.ts tests/desktop-wifi-sync.test.ts tests/desktop-auto-wifi-sync.test.ts tests/desktop-profile.test.ts",
+    "desktop:test": "vitest run --configLoader runner tests/desktop-foundation.test.ts tests/desktop-d1.test.ts tests/desktop-bridge.test.ts tests/desktop-anki-import.test.ts tests/desktop-d2.test.ts tests/desktop-d3.test.ts tests/desktop-wifi-sync.test.ts tests/desktop-auto-wifi-sync.test.ts tests/desktop-profile.test.ts",
     "postinstall": "wxt prepare"
   },
   "dependencies": {

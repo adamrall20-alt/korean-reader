@@ -238,13 +238,13 @@ async function handleOpenSource(sourceUrl: string, timestamp?: number) {
 function ratingButtonStyle(rating: ReviewRatingValue): string {
   switch (rating) {
     case 1:
-      return 'border-red-500/40 hover:border-red-500 hover:bg-red-500/10 text-red-400';
+      return 'border-red-500/40 hover:border-red-500 hover:bg-red-500/10 text-red-700 dark:text-red-400';
     case 2:
-      return 'border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/10 text-amber-400';
+      return 'border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/10 text-amber-800 dark:text-amber-400';
     case 3:
-      return 'border-emerald-500/40 hover:border-emerald-500 hover:bg-emerald-500/10 text-emerald-400';
+      return 'border-emerald-500/40 hover:border-emerald-500 hover:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400';
     case 4:
-      return 'border-sky-500/40 hover:border-sky-500 hover:bg-sky-500/10 text-sky-400';
+      return 'border-sky-500/40 hover:border-sky-500 hover:bg-sky-500/10 text-sky-800 dark:text-sky-400';
   }
 }
 
@@ -321,14 +321,14 @@ defineExpose({
     <div
       class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-interface/15 bg-ink-soft px-4 py-2.5 text-xs"
     >
-      <div class="flex flex-wrap items-center gap-3">
-        <span class="font-medium text-sky-400">
+      <div class="flex flex-wrap items-center gap-3" role="status" aria-live="polite">
+        <span class="font-medium text-sky-800 dark:text-sky-400">
           New: <strong>{{ queue.newAvailable }}</strong>
         </span>
-        <span class="font-medium text-amber-400">
+        <span class="font-medium text-amber-800 dark:text-amber-400">
           Learning: <strong>{{ queue.dueLearning }}</strong>
         </span>
-        <span class="font-medium text-emerald-400">
+        <span class="font-medium text-emerald-800 dark:text-emerald-400">
           Review: <strong>{{ queue.dueReviews }}</strong>
         </span>
         <span class="text-muted">
@@ -338,12 +338,13 @@ defineExpose({
       </div>
 
       <div class="flex items-center gap-2">
-        <span v-if="statusMessage" class="text-muted">{{ statusMessage }}</span>
+        <span v-if="statusMessage" role="status" aria-live="polite" class="text-muted">{{ statusMessage }}</span>
         <button
           type="button"
           class="rounded-md border border-interface/15 px-2.5 py-1 text-xs font-medium text-paper transition hover:bg-ink-lift disabled:cursor-not-allowed disabled:opacity-40"
           :disabled="!queue.canUndo || submitting"
           title="Undo last review (Cmd/Ctrl+Z)"
+          aria-keyshortcuts="Control+Z Meta+Z"
           @click="handleUndo"
         >
           Undo
@@ -353,7 +354,8 @@ defineExpose({
 
     <div
       v-if="errorMessage"
-      class="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+      role="alert"
+      class="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger"
     >
       {{ errorMessage }}
     </div>
@@ -361,6 +363,8 @@ defineExpose({
     <!-- Loading state -->
     <div
       v-if="loading && !currentCard"
+      role="status"
+      aria-live="polite"
       class="flex flex-1 items-center justify-center rounded-2xl border border-interface/15 bg-ink-soft p-10 text-sm text-muted"
     >
       Loading review queue…
@@ -433,7 +437,7 @@ defineExpose({
       <!-- Card Front -->
       <div class="flex flex-col items-center gap-4 text-center">
         <!-- Focus word heading -->
-        <div class="text-base font-semibold tracking-wide text-accent">
+        <div lang="ko" class="text-base font-semibold tracking-wide text-accent">
           {{ currentCard.headword }}
         </div>
 
@@ -451,6 +455,7 @@ defineExpose({
             type="button"
             class="inline-flex items-center gap-2 rounded-full border border-interface/15 px-4 py-1.5 text-xs font-medium text-paper transition hover:border-accent hover:text-accent"
             title="Replay audio (R)"
+            aria-keyshortcuts="R"
             @click="replayAudio"
           >
             <span>{{ isPlayingAudio ? '🔊 Playing…' : '▶ Replay Audio (R)' }}</span>
@@ -468,6 +473,7 @@ defineExpose({
         <!-- Sentence with orange focus-word highlight -->
         <div
           v-if="primaryContext"
+          lang="ko"
           class="max-w-2xl whitespace-pre-line text-2xl leading-relaxed font-medium text-paper"
         >
           <template
@@ -475,7 +481,7 @@ defineExpose({
             :key="primaryContext.id"
           >
             <span>{{ parts.before }}</span>
-            <span v-if="parts.match" class="font-bold text-[#f59e0b]">{{ parts.match }}</span>
+            <mark v-if="parts.match" class="bg-transparent font-bold text-[#f59e0b]">{{ parts.match }}</mark>
             <span>{{ parts.after }}</span>
           </template>
         </div>
@@ -484,12 +490,13 @@ defineExpose({
       <!-- Card Back (Revealed) -->
       <div
         v-if="revealed"
+        aria-live="polite"
         class="flex flex-col gap-4 border-t border-interface/15 pt-5"
       >
         <div class="flex flex-wrap items-baseline justify-between gap-2">
           <div class="flex flex-wrap items-baseline gap-2.5">
-            <h2 class="text-2xl font-bold text-paper">{{ currentCard.headword }}</h2>
-            <span v-if="currentCard.pronunciation" class="text-sm text-muted">
+            <h2 lang="ko" class="text-2xl font-bold text-paper">{{ currentCard.headword }}</h2>
+            <span v-if="currentCard.pronunciation" lang="ko" class="text-sm text-muted">
               [{{ currentCard.pronunciation }}]
             </span>
             <span
@@ -564,6 +571,7 @@ defineExpose({
         <div v-if="!revealed" class="flex justify-center">
           <button
             type="button"
+            aria-keyshortcuts="Space Enter"
             class="w-full max-w-xs rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
             @click="revealAnswer"
           >
@@ -571,11 +579,13 @@ defineExpose({
           </button>
         </div>
 
-        <div v-else class="grid grid-cols-4 gap-2.5">
+        <div v-else class="grid grid-cols-4 gap-2.5" role="group" aria-label="Rate recall">
           <button
             v-for="preview in ratingPreviews"
             :key="preview.rating"
             type="button"
+            :aria-keyshortcuts="String(preview.rating)"
+            :aria-label="`Rate ${preview.label} (${preview.intervalText}, shortcut ${preview.rating})`"
             class="flex flex-col items-center gap-0.5 rounded-xl border px-3 py-2.5 transition disabled:opacity-50"
             :class="ratingButtonStyle(preview.rating)"
             :disabled="submitting"
