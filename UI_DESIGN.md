@@ -18,7 +18,7 @@ The mascot hops once on entry and waddles on hover. Settings and Statistics shar
 
 | Page | Main actions |
 | --- | --- |
-| Toolbar | Choose a reading language, connect and sync Anki, see known and pending counts, open the transcript, parse the page, visit Statistics and Settings. |
+| Toolbar | Show the language selector and side-by-side transcript and page actions in Reading tools. Put Anki connection, known words, pending sync and explicit sync in a separate section below. Keep the penguin and star backdrop in the header with the Statistics and Settings shortcuts. |
 | Settings | Set theme, subtitle appearance and dictionary options. Configure Anki and import from decks. Transfer known words and manage vocabulary. |
 | Statistics | Show the total known words, a history chart and a table of recorded totals. Lead with reviews left today, lifetime reviews and review time for the chosen Anki deck. Keep available metrics visible when another metric fails, and provide a refresh button for the Anki panel. |
 

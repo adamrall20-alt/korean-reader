@@ -34,9 +34,20 @@ describe('MiningPanel', () => {
   it('shows counters and keeps management and configuration out of the popup', () => {
     const wrapper = mount(MiningPanel);
     expect(wrapper.text()).toContain('Known words');
-    expect(wrapper.text()).toContain('New words');
+    expect(wrapper.text()).toContain('Pending sync');
     expect(wrapper.text()).not.toContain('Manage vocabulary');
     expect(wrapper.text()).not.toContain('Connection settings');
+  });
+
+  it('puts language and page actions before the separate Anki controls in keyboard order', () => {
+    const wrapper = mount(MiningPanel);
+    const reading = wrapper.get('[role="region"][aria-labelledby="toolbar-reading-title"]');
+    expect(reading.get('label').text()).toContain('Reading language');
+    expect(reading.findAll('button').map((button) => button.text())).toEqual(['Open Sidebar', 'Parse Page']);
+    const anki = wrapper.get('[role="region"][aria-labelledby="toolbar-anki-title"]');
+    expect(anki.findAll('button').map((button) => button.text())).toEqual(['Connect Anki', 'Sync to Anki']);
+    expect(reading.element.compareDocumentPosition(anki.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    wrapper.unmount();
   });
 
   it('opens the transcript in the active tab and reports an unsupported page', async () => {

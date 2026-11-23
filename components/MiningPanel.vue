@@ -112,39 +112,51 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
 
 <template>
   <main class="flex min-h-[280px] flex-col bg-ink text-paper">
-    <header class="border-b border-interface/10 px-5 py-4">
-      <div class="flex items-center gap-3">
-        <PenguinMark />
-        <h1 class="min-w-0 truncate text-base font-semibold tracking-tight">Korean Reader</h1>
-        <div class="ml-auto flex shrink-0 items-center gap-1.5">
-          <button type="button" class="reader-icon-link grid size-8 place-items-center rounded-lg border border-interface/10 text-accent hover:bg-accent/10" aria-label="Open Statistics" title="Open Statistics" @click="browser.tabs.create({ url: browser.runtime.getURL(language === 'ja' ? '/statistics.html?language=ja' : '/statistics.html') })">
-            <ReaderIcon name="statistics" class="size-4" />
+    <header class="flex items-center gap-3 border-b border-line bg-cover bg-center px-4 py-3" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
+      <PenguinMark />
+      <h1 class="min-w-0 text-base font-semibold tracking-tight">Korean Reader</h1>
+      <nav aria-label="Extension pages" class="ml-auto flex shrink-0 items-center gap-1">
+        <button type="button" class="reader-icon-link grid size-9 place-items-center rounded-lg text-muted hover:bg-interface/10 hover:text-paper" aria-label="Open Statistics" title="Open Statistics" @click="browser.tabs.create({ url: browser.runtime.getURL(language === 'ja' ? '/statistics.html?language=ja' : '/statistics.html') })">
+          <ReaderIcon name="statistics" class="size-4" />
+        </button>
+        <button type="button" class="reader-icon-link grid size-9 place-items-center rounded-lg text-muted hover:bg-interface/10 hover:text-paper" aria-label="Open settings" title="Open settings" @click="browser.runtime.openOptionsPage()">
+          <ReaderIcon name="settings" class="size-4" />
+        </button>
+      </nav>
+    </header>
+
+    <div class="flex-1 space-y-4 px-4 pt-4">
+      <section role="region" aria-labelledby="toolbar-reading-title" class="space-y-2">
+        <h2 id="toolbar-reading-title" class="text-sm font-semibold">Reading tools</h2>
+        <label class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-soft px-3 py-1.5 text-sm">
+          Reading language
+          <select :value="language" :disabled="!languageReady || changingLanguage || parsing" class="min-h-8 max-w-full rounded-md border border-line bg-ink px-2 text-xs text-paper" @change="chooseLanguage">
+            <option value="ko">Korean</option>
+            <option value="ja" :disabled="!dictionaryReady">Japanese{{ dictionaryReady ? '' : ' (import JMdict)' }}</option>
+          </select>
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" class="reader-icon-link flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line px-2 py-2 text-sm font-medium hover:bg-interface/10" aria-describedby="toolbar-sidebar-hint" @click="openSidebar">
+            <ReaderIcon name="transcript" class="size-4 shrink-0 text-accent" /> Open Sidebar
           </button>
-          <button type="button" class="reader-icon-link grid size-8 shrink-0 place-items-center rounded-lg border border-interface/10 text-muted transition-colors hover:bg-interface/10 hover:text-paper" aria-label="Open settings" title="Open settings" @click="browser.runtime.openOptionsPage()">
-            <ReaderIcon name="settings" class="size-4" />
+          <button type="button" :disabled="parsing" class="reader-icon-link flex min-h-10 items-center justify-center gap-2 rounded-lg border border-line px-2 py-2 text-sm font-medium hover:bg-interface/10 disabled:opacity-50" aria-describedby="toolbar-parse-hint" @click="parsePage">
+            <ReaderIcon name="page" class="size-4 shrink-0 text-accent" /> {{ parsing ? 'Parsing…' : 'Parse Page' }}
           </button>
         </div>
-      </div>
-    </header>
-    <section class="flex-1 space-y-3 bg-cover bg-center px-5 py-5" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
-      <label class="flex items-center justify-between gap-2 text-xs text-muted">
-        Reading language
-        <select :value="language" :disabled="!languageReady || changingLanguage || parsing" class="rounded-lg border border-interface/15 bg-ink px-2 py-1 text-paper" @change="chooseLanguage">
-          <option value="ko">Korean</option>
-          <option value="ja" :disabled="!dictionaryReady">Japanese{{ dictionaryReady ? '' : ' (import JMdict)' }}</option>
-        </select>
-      </label>
-      <AnkiPanel :key="language" :language="language" :vocabulary="minedEntries" :known-count="knownCount" @synced="loadVocabulary" />
-      <button type="button" class="reader-icon-link flex w-full items-center justify-center gap-2 rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10" @click="openSidebar">
-        <ReaderIcon name="transcript" class="size-4 text-accent" /> Open Sidebar
-      </button>
-      <p v-if="sidebarError" class="text-xs text-danger" role="alert">{{ sidebarError }}</p>
-      <button type="button" :disabled="parsing" class="reader-icon-link flex w-full items-center justify-center gap-2 rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10 disabled:opacity-50" @click="parsePage">
-        <ReaderIcon name="page" class="size-4 text-accent" /> {{ parsing ? 'Parsing…' : 'Parse Page' }}
-      </button>
-      <p v-if="parseError" class="text-xs text-danger" role="alert">{{ parseError }}</p>
-      <div v-if="error" class="text-xs text-danger" role="alert">{{ error }} <button class="underline" @click="loadVocabulary">Reload</button></div>
-      <p class="text-xs text-muted">Version {{ version }}</p>
-    </section>
+        <div class="grid grid-cols-2 gap-2 text-center text-xs text-muted">
+          <p id="toolbar-sidebar-hint">YouTube transcript</p>
+          <p id="toolbar-parse-hint">Read or restore a webpage</p>
+        </div>
+        <p v-if="sidebarError" class="text-xs text-danger" role="alert">{{ sidebarError }}</p>
+        <p v-if="parseError" class="text-xs text-danger" role="alert">{{ parseError }}</p>
+      </section>
+
+      <section role="region" aria-labelledby="toolbar-anki-title" class="space-y-2 border-t border-line pt-3">
+        <h2 id="toolbar-anki-title" class="text-sm font-semibold">Anki &amp; vocabulary</h2>
+        <AnkiPanel :key="language" :language="language" :vocabulary="minedEntries" :known-count="knownCount" @synced="loadVocabulary" />
+        <div v-if="error" class="text-xs text-danger" role="alert">{{ error }} <button type="button" class="underline" @click="loadVocabulary">Reload</button></div>
+      </section>
+    </div>
+    <footer class="px-4 py-3 text-right text-xs text-muted">Version {{ version }}</footer>
   </main>
 </template>

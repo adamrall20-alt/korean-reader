@@ -325,18 +325,24 @@ onMounted(() => {
       </template>
     </section>
 
-    <div v-if="vocabulary" class="rounded-xl bg-ink-soft p-3">
-      <div class="grid grid-cols-2 gap-3" aria-live="polite">
-        <div><p class="text-xs text-muted">Known words</p><p class="text-2xl font-semibold tabular-nums">{{ knownCount?.toLocaleString() ?? '—' }}</p></div>
-        <div><p class="text-xs text-muted">New words</p><p class="text-2xl font-semibold tabular-nums">{{ unsynced ?? '—' }}</p></div>
-      </div>
-      <p v-if="!configured" class="mt-1 text-xs text-muted">Connect Anki and configure a deck in Settings to check.</p>
-      <p v-else-if="countError" class="mt-1 text-xs text-danger">Could not check Anki. Refresh the connection to retry.</p>
-      <p v-if="settings.deckName" class="mt-1 break-words text-xs text-muted">{{ LANGUAGE_NAMES[language ?? 'ko'] }} deck · {{ settings.deckName }}</p>
+    <div v-if="vocabulary" class="space-y-2">
+      <dl class="grid grid-cols-2 divide-x divide-line rounded-lg bg-ink-soft py-2" aria-live="polite">
+        <div class="px-3">
+          <dt class="text-xs text-muted">Known words</dt>
+          <dd class="text-lg font-semibold tabular-nums">{{ knownCount?.toLocaleString() ?? '—' }}</dd>
+        </div>
+        <div class="px-3">
+          <dt class="text-xs text-muted">Pending sync</dt>
+          <dd class="text-lg font-semibold tabular-nums">{{ unsynced ?? '—' }}</dd>
+        </div>
+      </dl>
+      <p v-if="!configured" class="text-xs text-muted">{{ connected ? 'Choose a deck and save defaults in Settings.' : 'Open Anki Desktop, then select Connect Anki.' }}</p>
+      <p v-else-if="countError" class="text-xs text-danger">Could not check Anki. Refresh the connection to retry.</p>
+      <p v-if="settings.deckName" class="break-words text-xs text-muted">{{ LANGUAGE_NAMES[language ?? 'ko'] }} deck · {{ settings.deckName }}</p>
       <button
         type="button"
         :disabled="busy || !configured || !vocabulary.length"
-        class="mt-2 w-full rounded-lg bg-accent px-3 py-2 font-medium text-white disabled:opacity-50"
+        class="min-h-10 w-full rounded-lg bg-green-700 px-3 py-2 font-medium text-white enabled:hover:bg-green-800 disabled:bg-ink-lift disabled:text-muted"
         @click="syncAll"
       >{{ translating ? 'Translating definitions…' : busy && connected ? 'Syncing…' : 'Sync to Anki' }}</button>
     </div>
