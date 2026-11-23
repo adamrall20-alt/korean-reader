@@ -1,4 +1,5 @@
-import { isKnownHeadwordList } from '@/services/storage/known-words';
+import { isJapaneseKnownWordList, isKnownHeadwordList } from '@/services/storage/known-words';
+import { previewJapaneseTerms, type JapaneseImportTerm } from '@/services/anki/import';
 import { handleAnkiMessage, isAnkiMessage } from '@/services/anki/messages';
 import type { HistoryResponse } from '@/types/statistics';
 import {
@@ -12,11 +13,12 @@ import { clearDictionaryCache } from '@/services/dictionary/cache';
 import {
   vocabularyRevisionKey, type KnownHeadwordsResponse, type VocabularyMessage, type VocabularyRevision,
 } from '@/types/vocabulary';
-import { isOptionalReaderLanguage, type ReaderLanguage } from '@/types/language';
+import { GET_READING_LANGUAGE, READING_LANGUAGE_KEY, SET_READING_LANGUAGE, readingLanguage, isOptionalReaderLanguage, type ReaderLanguage } from '@/types/language';
 import { readKnownWordHistory } from '@/services/storage/statistics';
-import { getVocabulary, listKnownHeadwords, markHeadwordsKnown, normalizeHeadword } from '@/services/storage/vocabulary';
+import { getVocabulary, listJapaneseKnownWords, listKnownHeadwords, markHeadwordsKnown, markJapaneseWordsKnown, normalizeHeadword } from '@/services/storage/vocabulary';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
+import { enrichJapaneseEntries } from '@/services/japanese/dictionary-store';
 import { lookupJapaneseWord, tokenizeJapaneseLines } from '@/services/japanese/analysis';
 import { headwordAliases, nominalCopulaHeadwords } from '@/services/korean/dictionary-forms';
 import type {
@@ -118,6 +120,10 @@ export default defineBackground(() => {
     console.info(`[Korean Reader] Extension ${details.reason}.`);
   });
 
+  browser.tabs?.onRemoved?.addListener((tabId) => {
+    void browser.storage.session.remove([`readingLanguage:${tabId}`, `initialReadingLanguage:${tabId}`]).catch(() => {});
+  });
+
   browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
     if (isPingMessage(message)) {
       const response: PingResponse = {
@@ -146,11 +152,12 @@ export default defineBackground(() => {
       if (message.language === 'ja') {
         void lookupJapaneseWord(message.word).then(async (entries) => {
           if (!entries.length) throw new Error('No Japanese dictionary match found.');
-          const japaneseMatches = await Promise.all(entries.map(async (entry) => {
+          const enriched = await enrichJapaneseEntries(entries).catch(() => entries);
+          const japaneseMatches = await Promise.all(enriched.map(async (entry) => {
             const saved = await getVocabulary(entry.japanese!.id, 'ja').catch(() => undefined);
             return { entry, savedContexts: saved?.contexts, isKnown: saved?.status === 'known' };
           }));
-          sendResponse({ ok: true, entry: entries[0], savedContexts: japaneseMatches[0]?.savedContexts, japaneseMatches } satisfies LookupResponse);
+          sendResponse({ ok: true, entry: japaneseMatches[0]?.entry, savedContexts: japaneseMatches[0]?.savedContexts, japaneseMatches } satisfies LookupResponse);
         }).catch((error: unknown) => sendResponse({
           ok: false, error: error instanceof Error ? error.message : 'Japanese dictionary lookup failed.',
         } satisfies LookupResponse));
@@ -193,6 +200,34 @@ export default defineBackground(() => {
 
     const fromExtensionPage = sender.url?.startsWith(browser.runtime.getURL('/'));
     const fromWebPage = /^https?:\/\//.test(sender.url ?? '');
+
+    if (message && typeof message === 'object' && 'type' in message) {
+      if (message.type === GET_READING_LANGUAGE && (fromWebPage || fromExtensionPage)) {
+        const tabId = fromExtensionPage && 'tabId' in message && Number.isInteger(message.tabId)
+          ? message.tabId : sender.tab?.id;
+        const key = typeof tabId === 'number' ? `readingLanguage:${tabId}` : undefined;
+        const initial = typeof tabId === 'number' ? `initialReadingLanguage:${tabId}` : undefined;
+        void (async () => {
+          const tab = key && initial ? await browser.storage.session.get([key, initial]) : {};
+          const value = key && initial ? tab[key] ?? tab[initial] : undefined;
+          const language = readingLanguage(value ?? (await browser.storage.local.get(READING_LANGUAGE_KEY))[READING_LANGUAGE_KEY]);
+          if (initial && value === undefined) await browser.storage.session.set({ [initial]: language });
+          sendResponse({ ok: true, language });
+        })().catch(() => sendResponse({ ok: false }));
+        return true;
+      }
+      if (message.type === SET_READING_LANGUAGE && fromExtensionPage && 'language' in message &&
+          (message.language === 'ja' || message.language === 'ko')) {
+        const language = message.language;
+        const tabId = 'tabId' in message && typeof message.tabId === 'number' && Number.isInteger(message.tabId) ? message.tabId : undefined;
+        void (async () => {
+          if (tabId !== undefined) await browser.storage.session.set({ [`readingLanguage:${tabId}`]: language });
+          await browser.storage.local.set({ [READING_LANGUAGE_KEY]: language });
+          sendResponse({ ok: true });
+        })().catch(() => sendResponse({ ok: false }));
+        return true;
+      }
+    }
 
     if ((fromWebPage || fromExtensionPage) && typeof message === 'object' && message !== null &&
       'type' in message && message.type === 'get-known-headwords') {
@@ -273,11 +308,38 @@ export default defineBackground(() => {
         );
         return true;
       }
+      if (message.type === 'export-japanese-known-words') {
+        void listJapaneseKnownWords().then(
+          (words) => sendResponse({ ok: true, words }),
+          () => sendResponse({ ok: false, error: 'Could not read Japanese known words.' }),
+        );
+        return true;
+      }
+      if (message.type === 'preview-japanese-known-words') {
+        const terms = 'terms' in message ? message.terms : undefined;
+        if (!Array.isArray(terms) || terms.length > 200_000 || !terms.every((term: JapaneseImportTerm | null) =>
+          term && typeof term.word === 'string' && term.word.length <= 100 &&
+          (term.reading === undefined || (typeof term.reading === 'string' && term.reading.length <= 100)))) return false;
+        void previewJapaneseTerms(terms).then(
+          (preview) => sendResponse({ ok: true, preview }),
+          (error: unknown) => sendResponse({ ok: false, error: error instanceof Error ? error.message : 'Could not preview this file.' }),
+        );
+        return true;
+      }
       if (message.type === 'import-known-headwords') {
-        if ('language' in message && message.language !== undefined && message.language !== 'ko') {
-          sendResponse({ ok: false, error: 'Japanese known-word imports are still in development.' });
-          return false;
+        if ('language' in message && message.language === 'ja') {
+          const words = 'words' in message ? message.words : undefined;
+          if (!isJapaneseKnownWordList(words)) {
+            sendResponse({ ok: false, error: 'Invalid Japanese word list.' });
+            return false;
+          }
+          void markJapaneseWordsKnown(words).then(async (marked) => {
+            if (marked) await notifyVocabularyChanged(undefined, 'ja');
+            sendResponse({ ok: true, marked });
+          }).catch(() => sendResponse({ ok: false, error: 'Could not save known words.' }));
+          return true;
         }
+        if ('language' in message && !isOptionalReaderLanguage(message.language)) return false;
         const words = 'headwords' in message ? message.headwords : null;
         if (!isKnownHeadwordList(words)) {
           sendResponse({ ok: false, error: 'Invalid Korean word list.' });
@@ -293,7 +355,7 @@ export default defineBackground(() => {
 
     if (isAnkiMessage(message)) {
       void handleAnkiMessage(message).then(async (response) => {
-        if (response.ok && response.markedKnown) await notifyVocabularyChanged();
+        if (response.ok && response.markedKnown) await notifyVocabularyChanged(undefined, message.language);
         sendResponse(response);
       }).catch((error: unknown) => {
         sendResponse({ ok: false, error: error instanceof Error ? error.message : 'AnkiConnect request failed.' });

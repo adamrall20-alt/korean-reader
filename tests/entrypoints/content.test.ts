@@ -7,11 +7,13 @@ const fake = vi.hoisted(() => ({
   storageListeners: [] as Array<(changes: Record<string, { newValue?: unknown }>, area: string) => void>,
   overlayKnown: vi.fn(),
   sidebarKnown: vi.fn(),
+  sidebarLanguage: vi.fn(),
+  messageListeners: [] as Array<(message: unknown, sender: unknown, respond: (value: unknown) => void) => void>,
 }));
 
 vi.mock('wxt/browser', () => ({
   browser: {
-    runtime: { sendMessage: fake.sendMessage, onMessage: { addListener: vi.fn(), removeListener: vi.fn() } },
+    runtime: { sendMessage: fake.sendMessage, onMessage: { addListener: (listener: (typeof fake.messageListeners)[number]) => fake.messageListeners.push(listener), removeListener: vi.fn() } },
     storage: {
       onChanged: {
         addListener: (listener: (typeof fake.storageListeners)[number]) => fake.storageListeners.push(listener),
@@ -23,10 +25,10 @@ vi.mock('wxt/browser', () => ({
 vi.mock('@/services/storage/preferences', () => ({ observePreferences: () => () => {} }));
 vi.mock('@/services/youtube/transcript', () => ({ OPEN_TRANSCRIPT: 'open-transcript' }));
 vi.mock('@/services/youtube/overlay', () => ({
-  createSubtitleOverlay: () => ({ setKnownHeadwords: fake.overlayKnown, prepareCueAudio: vi.fn() }),
+  createSubtitleOverlay: () => ({ setKnownHeadwords: fake.overlayKnown, prepareCueAudio: vi.fn(), resetLanguage: vi.fn() }),
 }));
 vi.mock('@/services/youtube/sidebar', () => ({
-  createTranscriptSidebar: () => ({ setKnownHeadwords: fake.sidebarKnown, open: vi.fn(), update: vi.fn() }),
+  createTranscriptSidebar: () => ({ setKnownHeadwords: fake.sidebarKnown, open: vi.fn(), update: vi.fn(), setLanguage: fake.sidebarLanguage }),
 }));
 vi.mock('@/services/youtube/presenter', () => ({ createSubtitlePresenter: () => ({ update: vi.fn() }) }));
 vi.mock('@/services/youtube/captions', () => ({
@@ -120,5 +122,19 @@ describe('YouTube content script known words', () => {
     fake.storageListeners[0]!({ other: { newValue: 1 } }, 'local');
     fake.storageListeners[0]!({ [VOCABULARY_REVISION_KEY]: { newValue: 'x' } }, 'sync');
     expect(fake.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('switches known-word caches and ignores Korean revisions in a Japanese tab', async () => {
+    fake.sendMessage.mockResolvedValueOnce({ ok: true, headwords: ['1:たべる'] });
+    const response = vi.fn();
+    fake.messageListeners[0]!({ type: 'reading-language-changed', language: 'ja' }, {}, response);
+    await flushPromises();
+    expect(response).toHaveBeenCalledWith({ ok: true });
+    expect(fake.sidebarLanguage).toHaveBeenCalledWith('ja');
+    expect(fake.sendMessage).toHaveBeenCalledWith({ type: 'get-known-headwords', language: 'ja' });
+    change({ id: 'ko', known: ['먹다'], unknown: [] });
+    expect(lastKnown(fake.overlayKnown)).toEqual(['1:たべる']);
+    fake.storageListeners[0]!({ japaneseVocabularyRevision: { newValue: { id: 'ja', known: ['2:ほん'], unknown: [] } } }, 'local');
+    expect(lastKnown(fake.overlayKnown)).toEqual(['1:たべる', '2:ほん']);
   });
 });

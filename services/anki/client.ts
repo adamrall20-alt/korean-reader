@@ -6,7 +6,7 @@ export interface AnkiNote {
   deckName: string;
   modelName: string;
   fields: Record<string, string>;
-  options: { allowDuplicate: false };
+  options: { allowDuplicate: boolean; duplicateScope?: 'deck'; duplicateScopeOptions?: { deckName: string; checkChildren: boolean } };
   tags: string[];
 }
 
@@ -14,6 +14,7 @@ export interface AnkiNoteInfo {
   noteId: number;
   modelName: string;
   tags?: string[];
+  cards?: number[];
   fields: Record<string, { value: string }>;
 }
 
@@ -34,6 +35,9 @@ export interface AnkiCreateModelParams {
 interface Actions {
   requestPermission: [undefined, { permission: string; requireApiKey?: boolean }];
   version: [undefined, number];
+  createDeck: [{ deck: string }, number];
+  addTags: [{ notes: number[]; tags: string }, null];
+  cardsInfo: [{ cards: number[] }, { cardId: number; deckName: string }[]];
   deckNames: [undefined, string[]];
   modelNames: [undefined, string[]];
   modelFieldNames: [{ modelName: string }, string[]];

@@ -1,15 +1,22 @@
 import { buildJapaneseIndex, formBucket, PINNED_JMDICT_ARCHIVE, wordBucket, type JapaneseDictionaryInfo, type JapaneseWord } from './jmdict';
 
+import { japaneseRankKey, parseJitenRanks, parseKanjidic, type KanjiDetail } from './extras';
+import type { DictionaryEntry } from '@/types/messages';
+
 const DB_NAME = 'korean-reader-japanese-dictionary';
 const STORE = 'index';
+const EXTRAS = 'extras';
 const MAX_BYTES = 170 * 1024 * 1024;
 const PINNED_SHA = '956a1cbd6478b86bc351d26bb33c74deedc8737ebfccc396a95e313199ccbfce';
 const decoder = new TextDecoder('utf-8', { fatal: true });
 
 function openDictionary(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE);
+    const request = indexedDB.open(DB_NAME, 2);
+    request.onupgradeneeded = ({ oldVersion }) => {
+      if (oldVersion < 1) request.result.createObjectStore(STORE);
+      if (oldVersion < 2) request.result.createObjectStore(EXTRAS);
+    };
     request.onsuccess = () => {
       const db = request.result;
       db.onversionchange = () => db.close();
@@ -19,16 +26,16 @@ function openDictionary(): Promise<IDBDatabase> {
   });
 }
 
-async function withDictionary<T>(mode: IDBTransactionMode, operation: (store: IDBObjectStore) => Promise<T>): Promise<T> {
+async function withDictionary<T>(mode: IDBTransactionMode, operation: (store: IDBObjectStore) => Promise<T>, storeName = STORE): Promise<T> {
   const db = await openDictionary();
   try {
-    const tx = db.transaction(STORE, mode);
+    const tx = db.transaction(storeName, mode);
     const finished = new Promise<void>((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onabort = () => reject(tx.error ?? new Error('Could not access the Japanese dictionary.'));
     });
     try {
-      const [result] = await Promise.all([operation(tx.objectStore(STORE)), finished]);
+      const [result] = await Promise.all([operation(tx.objectStore(storeName)), finished]);
       return result;
     } catch (error) {
       try { tx.abort(); } catch { /* The transaction may already have ended. */ }
@@ -144,4 +151,59 @@ export function readJapaneseDictionary(forms: readonly string[]) {
       }),
     };
   });
+}
+
+async function saveSupplement(prefix: string, values: Map<string, unknown>, name: string) {
+  return withDictionary('readwrite', async (store) => {
+    await new Promise<void>((resolve, reject) => {
+      const request = store.delete(IDBKeyRange.bound(prefix, prefix + '\uffff'));
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+    for (const [key, value] of values) store.put(value, prefix + key);
+    store.put(name, prefix);
+    return values.size;
+  }, EXTRAS);
+}
+
+export async function importJapaneseSupplement(file: File, kind: 'kanji' | 'ranks'): Promise<number> {
+  if (file.size > MAX_BYTES) throw new Error('The file is too large.');
+  if (kind === 'ranks') {
+    const buckets = new Map<string, Map<string, number>>();
+    const ranks = parseJitenRanks(await file.text());
+    for (const [key, rank] of ranks) {
+      const prefix = formBucket(key);
+      const bucket = buckets.get(prefix) ?? new Map<string, number>();
+      bucket.set(key, rank);
+      buckets.set(prefix, bucket);
+    }
+    await saveSupplement('r:', buckets, file.name);
+    return ranks.size;
+  }
+  const signature = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+  const raw = signature[0] === 31 && signature[1] === 139 ? await unpack(file) : await file.arrayBuffer();
+  return saveSupplement('k:', parseKanjidic(JSON.parse(decoder.decode(raw))), file.name);
+}
+
+export async function enrichJapaneseEntries(entries: DictionaryEntry[]) {
+  return withDictionary('readonly', async (store) => {
+    const characters = new Set(entries.flatMap(({ headword }) => headword.match(/\p{Script=Han}/gu) ?? []));
+    const formKeys = entries.map(({ headword, japanese }) => [...new Set([headword, ...(japanese?.aliases ?? [])])]
+      .map((word) => [japaneseRankKey(word, japanese?.reading), japaneseRankKey(word)] as const));
+    const prefixes = new Set(formKeys.flatMap((keys) => keys.map(([key]) => formBucket(key))));
+    const [kanji, ranks] = await Promise.all([
+      Promise.all([...characters].map(async (character) => [character, await read<KanjiDetail>(store, 'k:' + character)] as const)),
+      Promise.all([...prefixes].map(async (prefix) => [prefix, await read<Map<string, number>>(store, 'r:' + prefix)] as const)),
+    ]);
+    const details = new Map(kanji);
+    const frequencies = new Map(ranks);
+    return entries.map((entry, index) => {
+      const kanjiDetails = [...new Set(entry.headword)].flatMap((character) => details.get(character) ?? []);
+      const frequencyRank = formKeys[index]!.map(([exact, plain]) => {
+        const bucket = frequencies.get(formBucket(exact));
+        return bucket?.get(exact) ?? bucket?.get(plain);
+      }).find((rank) => rank !== undefined);
+      return { ...entry, ...(kanjiDetails.length ? { kanjiDetails } : {}), ...(frequencyRank ? { frequencyRank } : {}) };
+    });
+  }, EXTRAS);
 }

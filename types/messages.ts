@@ -55,6 +55,7 @@ export interface DictionaryEntry {
   partOfSpeech?: string;
   pronunciation?: string;
   hanja?: string[];
+  kanjiDetails?: { character: string; meanings: string[]; readings: string[] }[];
   conjugations?: string[];
   examples: string[];
   japanese?: JapaneseLexeme;

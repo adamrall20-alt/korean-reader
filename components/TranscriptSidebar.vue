@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { normalizeJapanese } from '@/services/japanese/jmdict';
+import { hasJapaneseText, LANGUAGE_NAMES, type ReaderLanguage } from '@/types/language';
 import ReaderIcon from './ReaderIcon.vue';
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import SubtitleReader from '@/components/SubtitleReader.vue';
@@ -14,6 +16,7 @@ import { findPlayer, findVideo, getYouTubeVideoId, hasKorean } from '@/services/
 import { seekTranscriptVideo } from '@/services/youtube/transcript';
 
 const props = defineProps<{
+  language?: ReaderLanguage;
   cues: readonly TranscriptCue[];
   active?: TranscriptCue;
   status: 'loading' | 'full' | 'collecting';
@@ -37,12 +40,12 @@ watch([() => props.cues, () => props.status, () => props.videoId], async (_, __,
   onCleanup(() => { cancelled = true; });
   coverageState.value = 'loading';
   if (props.status === 'loading') return;
-  const texts = [...new Set(props.cues.map((cue) => cue.text).filter(hasKorean))];
+  const texts = [...new Set(props.cues.map((cue) => cue.text).filter(props.language === 'ja' ? hasJapaneseText : hasKorean))];
   const pending = texts.filter((text) => !analysedLines.has(text));
   try {
     for (let start = 0; start < pending.length; start += TOKENIZE_BATCH_LIMIT) {
       const batch = pending.slice(start, start + TOKENIZE_BATCH_LIMIT);
-      const lines = await tokenizeLines(batch);
+      const lines = await tokenizeLines(batch, props.language);
       if (cancelled) return;
       lines.forEach((line, index) => analysedLines.set(batch[index]!, line));
     }
@@ -55,9 +58,11 @@ watch([() => props.cues, () => props.status, () => props.videoId], async (_, __,
 }, { immediate: true });
 
 const query = ref('');
-const search = computed(() => query.value.trim().replace(/\s+/gu, ' ').normalize('NFC').toLocaleLowerCase());
+const normalizeSearch = (text: string) => (props.language === 'ja' ? normalizeJapanese(text) : text.normalize('NFC'))
+  .replace(/\s+/gu, ' ').toLocaleLowerCase();
+const search = computed(() => normalizeSearch(query.value.trim()));
 const visibleCues = computed(() => search.value ? props.cues.filter(({ text }) =>
-  text.replace(/\s+/gu, ' ').normalize('NFC').toLocaleLowerCase().includes(search.value),
+  normalizeSearch(text).includes(search.value),
 ) : props.cues);
 const list = ref<HTMLOListElement>();
 const error = ref('');
@@ -143,8 +148,9 @@ function startResize(event: PointerEvent) {
     v-slot="{ selectToken, closePopup }"
     class="kr-transcript"
     :data-theme="theme"
-    :style="subtitleStyle(appearance)"
+    :style="subtitleStyle(appearance, language)"
     :lines="emptyLines"
+    :language="language"
     :visible="true"
     :known-headwords="knownHeadwords"
     @popup-change="popupOpen = $event"
@@ -164,7 +170,7 @@ function startResize(event: PointerEvent) {
     ></div>
     <header>
       <div class="kr-transcript-heading">
-        <h2><ReaderIcon name="transcript" class="kr-transcript-icon" /> Korean transcript</h2>
+        <h2><ReaderIcon name="transcript" class="kr-transcript-icon" /> {{ LANGUAGE_NAMES[language ?? 'ko'] }} transcript</h2>
         <span v-if="coverageState === 'ready' && coverage.percentage !== null" class="kr-transcript-coverage" :title="coverageTitle" :aria-label="coverageTitle">
           {{ coverage.percentage }}% known<span v-if="status === 'collecting'"> (partial)</span>
         </span>
@@ -176,9 +182,9 @@ function startResize(event: PointerEvent) {
       <input v-model="query" type="search" aria-label="Search transcript" placeholder="Search transcript" @input="closePopup" />
       <label><input type="checkbox" :checked="follow" @change="emit('follow', ($event.target as HTMLInputElement).checked)" /> Auto-scroll</label>
     </div>
-    <p v-if="status === 'loading'" class="kr-transcript-status" role="status">Loading Korean transcript…</p>
+    <p v-if="status === 'loading'" class="kr-transcript-status" role="status">Loading {{ LANGUAGE_NAMES[language ?? 'ko'] }} transcript…</p>
     <p v-else-if="status === 'collecting'" class="kr-transcript-status" role="status">
-      Full Korean transcript unavailable. Turn on Korean captions to collect lines as the video plays.
+      Full {{ LANGUAGE_NAMES[language ?? 'ko'] }} transcript unavailable. Turn on {{ LANGUAGE_NAMES[language ?? 'ko'] }} captions to collect lines as the video plays.
     </p>
     <p v-if="error" class="kr-transcript-status" role="alert">{{ error }}</p>
     <p v-if="search && !visibleCues.length" class="kr-transcript-status" role="status">No matching subtitles.</p>
@@ -187,6 +193,7 @@ function startResize(event: PointerEvent) {
         v-for="cue in visibleCues"
         :key="cue.start + ':' + cue.text"
         :cue="cue"
+        :language="language"
         :active="cue === active"
         :known-headwords="knownHeadwords"
         :observer="observer"

@@ -66,6 +66,7 @@ const savingSettings = ref(false);
 const clearingCache = ref(false);
 const vocabularyRevision = ref(0);
 const ankiLanguage = ref<ReaderLanguage>('ko');
+const vocabularyLanguage = ref<ReaderLanguage>('ko');
 
 onMounted(async () => {
   try {
@@ -314,13 +315,21 @@ const sections = [
                   <option value="ja">Japanese</option>
                 </select>
               </label>
-              <p v-if="ankiLanguage === 'ja'" class="text-xs text-muted">Choose an existing deck and note type. Japanese mining and sync are coming in later phases.</p>
+              <p v-if="ankiLanguage === 'ja'" class="text-xs text-muted">Choose a separate deck and use Japanese Reader or map fields from your own note type.</p>
               <AnkiPanel :key="ankiLanguage" :language="ankiLanguage" @imported="vocabularyRevision += 1" />
             </div>
-            <KnownWordsImport v-else-if="section.id === 'import-known'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
-            <template v-else-if="section.id === 'storage'">
-              <details class="mt-4 border-t border-interface/10 pt-4"><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary><VocabularyManager :key="vocabularyRevision" /></details>
-            </template>
+            <div v-else-if="section.id === 'import-known' || section.id === 'storage'" class="mt-4 grid gap-3 border-t border-interface/10 pt-4">
+              <label class="flex items-center gap-3 text-xs">
+                {{ section.id === 'storage' ? 'Vocabulary language' : 'Transfer language' }}
+                <select v-model="vocabularyLanguage" class="rounded-lg border border-interface/15 bg-ink px-2 py-1">
+                  <option value="ko">Korean</option><option value="ja">Japanese</option>
+                </select>
+              </label>
+              <KnownWordsImport v-if="section.id === 'import-known'" :key="vocabularyLanguage" :language="vocabularyLanguage" @imported="vocabularyRevision += 1" />
+              <details v-else><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary>
+                <VocabularyManager :key="vocabularyLanguage + vocabularyRevision" :language="vocabularyLanguage" />
+              </details>
+            </div>
           </section>
         </div>
       </div>

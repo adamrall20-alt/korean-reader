@@ -13,6 +13,7 @@ Korean Reader is a Chrome reading and mining extension. Anki owns review schedul
 | Mining and settings | Local vocabulary management, media capture, JSON export, subtitle styling and interface themes. |
 | Transcript and browser reading | Searchable Korean transcript, replay and seek, known-word coverage, webpage parsing and shared dictionary popup. |
 | Anki and statistics | AnkiConnect, Korean Reader note type, deck import, known-word transfer and extension Statistics. |
+| Japanese support | Offline lookup, Japanese subtitles, transcript and webpage reading, separate mining deck, vocabulary transfer and Statistics. Live verification is tracked below. |
 
 ## Verification remaining
 
@@ -22,9 +23,9 @@ Korean Reader is a Chrome reading and mining extension. Anki owns review schedul
 
 See [Project status](PROJECT_STATUS.md) for the latest verification. The Git history records prior experiments and original phase checklists.
 
-## In development
+## Japanese release verification
 
-The [Japanese support roadmap](docs/japanese-support-roadmap.md) tracks the language and storage foundation, local Japanese lookup, Japanese reading surfaces and the separate Anki deck workflow.
+The [Japanese support roadmap](docs/japanese-support-roadmap.md) tracks live Chrome and Anki checks, full dictionary performance and optional dictionary sources.
 
 ## Unscheduled work
 

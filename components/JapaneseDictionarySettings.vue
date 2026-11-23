@@ -2,7 +2,7 @@
 import { onMounted, ref, watch } from 'vue';
 import { browser } from 'wxt/browser';
 import DictionaryPopup from './DictionaryPopup.vue';
-import { importJapaneseDictionary, readJapaneseDictionaryInfo } from '@/services/japanese/dictionary-store';
+import { importJapaneseDictionary, importJapaneseSupplement, readJapaneseDictionaryInfo } from '@/services/japanese/dictionary-store';
 import { JMDICT_DOWNLOAD, type JapaneseDictionaryInfo } from '@/services/japanese/jmdict';
 import type { LookupMessage, LookupResponse } from '@/types/messages';
 
@@ -45,6 +45,25 @@ async function install(event: Event) {
   }
 }
 
+async function installSupplement(event: Event, kind: 'ranks' | 'kanji') {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file || busy.value) return;
+  busy.value = true;
+  status.value = '';
+  installError.value = '';
+  clearLookup();
+  try {
+    const count = await importJapaneseSupplement(file, kind);
+    status.value = `${count.toLocaleString()} ${kind === 'ranks' ? 'frequency ranks' : 'kanji entries'} installed.`;
+  } catch (error) {
+    installError.value = error instanceof Error ? error.message : 'Could not install this dictionary data.';
+  } finally {
+    busy.value = false;
+  }
+}
+
 function clearLookup() {
   generation += 1;
   submitted.value = '';
@@ -77,12 +96,25 @@ async function lookup() {
   <section class="mt-5 space-y-2 border-t border-interface/10 pt-4" aria-labelledby="jp-dictionary-heading">
     <h3 id="jp-dictionary-heading" class="text-sm font-medium">Japanese dictionary</h3>
     <p class="text-xs text-muted">
-      <a :href="JMDICT_DOWNLOAD" class="underline">Download the English JMdict archive</a> and import it once for offline lookup.
+      <a :href="JMDICT_DOWNLOAD" target="_blank" rel="noopener noreferrer" class="underline">Download the English JMdict archive</a> and import it once for offline lookup.
     </p>
     <label class="block text-xs">
       {{ dictionary ? 'Replace dictionary' : 'Import dictionary' }}
       <input type="file" accept=".json,.tgz,.gz" class="mt-1 block max-w-full text-xs text-muted" :disabled="busy" @change="install" />
     </label>
+    <details class="space-y-2 text-xs">
+      <summary class="cursor-pointer">Frequency ranks and kanji details</summary>
+      <label class="block">
+        Jiten frequency CSV
+        <input type="file" accept=".csv,text/csv" class="mt-1 block max-w-full text-muted" :disabled="busy" @change="installSupplement($event, 'ranks')" />
+      </label>
+      <p class="text-muted"><a href="https://jiten.moe/frequency-dictionaries" target="_blank" rel="noopener noreferrer" class="underline">Jiten frequency lists</a> are CC BY-SA 4.0.</p>
+      <label class="block">
+        KANJIDIC2 English readings and meanings
+        <input type="file" accept=".json,.tgz,.gz" class="mt-1 block max-w-full text-muted" :disabled="busy" @change="installSupplement($event, 'kanji')" />
+      </label>
+      <p class="text-muted"><a href="https://github.com/scriptin/jmdict-simplified/releases" target="_blank" rel="noopener noreferrer" class="underline">JMdict Simplified releases</a> include English or multilingual KANJIDIC2 archives from EDRDG.</p>
+    </details>
     <p v-if="busy || status" role="status" class="text-xs text-muted">{{ busy ? 'Indexing Japanese words…' : status }}</p>
     <p v-if="installError" role="alert" class="text-xs text-danger">{{ installError }}</p>
     <p v-if="dictionary" class="text-xs text-muted">JMdict {{ dictionary.version }} · {{ dictionary.date }} · {{ dictionary.words.toLocaleString() }} entries</p>

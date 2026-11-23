@@ -5,7 +5,7 @@ export default defineConfig({
   modules: ['@wxt-dev/module-vue'],
   manifest: {
     name: 'Korean Reader',
-    description: 'Korean vocabulary mining for YouTube and Korean webpages.',
+    description: 'Korean and Japanese vocabulary mining for YouTube and webpages.',
     permissions: ['storage', 'activeTab', 'scripting'],
     host_permissions: ['https://krdict.korean.go.kr/*', 'http://127.0.0.1/*'],
     action: { default_title: 'Korean Reader' },

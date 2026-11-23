@@ -237,6 +237,7 @@ export function dictionaryCandidates(
 }
 
 export function isKnownSubtitleWord(token: SubtitleToken, known: ReadonlySet<string>): boolean {
+  if (token.japaneseIds) return token.japaneseIds.some((id) => known.has(id));
   if (!known.size) return false;
 
   const wordUnits = decomposeMorphemes(token.morphemes).filter((unit) => unit.kind === 'word' && unit.headword);

@@ -1,4 +1,5 @@
 import type { AnkiDeckStatistics } from './statistics';
+import type { JapaneseKnownWord } from './vocabulary';
 import type { ReaderLanguage } from './language';
 
 export const ANKI_FIELD_ROLES = ['word', 'sentence', 'definition', 'pronunciation', 'image', 'audio'] as const;
@@ -21,6 +22,8 @@ export interface AnkiSettings {
   fields: Record<AnkiFieldRole, string>;
 }
 
+export const JAPANESE_ANKI_MODEL = 'Japanese Reader';
+export const JAPANESE_ANKI_ID_FIELD = 'Dictionary ID';
 export const ANKI_DEFAULT_MODEL_NAME = 'Korean Reader';
 
 export const DEFAULT_ANKI_SETTINGS: AnkiSettings = {
@@ -45,12 +48,13 @@ export interface AnkiTranslation {
 
 export interface AnkiImportPreview {
   headwords: string[];
+  japaneseWords?: JapaneseKnownWord[];
   total: number;
   alreadyKnown: number;
   skipped: number;
 }
 
-export type AnkiMessage =
+export type AnkiMessage = { language?: ReaderLanguage } & (
   | { type: 'get-anki-deck-statistics' }
   | { type: 'get-anki-settings'; language?: ReaderLanguage }
   | { type: 'save-anki-settings'; settings: AnkiSettings; language?: ReaderLanguage }
@@ -58,8 +62,9 @@ export type AnkiMessage =
   | { type: 'get-anki-fields'; port: number; apiKey: string; modelName: string }
   | { type: 'count-unsynced'; settings: AnkiSettings }
   | { type: 'preview-anki-import'; settings: AnkiSettings; deckName: string }
-  | { type: 'import-anki-words'; headwords: string[] }
-  | { type: 'sync-anki'; settings: AnkiSettings; translations: AnkiTranslation[] };
+  | { type: 'import-anki-words'; headwords: string[]; japaneseWords?: JapaneseKnownWord[] }
+  | { type: 'create-japanese-anki-deck'; port: number; apiKey: string }
+  | { type: 'sync-anki'; settings: AnkiSettings; translations: AnkiTranslation[] });
 
 export type AnkiResponse = {
   ok: true;

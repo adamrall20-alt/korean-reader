@@ -1,5 +1,7 @@
 import { isKnownSubtitleWord, resolveRenderTokens } from '@/services/korean/dictionary-forms';
 import { tokenizeLines } from '@/services/korean/tokenize-client';
+import { hasJapaneseKana, hasJapaneseText, type ReaderLanguage } from '@/types/language';
+import type { VocabularyContext } from '@/types/vocabulary';
 import type { SubtitleToken } from '@/types/messages';
 
 export const TOGGLE_PARSE_PAGE = 'kr-toggle-parse-page';
@@ -11,7 +13,7 @@ export const PAGE_WORD_SELECTED_CLASS = 'kr-page-word-selected';
 const HANGUL_SYLLABLE_PATTERN = /[\uac00-\ud7a3]/;
 const SKIP_TAGS = new Set([
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION',
-  'CODE', 'PRE', 'SVG', 'MATH', 'IFRAME', 'CANVAS', 'VIDEO', 'AUDIO', 'HEAD',
+  'CODE', 'PRE', 'SVG', 'MATH', 'IFRAME', 'CANVAS', 'VIDEO', 'AUDIO', 'HEAD', 'RT', 'RP',
 ]);
 const BATCH_SIZE = 50;
 
@@ -19,6 +21,8 @@ export interface ParsedWordSelection {
   token: SubtitleToken;
   element: HTMLElement;
   sentence: string;
+  language?: ReaderLanguage;
+  focusSpan?: VocabularyContext['focusSpan'];
 }
 
 interface TrackedWord {
@@ -47,7 +51,34 @@ function isSkippableElement(element: Element | null): boolean {
   return false;
 }
 
+function japaneseSentence(node: Text, block: Element | null, token: SubtitleToken) {
+  const doc = node.ownerDocument;
+  let text = '';
+  let focus = token.start;
+  if (block) {
+    const walker = doc.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
+      acceptNode: (child) => child.parentElement?.closest('rt, rp, script, style') ?
+        NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+    });
+    for (let child = walker.nextNode(); child; child = walker.nextNode()) {
+      if (child === node) focus += text.length;
+      text += child.nodeValue ?? '';
+    }
+  } else text = node.data;
+  const spanEnd = focus + token.length;
+  const previous = text.slice(0, focus).search(/[^。！？!?\n]*$/u);
+  const following = text.slice(spanEnd).search(/[。！？!?\n]/u);
+  const start = Math.max(previous, focus - 145);
+  const end = following < 0 ? Math.min(text.length, spanEnd + 145) : Math.min(spanEnd + following + 1, spanEnd + 145);
+  const raw = text.slice(start, end);
+  return { sentence: raw.trim(), focusSpan: { start: focus - start - (raw.length - raw.trimStart().length), length: token.length } };
+}
+
 export function collectKoreanTextNodes(root: Node): Text[] {
+  return collectTextNodes(root, 'ko');
+}
+
+export function collectTextNodes(root: Node, language: ReaderLanguage): Text[] {
   const nodes: Text[] = [];
   const doc = root.ownerDocument ?? (root as Document);
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -55,7 +86,12 @@ export function collectKoreanTextNodes(root: Node): Text[] {
   while (current) {
     const textNode = current as Text;
     const value = textNode.nodeValue ?? '';
-    if (HANGUL_SYLLABLE_PATTERN.test(value) && !isSkippableElement(textNode.parentElement)) {
+    const tag = textNode.parentElement?.closest('[lang]')?.getAttribute('lang')?.toLowerCase().split('-')[0];
+    const rubyReading = textNode.parentElement?.closest('ruby')?.querySelector('rt')?.textContent;
+    const matches = language === 'ko' ? HANGUL_SYLLABLE_PATTERN.test(value)
+      : tag === 'ja' ? hasJapaneseText(value) : (!tag || !['zh', 'ko'].includes(tag)) &&
+        (hasJapaneseKana(value) || (!!rubyReading && hasJapaneseKana(rubyReading) && hasJapaneseText(value)));
+    if (matches && !isSkippableElement(textNode.parentElement)) {
       nodes.push(textNode);
     }
     current = walker.nextNode();
@@ -91,6 +127,7 @@ export function createWebpageParser(options: {
   let knownHeadwords = new Set<string>();
   let underlineColor = '#f87171';
   let trackedWords: TrackedWord[] = [];
+  const originals = new Map<HTMLElement, Text>();
   let selectedElement: HTMLElement | null = null;
   let generation = 0;
 
@@ -109,30 +146,27 @@ export function createWebpageParser(options: {
     generation += 1;
     clearSelected();
     onClearSelection();
-    const fragments = Array.from(doc.querySelectorAll(`.${PARSED_FRAGMENT_CLASS}`));
-    for (const fragment of fragments) {
-      const original = fragment.getAttribute('data-kr-original') ?? fragment.textContent ?? '';
-      fragment.replaceWith(doc.createTextNode(original));
-    }
+    for (const [fragment, original] of originals) fragment.replaceWith(original);
+    originals.clear();
     trackedWords = [];
     removePageStyles(doc);
     parsed = false;
   }
 
-  async function parse(): Promise<number> {
+  async function parse(language: ReaderLanguage = 'ko'): Promise<number> {
     if (parsed) return trackedWords.length;
     const currentGeneration = ++generation;
     parsed = true;
     injectPageStyles(doc, underlineColor);
 
-    const textNodes = collectKoreanTextNodes(doc.body ?? doc.documentElement);
+    const textNodes = collectTextNodes(doc.body ?? doc.documentElement, language);
     for (let index = 0; index < textNodes.length; index += BATCH_SIZE) {
       if (currentGeneration !== generation) return 0;
       const batch = textNodes.slice(index, index + BATCH_SIZE).filter((node) => node.isConnected);
       if (!batch.length) continue;
 
       const texts = batch.map((node) => node.nodeValue ?? '');
-      const tokenized = await tokenizeLines(texts);
+      const tokenized = await tokenizeLines(texts, language);
       if (currentGeneration !== generation) return 0;
 
       for (let itemIndex = 0; itemIndex < batch.length; itemIndex += 1) {
@@ -148,6 +182,7 @@ export function createWebpageParser(options: {
         fragment.className = PARSED_FRAGMENT_CLASS;
         fragment.setAttribute('data-kr-original', originalText);
 
+        if (!line.tokens.some((token) => token.clickable)) continue;
         const renderTokens = resolveRenderTokens(line.tokens, knownHeadwords);
         for (const token of renderTokens) {
           if (!token.clickable) {
@@ -156,6 +191,9 @@ export function createWebpageParser(options: {
           }
           const span = doc.createElement('span');
           span.className = PAGE_WORD_CLASS;
+          if (language === 'ja') span.lang = 'ja';
+          const context = language === 'ja' ? japaneseSentence(node, parentBlock, token)
+            : { sentence: extractSentenceForWord(blockText, token.text) };
           span.textContent = token.text;
           span.dataset.krUnknown = isKnownSubtitleWord(token, knownHeadwords) ? 'false' : 'true';
           span.addEventListener('click', (event) => {
@@ -167,13 +205,15 @@ export function createWebpageParser(options: {
             onSelectWord({
               token,
               element: span,
-              sentence: extractSentenceForWord(blockText, token.text),
+              ...context,
+              ...(language === 'ja' ? { language } : {}),
             });
           });
           trackedWords.push({ element: span, token });
           fragment.appendChild(span);
         }
 
+        originals.set(fragment, node);
         node.replaceWith(fragment);
       }
     }

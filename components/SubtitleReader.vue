@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { LANGUAGE_NAMES, type ReaderLanguage } from '@/types/language';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { browser } from 'wxt/browser';
 import DictionaryPopup from '@/components/DictionaryPopup.vue';
@@ -6,6 +7,7 @@ import WordToken from '@/components/WordToken.vue';
 import { findVideo, readVideoTimestamp } from '@/services/youtube/captions';
 import type {
   DictionaryEntry,
+  JapaneseLookupMatch,
   LookupResponse,
   SubtitleToken,
   TokenizedSubtitleLine,
@@ -30,6 +32,7 @@ let anchor: HTMLElement | undefined;
 
 const recordAudio = ref<() => Promise<string | undefined>>();
 const miningContext = ref<VocabularyContext>();
+const japaneseMatches = ref<JapaneseLookupMatch[]>();
 const savedContexts = ref<VocabularyContext[]>([]);
 const selectedTokenId = ref<string | null>(null);
 const selectedToken = ref<SubtitleToken | null>(null);
@@ -73,13 +76,14 @@ const repositionPopup = () => {
   if (tokenElement) positionPopup(tokenElement);
 };
 
-const selectToken = async (token: SubtitleToken, element?: HTMLElement, transcript?: WordSelection) => {
+const selectToken = async (token: SubtitleToken, element?: HTMLElement, transcript?: WordSelection, lineOffset = 0) => {
   selection?.abort();
   const { signal } = selection = new AbortController();
   anchor = element;
   const generation = ++lookupGeneration;
+  const focusSpan = props.language === 'ja' ? { start: lineOffset + token.start, length: token.length } : undefined;
   if (transcript) {
-    miningContext.value = { ...transcript.source, originalForm: token.text };
+    miningContext.value = { ...transcript.source, originalForm: token.text, ...(focusSpan ? { focusSpan } : {}) };
     prepareMine.value = () => transcript.prepareMine(signal);
     recordAudio.value = transcript.recordAudio;
   } else {
@@ -89,9 +93,10 @@ const selectToken = async (token: SubtitleToken, element?: HTMLElement, transcri
     const timestamp = readVideoTimestamp(video) ?? props.source?.timestamp;
     prepareMine.value = undefined;
     recordAudio.value = video && timestamp !== undefined ? props.prepareAudio?.(video, timestamp) : undefined;
-    miningContext.value = props.source ? { ...props.source, originalForm: token.text, image, timestamp } : undefined;
+    miningContext.value = props.source ? { ...props.source, originalForm: token.text, image, timestamp, ...(focusSpan ? { focusSpan } : {}) } : undefined;
   }
   savedContexts.value = [];
+  japaneseMatches.value = undefined;
   selectedTokenId.value = token.id;
   selectedToken.value = token;
   emit('popupChange', true);
@@ -102,6 +107,7 @@ const selectToken = async (token: SubtitleToken, element?: HTMLElement, transcri
   try {
     const response = (await browser.runtime.sendMessage({
       type: 'lookup',
+      ...(props.language === 'ja' ? { language: props.language } : {}),
       word: token.text,
       morphemes: token.morphemes,
     })) as LookupResponse | undefined;
@@ -111,6 +117,7 @@ const selectToken = async (token: SubtitleToken, element?: HTMLElement, transcri
     if (response?.ok && response.entry) {
       dictionaryEntry.value = response.entry;
       savedContexts.value = response.savedContexts ?? [];
+      japaneseMatches.value = response.japaneseMatches;
     } else {
       lookupError.value = response?.error ?? 'Dictionary lookup failed.';
     }
@@ -126,6 +133,7 @@ const selectToken = async (token: SubtitleToken, element?: HTMLElement, transcri
 
 const props = defineProps<{
   lines: TokenizedSubtitleLine[];
+  language?: ReaderLanguage;
   visible: boolean;
   appearance?: SubtitleAppearance;
   knownHeadwords?: ReadonlySet<string>;
@@ -141,11 +149,12 @@ const closePopup = () => {
   if (selectedToken.value) emit('popupChange', false);
   selectedToken.value = null;
   dictionaryEntry.value = null;
+  miningContext.value = undefined;
   lookupError.value = null;
   lookupLoading.value = false;
 };
 
-watch([() => props.lines, () => props.visible], closePopup);
+watch([() => props.lines, () => props.visible, () => props.language], closePopup);
 watch([selectedToken, lookupLoading, dictionaryEntry, lookupError, () => props.appearance], repositionPopup, {
   flush: 'post',
 });
@@ -182,9 +191,9 @@ onBeforeUnmount(() => {
     v-if="visible && (lines.length > 0 || $slots.default)"
     ref="readerElement"
     class="kr-subtitles"
-    :lang="$slots.default ? undefined : 'ko'"
+    :lang="$slots.default ? undefined : (language ?? 'ko')"
     role="region"
-    :aria-label="$slots.default ? 'Korean transcript' : 'Korean subtitles'"
+    :aria-label="LANGUAGE_NAMES[language ?? 'ko'] + ($slots.default ? ' transcript' : ' subtitles')"
   >
     <slot :select-token="selectToken" :close-popup="closePopup" />
     <p v-for="(line, index) in lines" :key="`${index}-${line.text}`" class="kr-subtitle-line">
@@ -195,7 +204,7 @@ onBeforeUnmount(() => {
           :token-id="token.id"
           :selected="selectedTokenId === token.id"
           :unknown="!knownHeadwords || !isKnownSubtitleWord(token, knownHeadwords)"
-          @select="selectToken(token)"
+          @select="selectToken(token, undefined, undefined, lines.slice(0, index).reduce((offset, previous) => offset + previous.text.length + 1, 0))"
         />
         <span v-else>{{ token.text }}</span>
       </template>
@@ -203,6 +212,7 @@ onBeforeUnmount(() => {
     <DictionaryPopup
       v-if="selectedToken"
       :entry="dictionaryEntry"
+      :japanese-matches="japaneseMatches"
       :original-form="selectedToken.text"
       :loading="lookupLoading"
       :error="lookupError"

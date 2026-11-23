@@ -4,7 +4,7 @@ import type { ReaderLanguage } from '@/types/language';
 import type { JapaneseLexeme } from '@/types/messages';
 import { recordKnownWordCount } from './statistics';
 import {
-  sameVocabularyContext, type VocabularyEntry, type VocabularyMessage, type VocabularySummary,
+  sameVocabularyContext, type JapaneseKnownWord, type VocabularyEntry, type VocabularyMessage, type VocabularySummary,
 } from '@/types/vocabulary';
 
 export const normalizeHeadword = (headword: string) => headword.trim().normalize('NFC');
@@ -60,6 +60,11 @@ export function listKnownHeadwords(language: ReaderLanguage = 'ko'): Promise<str
 }
 
 /** Known-word count plus mined entries without their screenshots and audio, for the toolbar popup. */
+export function listJapaneseKnownWords(): Promise<JapaneseKnownWord[]> {
+  return readVocabulary('ja', (store) => store.index(VOCABULARY_STATUS_INDEX).getAll('known'))
+    .then((entries: VocabularyEntry[]) => entries.flatMap(({ headword, japanese }) => japanese ? [{ headword, japanese }] : []));
+}
+
 export async function readVocabularySummary(language: ReaderLanguage = 'ko'): Promise<VocabularySummary> {
   const database = await openDatabase();
   const storeName = vocabularyStore(language);
@@ -88,50 +93,47 @@ export async function readVocabularySummary(language: ReaderLanguage = 'ko'): Pr
   });
 }
 
-export async function markHeadwordsKnown(words: string[]): Promise<number> {
+export function markHeadwordsKnown(words: string[]): Promise<number> {
+  return markKnown(new Map(words.map(normalizeHeadword).filter(Boolean).map((headword) => [headword, { headword }])), 'ko');
+}
+
+export function markJapaneseWordsKnown(words: JapaneseKnownWord[]): Promise<number> {
+  return markKnown(new Map(words.map((word) => [word.japanese.id, word])), 'ja');
+}
+
+async function markKnown(words: Map<string, { headword: string; japanese?: JapaneseLexeme }>, language: ReaderLanguage): Promise<number> {
   const database = await openDatabase();
-  const storeName = vocabularyStore();
+  const storeName = vocabularyStore(language);
   return new Promise<number>((resolve, reject) => {
-    const transaction = database.transaction([storeName, statisticsStore()], 'readwrite');
+    const transaction = database.transaction([storeName, statisticsStore(language)], 'readwrite');
     const store = transaction.objectStore(storeName);
     const now = new Date().toISOString();
     let marked = 0;
     transaction.oncomplete = () => resolve(marked);
     transaction.onabort = () => reject(transaction.error ?? new Error('Could not mark words as known.'));
 
-    const headwords = new Set(words.map(normalizeHeadword).filter(Boolean));
-    let remaining = headwords.size;
-    for (const headword of headwords) {
-      const request = store.get(headword);
+    let remaining = words.size;
+    for (const [key, word] of words) {
+      const request = store.get(key);
       request.onsuccess = () => {
         const existing = request.result as VocabularyEntry | undefined;
         if (existing?.status !== 'known') {
           const entry: VocabularyEntry = existing ? { ...existing, status: 'known', updatedAt: now } : {
-            headword, originalForm: headword, definitions: [], koreanDefinitions: [], examples: [],
+            ...word, originalForm: word.headword, definitions: [], koreanDefinitions: [], examples: [],
             contexts: [], status: 'known', createdAt: now, updatedAt: now,
           };
           store.put(entry);
           marked += 1;
         }
         remaining -= 1;
-        if (!remaining && marked) recordKnownWordCount(transaction, 'ko');
+        if (!remaining && marked) recordKnownWordCount(transaction, language);
       };
     }
   });
 }
 
 export function markJapaneseWordKnown(word: string, japanese: JapaneseLexeme) {
-  const headword = normalizeHeadword(word);
-  return updateVocabulary(japanese.id, (store, existing, transaction) => {
-    if (existing?.status === 'known') return;
-    const now = new Date().toISOString();
-    const entry: VocabularyEntry = existing ? { ...existing, status: 'known', updatedAt: now } : {
-      headword, japanese, originalForm: headword, definitions: [], koreanDefinitions: [], examples: [],
-      contexts: [], status: 'known', createdAt: now, updatedAt: now,
-    };
-    store.put(entry);
-    recordKnownWordCount(transaction, 'ja');
-  }, 'ja');
+  return markJapaneseWordsKnown([{ headword: normalizeHeadword(word), japanese }]);
 }
 
 export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word' }>) {
@@ -142,11 +144,13 @@ export function mineWord(message: Extract<VocabularyMessage, { type: 'mine-word'
     const index = existing?.contexts.findIndex((context) => sameVocabularyContext(context, message.context)) ?? -1;
     if (existing && index >= 0) {
       const saved = existing.contexts[index]!;
-      if (saved.audio || !message.context.audio) return 'existing' as const;
+      const audio = !saved.audio ? message.context.audio : undefined;
+      const image = language === 'ja' && !saved.image ? message.context.image : undefined;
+      if (!audio && !image) return 'existing' as const;
       const contexts = [...existing.contexts];
-      contexts[index] = { ...saved, audio: message.context.audio };
+      contexts[index] = { ...saved, ...(audio ? { audio } : {}), ...(image ? { image } : {}) };
       store.put({ ...existing, contexts, updatedAt: new Date().toISOString() });
-      return 'audio-added' as const;
+      return audio ? 'audio-added' as const : 'added' as const;
     }
 
     const now = new Date().toISOString();
@@ -201,7 +205,7 @@ export function changeVocabulary(message: Extract<VocabularyMessage, {
   }, language);
 }
 
-export function recordAnkiSync(headword: string, noteId: number, focusField: string) {
+export function recordAnkiSync(headword: string, noteId: number, focusField: string, language?: ReaderLanguage) {
   return updateVocabulary(normalizeHeadword(headword), (store, existing) => {
     if (existing) store.put({
       ...existing,
@@ -209,7 +213,7 @@ export function recordAnkiSync(headword: string, noteId: number, focusField: str
       ankiFocusField: focusField,
       ankiSyncedAt: new Date().toISOString(),
     });
-  });
+  }, language);
 }
 
 export function saveMachineTranslation(translation: AnkiTranslation) {

@@ -3,7 +3,7 @@ import { browser } from 'wxt/browser';
 import DictionaryPopup from '@/components/DictionaryPopup.vue';
 import overlayStyles from '@/assets/subtitle-overlay.css?inline';
 import { isKnownHeadword } from '@/services/korean/dictionary-forms';
-import type { DictionaryEntry, LookupMessage, LookupResponse } from '@/types/messages';
+import type { DictionaryEntry, JapaneseLookupMatch, LookupMessage, LookupResponse } from '@/types/messages';
 import type { InterfaceTheme } from '@/types/preferences';
 import type { VocabularyContext } from '@/types/vocabulary';
 import type { ParsedWordSelection } from '@/services/webpage/parser';
@@ -38,6 +38,7 @@ export function createPagePopupHost(doc: Document, onClose: () => void) {
     error: null as string | null,
     style: {} as CSSProperties,
     miningContext: undefined as VocabularyContext | undefined,
+    japaneseMatches: undefined as JapaneseLookupMatch[] | undefined,
     savedContexts: [] as VocabularyContext[],
     isKnown: false,
   });
@@ -120,6 +121,7 @@ export function createPagePopupHost(doc: Document, onClose: () => void) {
         if (!state.open) return null;
         return h(DictionaryPopup, {
           entry: state.entry,
+          japaneseMatches: state.japaneseMatches,
           originalForm: state.originalForm,
           loading: state.loading,
           error: state.error,
@@ -147,9 +149,11 @@ export function createPagePopupHost(doc: Document, onClose: () => void) {
     state.error = null;
     state.loading = true;
     state.savedContexts = [];
+    state.japaneseMatches = undefined;
     state.isKnown = false;
     state.miningContext = {
       originalForm: selection.token.text,
+      ...(selection.focusSpan ? { focusSpan: selection.focusSpan } : {}),
       sentence: selection.sentence,
       sourceTitle: doc.title || location.hostname,
       sourceUrl: location.href,
@@ -160,6 +164,7 @@ export function createPagePopupHost(doc: Document, onClose: () => void) {
     try {
       const response: LookupResponse | undefined = await browser.runtime.sendMessage({
         type: 'lookup',
+        ...(selection.language ? { language: selection.language } : {}),
         word: selection.token.text,
         morphemes: selection.token.morphemes,
       } satisfies LookupMessage);
@@ -170,6 +175,7 @@ export function createPagePopupHost(doc: Document, onClose: () => void) {
         state.error = `No dictionary entry found for “${selection.token.text}”.`;
       } else {
         state.entry = response.entry;
+        state.japaneseMatches = response.japaneseMatches;
         state.savedContexts = response.savedContexts ?? [];
         state.isKnown = isKnownHeadword(response.entry.headword, knownHeadwords);
       }

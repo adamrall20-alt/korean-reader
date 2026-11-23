@@ -1,5 +1,8 @@
 import { finishTranscript, TRANSCRIPT_REQUEST, TRANSCRIPT_RESPONSE, transcriptCue, type TranscriptCue } from '@/services/youtube/transcript';
 
+import { CAPTION_TRACK_REQUEST, CAPTION_TRACK_RESPONSE } from '@/services/youtube/captions';
+import { readingLanguage, type ReaderLanguage } from '@/types/language';
+
 interface CaptionTrack {
   baseUrl?: string;
   languageCode?: string;
@@ -34,7 +37,7 @@ function transcriptParams(response: unknown): string | undefined {
   }
 }
 
-function parseSegments(data: unknown): TranscriptCue[] {
+function parseSegments(data: unknown, language: ReaderLanguage, trusted = false): TranscriptCue[] {
   const cues: TranscriptCue[] = [];
   for (const value of valuesFor(data, 'transcriptSegmentRenderer')) {
     const segment = value as { startMs?: string; endMs?: string; snippet?: { runs?: { text: string }[] } } | null;
@@ -45,10 +48,10 @@ function parseSegments(data: unknown): TranscriptCue[] {
     );
     if (cue) cues.push(cue);
   }
-  return finishTranscript(cues);
+  return finishTranscript(cues, language, trusted);
 }
 
-function parseModernSegments(data: unknown): TranscriptCue[] {
+function parseModernSegments(data: unknown, language: ReaderLanguage): TranscriptCue[] {
   const cues: TranscriptCue[] = [];
   for (const value of valuesFor(data, 'transcriptSegmentViewModel')) {
     const segment = value as { simpleText?: string; timestamp?: string } | null;
@@ -57,11 +60,11 @@ function parseModernSegments(data: unknown): TranscriptCue[] {
     const cue = transcriptCue(start, undefined, segment.simpleText ?? '');
     if (cue) cues.push(cue);
   }
-  const sorted = finishTranscript(cues);
+  const sorted = finishTranscript(cues, language);
   return sorted.map((cue, index) => ({ ...cue, end: sorted[index + 1]?.start }));
 }
 
-async function loadModernPanel(videoId: string, watchData: unknown, context: YouTubeContext, signal: AbortSignal) {
+async function loadModernPanel(videoId: string, watchData: unknown, context: YouTubeContext, signal: AbortSignal, language: ReaderLanguage) {
   const panelId = 'PAmodern_transcript_view';
   const panels = [...valuesFor(watchData, 'tag')];
   if (!panels.includes(panelId) || !/^[\w-]{11}$/.test(videoId)) return [];
@@ -70,15 +73,14 @@ async function loadModernPanel(videoId: string, watchData: unknown, context: You
   const response = await fetch('/youtubei/v1/get_panel', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    // Ask for Korean on this request. YouTube can still return its default track.
-    body: JSON.stringify({ context: { ...context, client: { ...context.client, hl: 'ko' } }, panelId, params }),
+    body: JSON.stringify({ context: { ...context, client: { ...context.client, hl: language } }, panelId, params }),
     signal,
     redirect: 'error',
   });
-  return response.ok ? parseModernSegments(await response.json()) : [];
+  return response.ok ? parseModernSegments(await response.json(), language) : [];
 }
 
-async function load(videoId: string, signal: AbortSignal): Promise<TranscriptCue[]> {
+async function load(videoId: string, signal: AbortSignal, language: ReaderLanguage): Promise<TranscriptCue[]> {
   const player = document.querySelector('#movie_player') as (HTMLElement & { getPlayerResponse?: () => PlayerResponse }) | null;
   const watch = document.querySelector<YouTubeWatch>('ytd-watch-flexy');
   const page = window as Window & {
@@ -91,9 +93,9 @@ async function load(videoId: string, signal: AbortSignal): Promise<TranscriptCue
   if (playerResponse?.videoDetails?.isLive) return [];
 
   const tracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
-  const korean = tracks.filter((track) => /^ko(?:-|$)/i.test(track.languageCode ?? ''))
+  const matching = tracks.filter((track) => track.languageCode?.toLowerCase().split('-')[0] === language)
     .sort((a, b) => Number(a.kind === 'asr') - Number(b.kind === 'asr'));
-  for (const track of korean) {
+  for (const track of matching) {
     if (!track.baseUrl) continue;
     try {
       const url = new URL(track.baseUrl, location.origin);
@@ -107,7 +109,7 @@ async function load(videoId: string, signal: AbortSignal): Promise<TranscriptCue
             (event.tStartMs + event.dDurationMs) / 1000,
             event.segs?.map(({ utf8 }) => utf8).join('') ?? '',
           ) ?? []);
-          const result = finishTranscript(cues);
+          const result = finishTranscript(cues, language, true);
           if (result.length) return result;
         }
       }
@@ -122,7 +124,7 @@ async function load(videoId: string, signal: AbortSignal): Promise<TranscriptCue
   const context = page.ytcfg?.get('INNERTUBE_CONTEXT');
   if (!watchData || !context || typeof context !== 'object') return [];
   try {
-    const modern = await loadModernPanel(videoId, watchData, context, signal);
+    const modern = await loadModernPanel(videoId, watchData, context, signal, language);
     if (modern.length) return modern;
   } catch {
     signal.throwIfAborted();
@@ -146,14 +148,16 @@ async function load(videoId: string, signal: AbortSignal): Promise<TranscriptCue
       selected?: boolean;
       continuation?: { reloadContinuationData?: { continuation?: string } };
     } | null;
-    const koreanParams = item?.continuation?.reloadContinuationData?.continuation;
-    if (typeof item?.title === 'string' && /^(?:Korean\b|한국어)/i.test(item.title) && koreanParams) {
-      if (item.selected) break;
-      const korean = parseSegments(await getTranscript(koreanParams));
-      if (korean.length) return korean;
+    const matchedParams = item?.continuation?.reloadContinuationData?.continuation;
+    const label = language === 'ja' ? /^(?:Japanese\b|日本語)/i : /^(?:Korean\b|한국어)/i;
+    if (typeof item?.title === 'string' && label.test(item.title)) {
+      if (item.selected) return parseSegments(data, language, true);
+      if (!matchedParams) continue;
+      const matched = parseSegments(await getTranscript(matchedParams), language, true);
+      if (matched.length) return matched;
     }
   }
-  return parseSegments(data);
+  return parseSegments(data, language);
 }
 
 export default defineContentScript({
@@ -161,9 +165,25 @@ export default defineContentScript({
   world: 'MAIN',
   runAt: 'document_start',
   main() {
+    document.addEventListener(CAPTION_TRACK_REQUEST, () => {
+      const player = document.querySelector('#movie_player') as (HTMLElement & {
+        getOption?: (module: string, option: string) => { languageCode?: unknown; translationLanguage?: { languageCode?: unknown }; kind?: unknown } | null;
+      }) | null;
+      try {
+        const track = player?.getOption?.('captions', 'track');
+        const language = track?.translationLanguage?.languageCode ?? track?.languageCode;
+        if (typeof language === 'string') {
+          document.dispatchEvent(new CustomEvent(CAPTION_TRACK_RESPONSE, {
+            detail: { language, label: '', kind: typeof track?.kind === 'string' ? track.kind : 'subtitles' },
+          }));
+        }
+      } catch {
+        // The caption monitor can fall back to browser tracks or script detection.
+      }
+    });
     let request: AbortController | undefined;
     document.addEventListener(TRANSCRIPT_REQUEST, async (event) => {
-      const detail = (event as CustomEvent<{ videoId: string; requestId: number }>).detail;
+      const detail = (event as CustomEvent<{ videoId: string; requestId: number; language?: ReaderLanguage }>).detail;
       if (!detail || location.pathname !== '/watch' ||
           detail.videoId !== new URLSearchParams(location.search).get('v')) return;
       request?.abort();
@@ -171,7 +191,7 @@ export default defineContentScript({
       const { signal } = request;
       let cues: TranscriptCue[] = [];
       try {
-        cues = await load(detail.videoId, AbortSignal.any([signal, AbortSignal.timeout(5500)]));
+        cues = await load(detail.videoId, AbortSignal.any([signal, AbortSignal.timeout(5500)]), readingLanguage(detail.language));
       } catch {
         // The live caption monitor will supply the transcript instead.
       }

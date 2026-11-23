@@ -1,9 +1,10 @@
+import type { ReaderLanguage } from '@/types/language';
 import { AnkiClient } from './client';
 import { deckSearch, previewKnownWords } from './import';
 import type { AnkiSettings } from '@/types/anki';
 import type { AnkiDeckStatistics } from '@/types/statistics';
 
-export async function readDeckStatistics(settings: AnkiSettings): Promise<AnkiDeckStatistics | null> {
+export async function readDeckStatistics(settings: AnkiSettings, language: ReaderLanguage = 'ko'): Promise<AnkiDeckStatistics | null> {
   const { deckName } = settings;
   if (!deckName) return null;
 
@@ -21,7 +22,7 @@ export async function readDeckStatistics(settings: AnkiSettings): Promise<AnkiDe
     client.request('findCards', {
       query: `${deckSearch(deckName)} is:review -is:suspended -is:learn prop:due>=1 prop:due<=7`,
     }).then((cards) => Array.isArray(cards) ? cards.length : null).catch(() => null),
-    previewKnownWords(settings, deckName).then(({ alreadyKnown, total }) => ({
+    previewKnownWords(settings, deckName, language).then(({ alreadyKnown, total }) => ({
       knownWords: alreadyKnown,
       totalWords: total,
     })).catch(() => null),
@@ -31,7 +32,7 @@ export async function readDeckStatistics(settings: AnkiSettings): Promise<AnkiDe
 }
 
 async function readReviewHistory(client: AnkiClient, decks: string[]) {
-  let totalReviews = 0;
+  const reviewed = new Set<number>();
   let reviewMilliseconds = 0;
   for (const deck of decks) {
     const reviews = await client.request('cardReviews', { deck, startID: 0 });
@@ -41,10 +42,10 @@ async function readReviewHistory(client: AnkiClient, decks: string[]) {
         throw new Error('AnkiConnect returned an invalid review.');
       }
       // Anki records rescheduling and manual edits with no answer button.
-      if (review[3] < 1 || review[3] > 4) continue;
-      totalReviews += 1;
+      if (review[3] < 1 || review[3] > 4 || reviewed.has(review[0])) continue;
+      reviewed.add(review[0]);
       reviewMilliseconds += review[7];
     }
   }
-  return { totalReviews, reviewMilliseconds };
+  return { totalReviews: reviewed.size, reviewMilliseconds };
 }

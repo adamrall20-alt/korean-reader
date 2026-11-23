@@ -1,5 +1,5 @@
 import { AnkiClient, type AnkiCardTemplate, type AnkiCreateModelParams } from '@/services/anki/client';
-import { ANKI_DEFAULT_FIELDS, ANKI_DEFAULT_MODEL_NAME, ANKI_FIELD_ROLES } from '@/types/anki';
+import { ANKI_DEFAULT_FIELDS, ANKI_DEFAULT_MODEL_NAME, ANKI_FIELD_ROLES, JAPANESE_ANKI_MODEL, JAPANESE_ANKI_ID_FIELD } from '@/types/anki';
 
 export const KOREAN_READER_MODEL_FIELDS = ANKI_FIELD_ROLES.map((role) => ANKI_DEFAULT_FIELDS[role]);
 
@@ -55,12 +55,26 @@ export function buildKoreanReaderModelParams(): AnkiCreateModelParams {
   };
 }
 
-export async function ensureKoreanReaderModel(
+export function buildJapaneseReaderModelParams(): AnkiCreateModelParams {
+  const korean = buildKoreanReaderModelParams();
+  return {
+    ...korean,
+    modelName: JAPANESE_ANKI_MODEL,
+    inOrderFields: [JAPANESE_ANKI_ID_FIELD, ...korean.inOrderFields],
+    css: KOREAN_READER_CARD_CSS.replace('"Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR"', '"Hiragino Sans", "Yu Gothic", "Noto Sans JP"'),
+    cardTemplates: korean.cardTemplates!.map(({ Name, Front, Back }) => ({
+      Name, Front: Front.replaceAll('lang="ko"', 'lang="ja"'), Back: Back.replaceAll('lang="ko"', 'lang="ja"'),
+    })),
+  };
+}
+
+export async function ensureReaderModel(
   client: AnkiClient,
   existingModels?: string[],
+  modelName = ANKI_DEFAULT_MODEL_NAME,
 ): Promise<string[]> {
   const models = existingModels ?? await client.request('modelNames', undefined);
-  if (models.includes(ANKI_DEFAULT_MODEL_NAME)) return models;
-  await client.request('createModel', buildKoreanReaderModelParams());
-  return [...models, ANKI_DEFAULT_MODEL_NAME];
+  if (models.includes(modelName)) return models;
+  await client.request('createModel', modelName === JAPANESE_ANKI_MODEL ? buildJapaneseReaderModelParams() : buildKoreanReaderModelParams());
+  return [...models, modelName];
 }

@@ -54,6 +54,8 @@ export interface VocabularyContext {
   focusSpan?: { start: number; length: number };
 }
 
+export interface JapaneseKnownWord { headword: string; japanese: JapaneseLexeme }
+
 export interface VocabularyEntry extends DictionaryEntry {
   contexts: Array<VocabularyContext & { minedAt: string }>;
   machineDefinitions?: string[];

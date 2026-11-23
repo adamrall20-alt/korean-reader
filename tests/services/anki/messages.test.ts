@@ -32,7 +32,7 @@ afterEach(() => vi.restoreAllMocks());
 it('keeps legacy Korean settings and saves a separate Japanese mapping on the shared connection', async () => {
   await expect(handleAnkiMessage({ type: 'get-anki-settings' })).resolves.toEqual({ ok: true, settings: korean });
   await expect(handleAnkiMessage({ type: 'get-anki-settings', language: 'ja' })).resolves.toMatchObject({
-    ok: true, settings: { deckName: '', modelName: '', apiKey: korean.apiKey, port: korean.port },
+    ok: true, settings: { deckName: '', modelName: 'Japanese Reader', apiKey: korean.apiKey, port: korean.port },
   });
   await handleAnkiMessage({ type: 'save-anki-settings', language: 'ja', settings: japanese });
   await expect(handleAnkiMessage({ type: 'get-anki-settings', language: 'ja' })).resolves.toEqual({ ok: true, settings: japanese });
@@ -55,9 +55,10 @@ it('rejects overlapping deck choices even when saves arrive together', async () 
   await expect(handleAnkiMessage({ type: 'save-anki-settings', language: 'ja', settings: japanese })).resolves.toEqual({ ok: true });
 });
 
-it('reserves the Japanese deck from Korean sync and rejects Japanese sync while gated', async () => {
+it('reserves the Japanese deck from Korean sync and requires a saved Japanese profile', async () => {
   await handleAnkiMessage({ type: 'save-anki-settings', language: 'ja', settings: japanese });
   const sync = { type: 'sync-anki', settings: { ...korean, deckName: japanese.deckName }, translations: [] } as const;
-  expect(isAnkiMessage({ ...sync, language: 'ja' })).toBe(false);
+  expect(isAnkiMessage({ ...sync, language: 'ja' })).toBe(true);
+  await expect(handleAnkiMessage({ ...sync, language: 'ja', translations: [] })).rejects.toThrow('Save your Japanese deck');
   await expect(handleAnkiMessage({ ...sync, translations: [] })).rejects.toThrow('Choose separate');
 });

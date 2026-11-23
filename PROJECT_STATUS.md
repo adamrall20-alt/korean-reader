@@ -6,24 +6,23 @@ Korean Reader's supported build is the Chrome extension. The Electron app, revie
 
 | Area | Current behaviour |
 | --- | --- |
-| Reading | Interactive YouTube captions, transcript sidebar, known-word coverage and webpage parsing. |
+| Reading | Korean and Japanese YouTube captions, transcript sidebar, known-word coverage and webpage parsing. |
 | Mining | Selected definitions, sentence context and available YouTube media are saved locally. Mining from regular HTTP and HTTPS webpages is accepted. |
-| Anki | The toolbar syncs mined vocabulary through AnkiConnect. Settings supports the Korean Reader note type, custom field mapping and known-word imports from a selected deck. |
-| Statistics | A continuous graph shows known-word history. The selected Anki deck shows reviews left today, lifetime review counts and review time, with separate seven-day and coverage metrics. Available metrics stay visible if another metric fails. |
-| Known words | Settings exports and merges current Korean known words using a versioned JSON file. IndexedDB version 5 adds Japanese stores alongside the existing Korean vocabulary and chart history. |
+| Anki | The toolbar syncs mined vocabulary through AnkiConnect. Settings supports separate Korean and Japanese decks, default note types, custom field mappings and known-word imports. |
+| Statistics | Choose a language to see its known-word history and Anki deck. Statistics include reviews left today, lifetime reviews and time, seven-day due cards and known deck coverage. Available metrics stay visible after partial failures. |
+| Known words | Settings exports and merges known-word JSON by language. Japanese transfers include reading identities. The original Korean format, vocabulary and chart history remain readable. |
 | Interface | The toolbar, Settings and Statistics animate the existing penguin logo. Settings and Statistics share icon navigation and have distinct browser tab icons. Mining feedback and the known-word chart use short animations with reduced-motion support. |
 
-## Japanese support in development
+## Japanese setup
 
-**Settings → Dictionary → Japanese dictionary** accepts a JMdict Simplified English archive and provides a local lookup preview with selectable readings. The background can tokenise Japanese text and resolve common inflections. **Settings → Anki** can save a Japanese deck and existing note type via the shared AnkiConnect connection. Website and YouTube activation, Japanese Anki sync and Japanese deck statistics remain in the [Japanese roadmap](docs/japanese-support-roadmap.md).
+Import the English JMdict archive once from **Settings → Dictionary → Japanese dictionary**, then choose **Japanese** in the toolbar. For Anki, save a separate deck under the Japanese Anki profile. The toolbar switch changes the active tab and the default for new tabs.
 
 ## Verification
 
-- All 191 automated tests pass. Japanese lookup coverage includes archive parsing, checksum errors, failed dictionary replacements, ambiguous readings, inflections and original click spans. Full-archive testing in Chrome and real-profile upgrade verification remain open.
-- The Japanese foundation tests cover the additive upgrade, language-scoped storage, a synthetic 13,000-word Korean profile and concurrent Anki profile saves.
-- Type checking, including unused-code diagnostics, and the Chrome production build and ZIP passed.
-- The penguin UI update passed type checking, all 177 tests and the Chrome production build. The isolated Chrome preview exited before rendering the updated UI.
-- Live verification with the owner's Anki collection, two Chrome installations and YouTube media remains open. The isolated Chrome launch terminated before the browser could load the extension in this workspace.
+- The automated suite covers language-scoped storage, Japanese text offsets and ruby restoration, caption language detection, dictionary and transfer parsing, same-spelling Anki cards and retries, mixed-deck note protection and the Korean regressions.
+- Type checks with unused-code diagnostics, the Chrome production build and the ZIP pass.
+- Full-archive browser import, live YouTube track selection and media capture, desktop and mobile Anki playback, and the real-profile upgrade across Mac and Windows still require live verification. Isolated Chrome exited before loading the extension here, and the shell could not resolve the upstream archive host.
+- Japanese-only definitions and machine translation remain optional research in the [Japanese roadmap](docs/japanese-support-roadmap.md). Core Japanese definitions come from JMdict.
 
 ## Updating
 

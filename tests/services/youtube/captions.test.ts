@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  CAPTION_TRACK_REQUEST, CAPTION_TRACK_RESPONSE,
   createCaptionMonitor,
   getYouTubeVideoId,
   hasKorean,
-  isKoreanTrack,
+  isLanguageTrack,
   normaliseCaptionText,
   readCaptionSnapshot,
   readVisibleCaptionLines,
@@ -45,6 +46,22 @@ describe('YouTube caption helpers', () => {
     expect(getYouTubeVideoId('https://www.youtube.com/')).toBeNull();
     expect(getYouTubeVideoId('https://example.com/watch?v=abc123')).toBeNull();
     expect(getYouTubeVideoId('not a url')).toBeNull();
+  });
+
+  it('uses active track metadata before kana and allows kanji-only Japanese captions without metadata', () => {
+    captionFixture('<div class="caption-window">食べなかった</div>');
+    const read = () => readCaptionSnapshot(document, 'https://www.youtube.com/watch?v=example', 'ja');
+    const track = () => document.dispatchEvent(new CustomEvent(CAPTION_TRACK_RESPONSE, {
+      detail: { language: 'zh-Hant', label: '', kind: 'subtitles' },
+    }));
+    document.addEventListener(CAPTION_TRACK_REQUEST, track);
+    expect(read().matchesLanguage).toBe(false);
+    document.removeEventListener(CAPTION_TRACK_REQUEST, track);
+    expect(read().matchesLanguage).toBe(true);
+    captionFixture('<div class="caption-window">重要</div>');
+    expect(read().matchesLanguage).toBe(true);
+    expect(isLanguageTrack({ language: 'ja-JP', label: '', kind: 'asr' }, 'ja')).toBe(true);
+    expect(isLanguageTrack({ language: 'ko', label: 'Japanese', kind: 'subtitles' }, 'ja')).toBe(false);
   });
 
   it('reads visible caption windows and ignores hidden or duplicate lines', () => {
@@ -111,11 +128,11 @@ describe('YouTube caption helpers', () => {
   });
 
   it('identifies Korean caption tracks by language code or label', () => {
-    expect(isKoreanTrack({ language: 'ko', label: 'Korean', kind: 'subtitles' })).toBe(true);
-    expect(isKoreanTrack({ language: 'ko-KR', label: '', kind: 'subtitles' })).toBe(true);
-    expect(isKoreanTrack({ language: 'en', label: '한국어', kind: 'subtitles' })).toBe(true);
-    expect(isKoreanTrack({ language: 'en', label: 'English', kind: 'subtitles' })).toBe(false);
-    expect(isKoreanTrack(null)).toBe(false);
+    expect(isLanguageTrack({ language: 'ko', label: 'Korean', kind: 'subtitles' }, 'ko')).toBe(true);
+    expect(isLanguageTrack({ language: 'ko-KR', label: '', kind: 'subtitles' }, 'ko')).toBe(true);
+    expect(isLanguageTrack({ language: 'en', label: '한국어', kind: 'subtitles' }, 'ko')).toBe(false);
+    expect(isLanguageTrack({ language: 'en', label: 'English', kind: 'subtitles' }, 'ko')).toBe(false);
+    expect(isLanguageTrack(null, 'ko')).toBe(false);
   });
 
   it('reads line breaks from caption DOM nodes without touching innerText', () => {

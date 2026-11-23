@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ReaderLanguage } from '@/types/language';
+import { normalizeJapanese } from '@/services/japanese/jmdict';
 import { downloadJson } from '@/services/storage/download';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { browser } from 'wxt/browser';
@@ -6,6 +8,10 @@ import type { VocabularyContext, VocabularyEntry, VocabularyMessage, VocabularyR
 
 /** Number of entries rendered per page; "Show more" reveals the next page. */
 const PAGE_SIZE = 50;
+const props = defineProps<{ language?: ReaderLanguage }>();
+const entryKey = (entry: VocabularyEntry) => entry.japanese?.id ?? entry.headword;
+const entryFields = (entry: VocabularyEntry) => ({ headword: entry.headword, ...(entry.japanese ? { lexemeId: entry.japanese.id } : {}) });
+const normalizeSearch = (text: string) => (props.language === 'ja' ? normalizeJapanese(text) : text.normalize('NFC')).toLowerCase();
 /** Delay before a typed search is applied, so filtering does not run on every keystroke. */
 const SEARCH_DELAY_MS = 250;
 
@@ -34,16 +40,15 @@ const searchText = new WeakMap<VocabularyEntry, string>();
 function searchableText(entry: VocabularyEntry): string {
   let text = searchText.get(entry);
   if (text === undefined) {
-    text = [entry.headword, entry.originalForm, ...entry.definitions, ...entry.koreanDefinitions,
-      ...(entry.machineDefinitions ?? []), ...entry.contexts.map((context) => context.sentence)]
-      .join('\n').toLowerCase();
+    text = normalizeSearch([entry.headword, entry.originalForm, ...(entry.japanese?.aliases ?? []), ...entry.definitions, ...entry.koreanDefinitions,
+      ...(entry.machineDefinitions ?? []), ...entry.contexts.map((context) => context.sentence)].join('\n'));
     searchText.set(entry, text);
   }
   return text;
 }
 
 const visibleEntries = computed(() => {
-  const term = appliedQuery.value.trim().normalize('NFC').toLowerCase();
+  const term = normalizeSearch(appliedQuery.value.trim());
   return entries.value
     .filter((entry) => (filter.value === 'all' || entry.status === filter.value) &&
       (!term || searchableText(entry).includes(term)))
@@ -59,7 +64,7 @@ async function updateVocabulary(message: VocabularyMessage): Promise<boolean> {
   busy.value = true;
   vocabularyError.value = '';
   try {
-    const response: VocabularyResponse | undefined = await browser.runtime.sendMessage(message);
+    const response: VocabularyResponse | undefined = await browser.runtime.sendMessage(props.language === 'ja' ? { ...message, language: props.language } : message);
     if (!response?.ok) {
       throw new Error(response?.error ?? 'Could not access saved vocabulary.');
     }
@@ -75,21 +80,21 @@ async function updateVocabulary(message: VocabularyMessage): Promise<boolean> {
 
 function beginEdit(entry: VocabularyEntry) {
   pendingDeletion.value = undefined;
-  editing.value = entry.headword;
+  editing.value = entryKey(entry);
   draftDefinitions.value = entry.definitions.join('\n');
 }
 
-async function saveDefinitions(headword: string) {
+async function saveDefinitions(entry: VocabularyEntry) {
   const definitions = draftDefinitions.value.split('\n').map((line) => line.trim()).filter(Boolean);
-  if (await updateVocabulary({ type: 'edit-vocabulary', headword, definitions })) {
+  if (await updateVocabulary({ type: 'edit-vocabulary', ...entryFields(entry), definitions })) {
     editing.value = undefined;
   }
 }
 
-async function deleteWord(headword: string) {
-  if (await updateVocabulary({ type: 'delete-vocabulary', headword })) {
+async function deleteWord(entry: VocabularyEntry) {
+  if (await updateVocabulary({ type: 'delete-vocabulary', ...entryFields(entry) })) {
     pendingDeletion.value = undefined;
-    if (editing.value === headword) editing.value = undefined;
+    if (editing.value === entryKey(entry)) editing.value = undefined;
   }
 }
 
@@ -102,7 +107,7 @@ function sourceLink(context: VocabularyContext): string {
 }
 
 function exportVocabulary() {
-  downloadJson('korean-reader-vocabulary.json', JSON.stringify(entries.value, null, 2));
+  downloadJson(props.language === 'ja' ? 'japanese-reader-vocabulary.json' : 'korean-reader-vocabulary.json', JSON.stringify(entries.value, null, 2));
 }
 
 onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
@@ -147,9 +152,9 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
           Showing {{ pagedEntries.length.toLocaleString() }} of {{ visibleEntries.length.toLocaleString() }} words
         </p>
         <ul v-if="visibleEntries.length" class="space-y-2">
-          <li v-for="entry in pagedEntries" :key="entry.headword" class="space-y-2 rounded-xl border border-interface/10 bg-ink-soft p-3">
+          <li v-for="entry in pagedEntries" :key="entryKey(entry)" class="space-y-2 rounded-xl border border-interface/10 bg-ink-soft p-3">
             <div class="flex items-center gap-2">
-              <h3 lang="ko" class="min-w-0 flex-1 break-words font-semibold">{{ entry.headword }}</h3>
+              <h3 :lang="language ?? 'ko'" class="min-w-0 flex-1 break-words font-semibold">{{ entry.headword }}<span v-if="entry.japanese" class="ml-2 text-xs text-muted">{{ entry.japanese.reading }}</span></h3>
               <button
                 type="button"
                 role="switch"
@@ -158,11 +163,11 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
                 :disabled="busy"
                 class="rounded-full border border-interface/15 px-2.5 py-1 text-xs"
                 :class="entry.status === 'known' ? 'text-accent' : 'text-muted'"
-                @click="updateVocabulary({ type: 'set-vocabulary-status', headword: entry.headword, status: entry.status === 'known' ? 'unknown' : 'known' })"
+                @click="updateVocabulary({ type: 'set-vocabulary-status', ...entryFields(entry), status: entry.status === 'known' ? 'unknown' : 'known' })"
               >{{ entry.status === 'known' ? 'Known' : 'Unknown' }}</button>
             </div>
-            <p v-if="entry.originalForm !== entry.headword" class="text-xs text-muted" lang="ko">{{ entry.originalForm }}</p>
-            <form v-if="editing === entry.headword" class="space-y-2" @submit.prevent="saveDefinitions(entry.headword)">
+            <p v-if="entry.originalForm !== entry.headword" class="text-xs text-muted" :lang="language ?? 'ko'">{{ entry.originalForm }}</p>
+            <form v-if="editing === entryKey(entry)" class="space-y-2" @submit.prevent="saveDefinitions(entry)">
               <label class="block text-xs">
                 English definitions, one per line
                 <textarea v-model="draftDefinitions" rows="3" class="mt-1 w-full rounded-lg border border-interface/15 bg-ink px-2 py-1 text-sm" />
@@ -183,7 +188,7 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
               <summary class="cursor-pointer text-muted">{{ entry.contexts.length }} {{ entry.contexts.length === 1 ? 'sentence' : 'sentences' }}</summary>
               <ul class="space-y-2 pt-2">
                 <li v-for="(context, index) in entry.contexts" :key="index">
-                  <p class="whitespace-pre-line break-words" lang="ko">{{ context.sentence }}</p>
+                  <p class="whitespace-pre-line break-words" :lang="language ?? 'ko'">{{ context.sentence }}</p>
                   <a :href="sourceLink(context)" target="_blank" rel="noreferrer" class="text-accent underline">
                     {{ context.sourceTitle || 'YouTube video' }}<template v-if="context.timestamp !== undefined">
                       · {{ Math.floor(context.timestamp / 60) }}:{{ String(Math.floor(context.timestamp % 60)).padStart(2, '0') }}
@@ -194,13 +199,13 @@ onMounted(() => void updateVocabulary({ type: 'list-vocabulary' }));
             </details>
             <div class="flex items-center gap-3 border-t border-interface/10 pt-2 text-xs">
               <time :datetime="entry.createdAt" class="mr-auto text-muted">{{ new Date(entry.createdAt).toLocaleDateString() }}</time>
-              <template v-if="pendingDeletion === entry.headword">
-                <button type="button" :disabled="busy" class="text-danger" @click="deleteWord(entry.headword)">Delete word</button>
+              <template v-if="pendingDeletion === entryKey(entry)">
+                <button type="button" :disabled="busy" class="text-danger" @click="deleteWord(entry)">Delete word</button>
                 <button type="button" :disabled="busy" class="text-muted" @click="pendingDeletion = undefined">Cancel</button>
               </template>
               <template v-else>
-                <button v-if="editing !== entry.headword" type="button" :disabled="busy" class="text-accent" @click="beginEdit(entry)">Edit</button>
-                <button type="button" :disabled="busy" class="text-muted" @click="pendingDeletion = entry.headword">Delete</button>
+                <button v-if="editing !== entryKey(entry)" type="button" :disabled="busy" class="text-accent" @click="beginEdit(entry)">Edit</button>
+                <button type="button" :disabled="busy" class="text-muted" @click="pendingDeletion = entryKey(entry)">Delete</button>
               </template>
             </div>
           </li>

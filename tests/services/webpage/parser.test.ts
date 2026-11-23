@@ -49,6 +49,36 @@ describe('webpage Korean parser', () => {
     expect(nodes.map((node) => node.nodeValue?.trim())).toEqual(['한국어 문장입니다.']);
   });
 
+  it('parses Japanese ruby base text, ignores Chinese and restores the original text nodes', async () => {
+    document.body.innerHTML = '<p lang="ja"><ruby>本<rt>ほん</rt></ruby>を読む。これを読む。</p><p lang="zh">漢字</p><div contenteditable>日本語です。</div>';
+    const block = document.querySelector('p')!;
+    const rubyBase = block.querySelector('ruby')!.firstChild;
+    const original = block.lastChild;
+    const snapshot = document.body.innerHTML;
+    tokenizeLines.mockImplementation(async (texts: string[]) => texts.map((text) => {
+      const tokens = text === '本' ? [{ id: '0:0', text, start: 0, length: 1, clickable: true, morphemes: [], japaneseIds: ['1:ほん'] }]
+        : [...text.matchAll(/読む|[^読]+/gu)].map((match) => ({ id: '0:' + match.index, text: match[0], start: match.index,
+          length: match[0].length, clickable: match[0] === '読む', morphemes: [], japaneseIds: ['2:よむ'] }));
+      return { text, tokens };
+    }));
+    const select = vi.fn();
+    const parser = createWebpageParser({ document, onSelectWord: select, onClearSelection: vi.fn() });
+    await expect(parser.parse('ja')).resolves.toBe(3);
+    expect(tokenizeLines).toHaveBeenCalledWith(['本', 'を読む。これを読む。'], 'ja');
+    const words = document.querySelectorAll<HTMLElement>(`.${PAGE_WORD_CLASS}`);
+    words[1]?.click();
+    expect(select).toHaveBeenLastCalledWith(expect.objectContaining({ language: 'ja', sentence: '本を読む。', focusSpan: { start: 2, length: 2 } }));
+    words[2]?.click();
+    expect(select).toHaveBeenLastCalledWith(expect.objectContaining({ sentence: 'これを読む。', focusSpan: { start: 3, length: 2 } }));
+    parser.setKnownHeadwords(new Set(['2:よむ']));
+    expect(words[2]?.dataset.krUnknown).toBe('false');
+    expect(document.querySelector('rt')?.textContent).toBe('ほん');
+    parser.clear();
+    expect(document.body.innerHTML).toBe(snapshot);
+    expect(block.querySelector('ruby')?.firstChild).toBe(rubyBase);
+    expect(block.lastChild).toBe(original);
+  });
+
   it('extracts the sentence containing the clicked word', () => {
     const block = '첫 번째 문장입니다. 두 번째 문장에서 먹어요! 세 번째 문장.';
     expect(extractSentenceForWord(block, '먹어요')).toBe('두 번째 문장에서 먹어요!');

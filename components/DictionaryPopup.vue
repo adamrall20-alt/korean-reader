@@ -168,7 +168,16 @@ async function saveWord() {
   const machineDefinitions = word.definitions.length ? [] : translatedDefinitions.value.filter((_, index) => indices.includes(index));
   audioUnavailable.value = false;
   try {
-    const media = await props.prepareMine?.();
+    const languageFields = word.japanese ? { language: 'ja' as const } : {};
+    if (word.japanese && !savedContext.value) {
+      const initial: VocabularyResponse | undefined = await browser.runtime.sendMessage({
+        type: 'mine-word', ...languageFields, entry: selectedEntry, context: miningContext, machineDefinitions,
+      } satisfies VocabularyMessage);
+      if (!initial?.ok) throw new Error(initial?.error ?? 'Could not save the word.');
+      if (props.miningContext === miningContext && entry.value === word) miningOutcome.value = initial;
+      if (!props.prepareMine && !props.recordAudio) return;
+    }
+    const media = await (word.japanese ? props.prepareMine?.().catch(() => undefined) : props.prepareMine?.());
     if (props.miningContext !== miningContext || entry.value !== word) return;
     let audio: string | undefined;
     if (props.recordAudio) {
@@ -183,7 +192,8 @@ async function saveWord() {
         audioUnavailable.value = !audio;
       }
     }
-    if (entry.value !== word || (savedContext.value && !audio && props.miningContext === miningContext)) return;
+    if (entry.value !== word || (savedContext.value && !audio && props.miningContext === miningContext) ||
+        (word.japanese && miningOutcome.value?.ok && !media?.image && !audio)) return;
     const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({
       type: 'mine-word',
       ...(word.japanese ? { language: 'ja' } : {}),
@@ -192,11 +202,13 @@ async function saveWord() {
       machineDefinitions,
     } satisfies VocabularyMessage);
     if (props.miningContext === miningContext && entry.value === word) {
-      miningOutcome.value = response ?? { ok: false, error: 'Could not save the word.' };
+      if (!word.japanese || !miningOutcome.value?.ok || (response?.ok && response.outcome !== 'existing')) {
+        miningOutcome.value = response ?? { ok: false, error: 'Could not save the word.' };
+      }
     }
-  } catch {
-    if (props.miningContext === miningContext && entry.value === word) {
-      miningOutcome.value = { ok: false, error: 'Could not save the word. Try again.' };
+  } catch (error) {
+    if (props.miningContext === miningContext && entry.value === word && !miningOutcome.value?.ok) {
+      miningOutcome.value = { ok: false, error: word.japanese && error instanceof Error ? error.message : 'Could not save the word. Try again.' };
     }
   } finally {
     if (props.miningContext === miningContext && entry.value === word) mining.value = false;
@@ -240,7 +252,7 @@ watch([() => props.miningContext, entry], () => {
       <div class="kr-dictionary-heading">
         <h2 :lang="language">{{ entry.headword }}</h2>
         <span v-if="entry.partOfSpeech">{{ entry.partOfSpeech }}</span>
-        <span v-if="entry.frequencyRank" class="kr-frequency" :title="entry.frequencyRank > 80000 ? 'Not found in the Shiberu frequency list' : 'Shiberu frequency rank'">#{{ Math.min(entry.frequencyRank, 80000).toLocaleString('en-US') }}{{ entry.frequencyRank > 80000 ? '+' : '' }}</span>
+        <span v-if="entry.frequencyRank" class="kr-frequency" :title="entry.japanese ? 'Jiten frequency rank' : entry.frequencyRank > 80000 ? 'Not found in the Shiberu frequency list' : 'Shiberu frequency rank'">#{{ (entry.japanese ? entry.frequencyRank : Math.min(entry.frequencyRank, 80000)).toLocaleString('en-US') }}{{ !entry.japanese && entry.frequencyRank > 80000 ? '+' : '' }}</span>
       </div>
       <p v-if="entry.pronunciation" :lang="language" class="kr-dictionary-pronunciation">
         {{ entry.pronunciation }}
@@ -248,6 +260,14 @@ watch([() => props.miningContext, entry], () => {
       <p v-if="entry.hanja?.length" class="kr-dictionary-pronunciation">
         Hanja {{ entry.hanja.join(', ') }}
       </p>
+      <details v-if="entry.kanjiDetails?.length" class="kr-dictionary-section">
+        <summary>Kanji</summary>
+        <p v-for="kanji in entry.kanjiDetails" :key="kanji.character">
+          <strong lang="ja">{{ kanji.character }}</strong>
+          <span lang="ja"> {{ kanji.readings.join('、') }}</span>
+          <span v-if="kanji.meanings.length"> · {{ kanji.meanings.join(', ') }}</span>
+        </p>
+      </details>
       <p v-if="entry.conjugations?.length" class="kr-dictionary-pronunciation">
         Forms {{ entry.conjugations.slice(0, 3).join(', ') }}
       </p>
@@ -295,7 +315,7 @@ watch([() => props.miningContext, entry], () => {
       <div class="kr-mining-actions">
         <template v-if="miningContext">
           <p v-if="!savedContexts?.length && (entry.definitions.length || entry.koreanDefinitions.length) > 1" class="kr-dictionary-message">Select one or more definitions to mine.</p>
-          <p v-if="!miningContext.image" class="kr-dictionary-message" role="status">Video image unavailable; the word can still be saved.</p>
+          <p v-if="!miningContext.image && miningContext.timestamp !== undefined" class="kr-dictionary-message" role="status">Video image unavailable; the word can still be saved.</p>
           <p v-if="audioUnavailable" role="status">Subtitle audio unavailable.</p>
           <p v-if="miningOutcome?.ok || contextAlreadySaved" role="status" :class="{ 'kr-word-celebration': miningOutcome?.ok && miningOutcome.outcome !== 'existing' }">
             <ReaderIcon v-if="miningOutcome?.ok && miningOutcome.outcome !== 'existing'" name="sparkle" class="kr-word-sparkle" />

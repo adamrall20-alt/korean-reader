@@ -3,7 +3,8 @@ import TranscriptSidebar from '@/components/TranscriptSidebar.vue';
 import sharedStyles from '@/assets/subtitle-overlay.css?inline';
 import sidebarStyles from '@/assets/transcript-sidebar.css?inline';
 import { DEFAULT_SUBTITLE_APPEARANCE, type InterfaceTheme, type SubtitleAppearance } from '@/types/preferences';
-import { findPlayer, findVideo, getYouTubeVideoId, hasKorean, isKoreanTrack } from './captions';
+import type { ReaderLanguage } from '@/types/language';
+import { findPlayer, findVideo, getYouTubeVideoId, matchesCaptionLanguage, isLanguageTrack } from './captions';
 import {
   activeTranscriptCue, collectTranscriptCue, finishTranscript, TRANSCRIPT_REQUEST, TRANSCRIPT_RESPONSE,
   transcriptCue, type TranscriptCue,
@@ -14,6 +15,7 @@ import type { createSubtitleOverlay } from './overlay';
 export function createTranscriptSidebar(prepareAudio: ReturnType<typeof createSubtitleOverlay>['prepareCueAudio']) {
   const state = shallowReactive({
     videoId: '',
+    language: 'ko' as ReaderLanguage,
     status: 'loading' as 'loading' | 'full' | 'collecting',
     cues: [] as readonly TranscriptCue[],
     active: undefined as TranscriptCue | undefined,
@@ -77,10 +79,10 @@ export function createTranscriptSidebar(prepareAudio: ReturnType<typeof createSu
     const id = ++requestId;
     // Browser-supplied text tracks, when populated, already contain timed cues.
     for (const track of Array.from(video?.textTracks ?? [])) {
-      if (!isKoreanTrack(track)) continue;
+      if (!isLanguageTrack(track, state.language)) continue;
       const cues = finishTranscript(Array.from(track.cues ?? []).flatMap((cue) =>
         transcriptCue(cue.startTime, cue.endTime, 'text' in cue ? String(cue.text) : '') ?? [],
-      ));
+      ), state.language, true);
       if (cues.length) {
         finish(cues);
         return;
@@ -90,16 +92,16 @@ export function createTranscriptSidebar(prepareAudio: ReturnType<typeof createSu
     timer = setTimeout(() => {
       if (id === requestId && state.status === 'loading') finish([]);
     }, 6500);
-    document.dispatchEvent(new CustomEvent(TRANSCRIPT_REQUEST, { detail: { videoId: state.videoId, requestId: id } }));
+    document.dispatchEvent(new CustomEvent(TRANSCRIPT_REQUEST, { detail: { videoId: state.videoId, requestId: id, language: state.language } }));
   }
 
   function receive(event: Event) {
     const detail = (event as CustomEvent).detail;
     if (state.status !== 'loading' || !requested || detail?.videoId !== state.videoId ||
-        detail?.requestId !== requestId || !Array.isArray(detail.cues)) return;
+        detail?.requestId !== requestId || (detail.language ?? 'ko') !== state.language || !Array.isArray(detail.cues)) return;
     finish(finishTranscript(detail.cues.flatMap((cue: Partial<TranscriptCue> | null) =>
       cue && typeof cue.text === 'string' ? transcriptCue(cue.start, cue.end, cue.text) ?? [] : [],
-    )));
+    ), state.language, true));
   }
 
   function applyWidth(width: number) {
@@ -192,7 +194,7 @@ export function createTranscriptSidebar(prepareAudio: ReturnType<typeof createSu
     document.addEventListener('fullscreenchange', layout);
     app = createApp({
       render: () => h(TranscriptSidebar, {
-        key: state.videoId,
+        key: state.videoId + ':' + state.language,
         ...state,
         prepareAudio,
         onClose: hide,
@@ -212,7 +214,7 @@ export function createTranscriptSidebar(prepareAudio: ReturnType<typeof createSu
     if (!requested || state.status === 'full' || snapshot.videoId !== state.videoId) return;
     if (findPlayer(document)?.classList.contains('ad-showing')) {
       liveCue = undefined;
-    } else if (hasKorean(snapshot.text) && snapshot.timestamp !== null) {
+    } else if (matchesCaptionLanguage(snapshot) && snapshot.timestamp !== null) {
       const start = snapshot.audioTiming?.start ?? snapshot.timestamp;
       const cue = { start, end: snapshot.audioTiming?.end, text: snapshot.text, observedAt: snapshot.timestamp };
       const result = collectTranscriptCue(collected, cue);
@@ -231,6 +233,20 @@ export function createTranscriptSidebar(prepareAudio: ReturnType<typeof createSu
     open,
     refresh,
     update,
+    setLanguage(language: ReaderLanguage) {
+      if (state.language === language) return;
+      clearTimeout(timer);
+      requestId += 1;
+      requested = false;
+      state.language = language;
+      state.status = 'loading';
+      state.active = undefined;
+      state.cues = [];
+      collected = [];
+      liveCue = undefined;
+      lastSnapshot = undefined;
+      refresh();
+    },
     setKnownHeadwords(headwords: Iterable<string>) { state.knownHeadwords = new Set(headwords); },
     setTheme(theme: InterfaceTheme) { state.theme = theme; },
     setAppearance(appearance: SubtitleAppearance) { state.appearance = appearance; },

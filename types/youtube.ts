@@ -1,3 +1,5 @@
+import type { ReaderLanguage } from './language';
+
 export interface CaptionTrack {
   language: string;
   label: string;
@@ -16,6 +18,8 @@ export interface CaptionSnapshot {
   lines: string[];
   text: string;
   isKorean: boolean;
+  readingLanguage?: ReaderLanguage;
+  matchesLanguage?: boolean;
   timestamp: number | null;
   videoId: string | null;
   hasVideo: boolean;

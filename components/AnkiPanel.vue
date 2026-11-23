@@ -3,9 +3,9 @@ import { computed, onMounted, ref, watch } from 'vue';
 import type { VocabularyEntry } from '@/types/vocabulary';
 import { createDefinitionTranslator, translateDefinitionList } from '@/services/korean/translation';
 import { browser } from 'wxt/browser';
-import type { ReaderLanguage } from '@/types/language';
+import { LANGUAGE_NAMES, type ReaderLanguage } from '@/types/language';
 import {
-  ANKI_DEFAULT_FIELDS, ANKI_FIELD_ROLES, DEFAULT_ANKI_SETTINGS,
+  ANKI_DEFAULT_FIELDS, ANKI_FIELD_ROLES, DEFAULT_ANKI_SETTINGS, JAPANESE_ANKI_ID_FIELD,
   type AnkiFieldRole, type AnkiImportPreview, type AnkiMessage, type AnkiResponse, type AnkiSettings, type AnkiSyncResult, type AnkiTranslation,
 } from '@/types/anki';
 
@@ -55,7 +55,7 @@ watch(
     let stale = false;
     onCleanup(() => { stale = true; });
     try {
-      const response = await request({ type: 'count-unsynced', settings: selection.settings });
+      const response = await request({ type: 'count-unsynced', settings: selection.settings, ...japanese });
       if (!stale) unsynced.value = response.unsynced;
     } catch {
       if (!stale) countError.value = true;
@@ -95,7 +95,7 @@ async function readFields() {
   if (!settings.value.modelName) return;
 
   const result = await request({ type: 'get-anki-fields', ...connection(), modelName: settings.value.modelName });
-  fields.value = result.fields ?? [];
+  fields.value = (result.fields ?? []).filter((field) => props.language !== 'ja' || field !== JAPANESE_ANKI_ID_FIELD);
   for (const role of ANKI_FIELD_ROLES) {
     const mapped = settings.value.fields[role];
     if (!fields.value.includes(mapped)) {
@@ -123,7 +123,7 @@ function previewImport() {
   void run(async () => {
     importPreview.value = undefined;
     const result = await request({
-      type: 'preview-anki-import', settings: configuration(), deckName: importDeck.value,
+      type: 'preview-anki-import', ...japanese, settings: configuration(), deckName: importDeck.value,
     });
     importPreview.value = result.importPreview;
   });
@@ -133,11 +133,21 @@ function importWords() {
   const headwords = importPreview.value?.headwords;
   if (!connected.value || !headwords?.length) return;
   void run(async () => {
-    const result = await request({ type: 'import-anki-words', headwords: [...headwords] });
+    const result = await request({ type: 'import-anki-words', headwords: [...headwords], ...japanese,
+      ...(props.language === 'ja' ? { japaneseWords: importPreview.value?.japaneseWords } : {}) });
     importPreview.value = undefined;
     const count = result.markedKnown ?? 0;
     notice.value = `${count} ${count === 1 ? 'word' : 'words'} marked known.`;
     emit('imported');
+  });
+}
+
+function createJapaneseDeck() {
+  void run(async () => {
+    await request({ type: 'create-japanese-anki-deck', ...connection() });
+    settings.value.deckName = 'Japanese Mining';
+    await loadConnection(false);
+    notice.value = 'Japanese Mining deck is ready. Save defaults to use it.';
   });
 }
 
@@ -196,8 +206,8 @@ function syncAll() {
   results.value = [];
   translationWarning.value = false;
   void run(async () => {
-    const translations = await translateMissing(entries);
-    const result = await request({ type: 'sync-anki', settings, translations });
+    const translations = props.language === 'ja' ? [] : await translateMissing(entries);
+    const result = await request({ type: 'sync-anki', ...japanese, settings, translations });
     results.value = result.results ?? [];
     emit('synced');
   });
@@ -255,6 +265,7 @@ onMounted(() => {
           <option v-for="deck in decks" :key="deck">{{ deck }}</option>
         </select>
       </label>
+      <button v-if="language === 'ja' && !decks.includes('Japanese Mining')" type="button" class="justify-self-start rounded-lg border border-interface/15 px-2 py-1 text-xs" @click="createJapaneseDeck">Create Japanese Mining deck</button>
       <label class="grid gap-1 text-xs">
         Note type
         <select v-model="settings.modelName" class="min-w-0 rounded-lg border border-interface/15 bg-ink px-2 py-1" @change="changeModel">
@@ -281,7 +292,7 @@ onMounted(() => {
 
     </details>
 
-    <section v-if="vocabulary === undefined && language !== 'ja'" aria-labelledby="anki-import-heading" class="space-y-2 border-t border-interface/10 pt-3">
+    <section v-if="vocabulary === undefined" aria-labelledby="anki-import-heading" class="space-y-2 border-t border-interface/10 pt-3">
       <h3 id="anki-import-heading" class="text-sm font-medium">Import known words</h3>
       <p v-if="!connected" class="text-xs text-muted">Open Anki Desktop and connect above to choose a deck.</p>
       <template v-else>
@@ -303,9 +314,9 @@ onMounted(() => {
             {{ importPreview.total }} unique focus words · {{ importPreview.alreadyKnown }} already known ·
             {{ importPreview.headwords.length }} to mark known
           </p>
-          <p v-if="importPreview.skipped" class="text-muted">{{ importPreview.skipped }} notes skipped because they had no Korean focus word.</p>
-          <p v-if="importPreview.headwords.length" lang="ko" class="break-words text-muted">
-            {{ importPreview.headwords.slice(0, 12).join(', ') }}<template v-if="importPreview.headwords.length > 12">…</template>
+          <p v-if="importPreview.skipped" class="text-muted">{{ importPreview.skipped }} {{ language === 'ja' ? 'notes skipped because the word or reading could not be resolved.' : 'notes skipped because they had no Korean focus word.' }}</p>
+          <p v-if="importPreview.headwords.length" :lang="language ?? 'ko'" class="break-words text-muted">
+            {{ (importPreview.japaneseWords?.map((word) => word.headword + ' · ' + word.japanese.reading) ?? importPreview.headwords).slice(0, 12).join(', ') }}<template v-if="importPreview.headwords.length > 12">…</template>
           </p>
           <button v-if="importPreview.headwords.length" type="button" :disabled="busy" class="rounded-lg bg-accent px-3 py-1.5 text-white disabled:opacity-50" @click="importWords">
             Mark words known
@@ -321,7 +332,7 @@ onMounted(() => {
       </div>
       <p v-if="!configured" class="mt-1 text-xs text-muted">Connect Anki and configure a deck in Settings to check.</p>
       <p v-else-if="countError" class="mt-1 text-xs text-danger">Could not check Anki. Refresh the connection to retry.</p>
-      <p v-if="settings.deckName" class="mt-1 break-words text-xs text-muted">Korean deck · {{ settings.deckName }}</p>
+      <p v-if="settings.deckName" class="mt-1 break-words text-xs text-muted">{{ LANGUAGE_NAMES[language ?? 'ko'] }} deck · {{ settings.deckName }}</p>
       <button
         type="button"
         :disabled="busy || !configured || !vocabulary.length"
@@ -339,8 +350,8 @@ onMounted(() => {
     <details v-if="results.some((result) => result.message)" class="text-xs">
       <summary class="cursor-pointer text-muted">Sync details</summary>
       <ul class="mt-2 max-h-32 space-y-2 overflow-auto">
-        <li v-for="result in results.filter((item) => item.message)" :key="result.headword">
-          <span lang="ko">{{ result.headword }}</span> · {{ result.message }}
+        <li v-for="result in results.filter((item) => item.message)" :key="result.headword + result.message">
+          <span :lang="language ?? 'ko'">{{ result.headword }}</span> · {{ result.message }}
         </li>
       </ul>
     </details>

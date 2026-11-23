@@ -86,10 +86,16 @@ function matches(options: Candidate[], dictionary: Dictionary): JapaneseMatch[] 
 
 export async function lookupJapaneseWord(text: string, read: ReadDictionary = readJapaneseDictionary): Promise<DictionaryEntry[]> {
   if (text.length > 100) throw new Error('Choose a shorter Japanese word.');
-  const options = candidates(text);
-  if (!options.length) return [];
-  const dictionary = await read([...new Set(options.map(({ form }) => form))]);
-  return matches(options, dictionary).slice(0, 20).map(({ entry }) => ({ ...entry, originalForm: text }));
+  return (await lookupJapaneseWords([text], read))[0] ?? [];
+}
+
+export async function lookupJapaneseWords(texts: readonly string[], read: ReadDictionary = readJapaneseDictionary) {
+  const queries = texts.map((text) => text.length <= 100 ? candidates(text) : []);
+  const forms = [...new Set(queries.flatMap((query) => query.map(({ form }) => form)))];
+  if (!forms.length) return texts.map((): DictionaryEntry[] => []);
+  const dictionary = await read(forms);
+  return queries.map((query, index) => matches(query, dictionary).slice(0, 20)
+    .map(({ entry }) => ({ ...entry, originalForm: texts[index]! })));
 }
 
 interface Window { end: number; options: Candidate[] }

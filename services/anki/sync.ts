@@ -1,8 +1,11 @@
 import { AnkiClient, type AnkiNote, type AnkiNoteInfo } from '@/services/anki/client';
 import { plainText } from '@/services/anki/fields';
-import { ensureKoreanReaderModel } from '@/services/anki/model';
+import { ensureReaderModel } from '@/services/anki/model';
 import { getVocabulary, listVocabulary, recordAnkiSync } from '@/services/storage/vocabulary';
-import { ANKI_DEFAULT_FIELDS, ANKI_DEFAULT_MODEL_NAME, ANKI_FIELD_ROLES, type AnkiSettings, type AnkiSyncResult } from '@/types/anki';
+import { ANKI_DEFAULT_FIELDS, ANKI_DEFAULT_MODEL_NAME, ANKI_FIELD_ROLES, JAPANESE_ANKI_ID_FIELD, JAPANESE_ANKI_MODEL, type AnkiSettings, type AnkiSyncResult } from '@/types/anki';
+import { normalizeJapanese } from '@/services/japanese/jmdict';
+import { deckSearch } from './import';
+import type { ReaderLanguage } from '@/types/language';
 import { isSubtitleAudio, SUBTITLE_AUDIO_PREFIX } from '@/types/audio';
 import type { VocabularyEntry } from '@/types/vocabulary';
 
@@ -10,6 +13,8 @@ function headwordTag(headword: string): string {
   return 'kr-word-' + Array.from(headword, (character) => character.codePointAt(0)!.toString(16)).join('-');
 }
 
+const JAPANESE_NOTE_TAG = 'korean-reader-ja';
+const japaneseTag = (id: string) => 'kr-ja-' + Array.from(id, (char) => char.codePointAt(0)!.toString(16)).join('-');
 const NOTE_TAG = 'korean-reader';
 const LOOKUP_BATCH_SIZE = 20;
 const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
@@ -25,6 +30,14 @@ function escapeSearch(text: string): string {
 function sentenceFields(entry: VocabularyEntry): Map<string, string> {
   const sentences = new Map<string, string>();
   for (const context of entry.contexts) {
+    if (entry.japanese && context.focusSpan) {
+      const { sentence, focusSpan: { start, length } } = context;
+      const escapeLines = (text: string) => escapeHtml(text).replace(/\r?\n/g, '<br>');
+      const focus = escapeHtml(sentence.slice(start, start + length));
+      sentences.set(sentence.trim().normalize('NFC'), escapeLines(sentence.slice(0, start)) +
+        `<span style="color: #f59e0b">${focus}</span>` + escapeLines(sentence.slice(start + length)));
+      continue;
+    }
     const focusForms = [...new Set([context.originalForm || entry.originalForm, entry.headword])]
       .filter(Boolean).sort((a, b) => b.length - a.length);
     const matches = focusForms.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -56,11 +69,19 @@ function buildNote(entry: VocabularyEntry, settings: AnkiSettings): AnkiNote {
     word: escapeHtml(entry.headword),
     sentence: [...sentenceFields(entry).values()].join('<br>'),
     definition: definitionField(entry),
-    pronunciation: escapeHtml(entry.pronunciation ?? ''),
+    pronunciation: escapeHtml(entry.japanese?.reading ?? entry.pronunciation ?? ''),
     image: '',
     audio: '',
   };
   const mapped = ANKI_FIELD_ROLES.flatMap((role) => fields[role] ? [[fields[role], values[role]]] : []);
+  if (entry.japanese) {
+    const values = Object.fromEntries(mapped);
+    if (modelName === JAPANESE_ANKI_MODEL) values[JAPANESE_ANKI_ID_FIELD] = escapeHtml(entry.japanese.id);
+    return {
+      deckName, modelName, fields: values, tags: [JAPANESE_NOTE_TAG, japaneseTag(entry.japanese.id)],
+      options: { allowDuplicate: false, duplicateScope: 'deck', duplicateScopeOptions: { deckName, checkChildren: true } },
+    };
+  }
   return { deckName, modelName, fields: Object.fromEntries(mapped), tags: [NOTE_TAG, headwordTag(entry.headword)], options: { allowDuplicate: false } };
 }
 
@@ -91,12 +112,25 @@ async function fetchBatchNotes(
 ): Promise<AnkiNoteInfo[]> {
   const query = [...new Set(batch.flatMap((entry) => searchTerms(entry, settings)))].join(' OR ');
   const ids = await client.request('findNotes', { query });
-  return ids.length ? client.request('notesInfo', { notes: ids }) : [];
+  return ids.length ? (await client.request('notesInfo', { notes: ids })).filter((note) => !note.tags?.includes(JAPANESE_NOTE_TAG) && note.modelName !== JAPANESE_ANKI_MODEL) : [];
 }
 
-export async function countUnsynced(settings: AnkiSettings): Promise<number> {
+export async function countUnsynced(settings: AnkiSettings, language: ReaderLanguage = 'ko'): Promise<number> {
   const client = new AnkiClient(settings);
-  const entries = (await listVocabulary()).filter((entry) => entry.contexts.length);
+  const entries = (language === 'ja' ? await listVocabulary('ja') : await listVocabulary()).filter((entry) => entry.contexts.length);
+  if (language === 'ja') {
+    let count = 0;
+    for (const entry of entries) {
+      const { note } = await findJapaneseNote(client, entry, settings).catch((error: unknown) => {
+        if (error instanceof JapaneseNoteConflict) return { note: undefined };
+        throw error;
+      });
+      if (!note || !note.tags?.includes(JAPANESE_NOTE_TAG) || unsavedSentences(note, entry, settings).length ||
+          (entry.contexts.some((context) => context.audio) && settings.fields.audio && !note.fields[settings.fields.audio]?.value.trim()) ||
+          (entry.contexts.some((context) => context.image) && settings.fields.image && !note.fields[settings.fields.image]?.value.trim())) count += 1;
+    }
+    return count;
+  }
   let count = 0;
   for (let index = 0; index < entries.length; index += LOOKUP_BATCH_SIZE) {
     const batch = entries.slice(index, index + LOOKUP_BATCH_SIZE);
@@ -150,6 +184,56 @@ async function attachAudio(
   }
 }
 
+class JapaneseNoteConflict extends Error {}
+
+async function findJapaneseNote(client: AnkiClient, entry: VocabularyEntry, settings: AnkiSettings) {
+  const lexeme = entry.japanese!;
+  const tag = japaneseTag(lexeme.id);
+  const aliases = new Set([entry.headword, ...lexeme.aliases].map(normalizeJapanese));
+  const terms = getFocusFields(entry, settings).flatMap((field) =>
+    [...new Set([entry.headword, ...lexeme.aliases])].map((word) => `"${escapeSearch(field)}:${escapeSearch(word)}"`));
+  terms.push(`tag:${tag}`);
+  if (entry.ankiNoteId) terms.push(`nid:${entry.ankiNoteId}`);
+  const ids = await client.request('findNotes', { query: `${deckSearch(settings.deckName)} (${terms.join(' OR ')})` });
+  const candidates = ids.length ? await client.request('notesInfo', { notes: ids }) : [];
+  const matches: AnkiNoteInfo[] = [];
+  let distinctHomograph = false;
+  for (const note of candidates) {
+    const field = note.fields[settings.fields.word]?.value ?? '';
+    const spellingMatches = aliases.has(normalizeJapanese(plainText(field)));
+    const exactSpelling = normalizeJapanese(plainText(field)) === normalizeJapanese(entry.headword);
+    const identified = note.tags?.includes(tag) || plainText(note.fields[JAPANESE_ANKI_ID_FIELD]?.value ?? '') === lexeme.id;
+    const otherIdentity = note.tags?.some((value) => value.startsWith('kr-ja-') && value !== tag) ||
+      !!note.fields[JAPANESE_ANKI_ID_FIELD]?.value.trim();
+    const reading = normalizeJapanese(plainText(note.fields[settings.fields.pronunciation]?.value ?? '').replace(/^\[(.*)\]$/u, '$1'));
+    if (!identified && !spellingMatches) continue;
+    if (!identified && (otherIdentity || (reading && reading !== normalizeJapanese(lexeme.reading)))) {
+      distinctHomograph ||= exactSpelling && note.modelName === settings.modelName;
+      continue;
+    }
+    if (!identified && !reading) throw new JapaneseNoteConflict('An existing Anki note has this spelling. Map its reading field to identify the correct word.');
+    if (note.modelName !== settings.modelName) throw new JapaneseNoteConflict('The matching Japanese note uses a different note type.');
+    if (!note.cards?.length) throw new JapaneseNoteConflict('Could not verify the deck for the matching Japanese note.');
+    const cards = await client.request('cardsInfo', { cards: note.cards });
+    const deck = settings.deckName;
+    if (!note.cards.every((id) => cards.some((card) => card.cardId === id &&
+      (card.deckName === deck || card.deckName.startsWith(deck + '::'))))) {
+      throw new JapaneseNoteConflict('The matching Japanese note has cards outside the selected deck.');
+    }
+    matches.push(note);
+  }
+  if (matches.length > 1) throw new JapaneseNoteConflict('Multiple notes match this Japanese reading. Resolve the duplicates in Anki.');
+  return { note: matches[0], distinctHomograph };
+}
+
+function unsavedSentences(existing: AnkiNoteInfo, entry: VocabularyEntry, settings: AnkiSettings) {
+  const current = existing.fields[settings.fields.sentence]?.value ?? '';
+  const lines = plainText(current.replace(/<(?:br\b[^>]*|\/div|\/p)>/gi, '\n'))
+    .normalize('NFC').split(/\r?\n/).map((line) => line.trim());
+  return [...sentenceFields(entry)].filter(([sentence]) =>
+    !`\n${lines.join('\n')}\n`.includes(`\n${sentence.split(/\r?\n/).map((line) => line.trim()).join('\n')}\n`));
+}
+
 async function updateExistingNote(
   client: AnkiClient,
   existing: AnkiNoteInfo,
@@ -162,11 +246,7 @@ async function updateExistingNote(
   }
 
   const current = existing.fields[field].value;
-  const asText = plainText(current.replace(/<(?:br\b[^>]*|\/div|\/p)>/gi, '\n'));
-  const lines = asText.split(/\r?\n/).map((line) => line.trim());
-  const added = [...sentenceFields(entry)].filter(([sentence]) =>
-    !`\n${lines.join('\n')}\n`.includes(`\n${sentence.split(/\r?\n/).map((line) => line.trim()).join('\n')}\n`),
-  );
+  const added = unsavedSentences(existing, entry, settings);
   const merged = [current, ...added.map(([, html]) => html)].filter(Boolean).join('<br>');
   const changes: Record<string, string> = {};
   if (added.length) changes[field] = merged;
@@ -203,8 +283,8 @@ export async function validateAnkiSettings(client: AnkiClient, settings: AnkiSet
   const [decks, existingModels] = await Promise.all([
     client.request('deckNames', undefined), client.request('modelNames', undefined),
   ]);
-  const models = settings.modelName === ANKI_DEFAULT_MODEL_NAME
-    ? await ensureKoreanReaderModel(client, existingModels)
+  const models = (settings.modelName === ANKI_DEFAULT_MODEL_NAME || settings.modelName === JAPANESE_ANKI_MODEL)
+    ? await ensureReaderModel(client, existingModels, settings.modelName)
     : existingModels;
   if (!decks.includes(settings.deckName)) throw new Error('Choose an available Anki deck.');
   if (!models.includes(settings.modelName)) throw new Error('Choose an available Anki note type.');
@@ -214,6 +294,7 @@ export async function validateAnkiSettings(client: AnkiClient, settings: AnkiSet
     throw new Error('Map the focus word, sentence and definition fields.');
   }
   const mapped = Object.values(settings.fields).filter(Boolean);
+  if (settings.modelName === JAPANESE_ANKI_MODEL && mapped.includes(JAPANESE_ANKI_ID_FIELD)) throw new Error('The Dictionary ID field is managed by Korean Reader.');
   if (new Set(mapped).size !== mapped.length || mapped.some((field) => !fields.includes(field))) {
     throw new Error('Map each role to a different field from the selected note type.');
   }
@@ -223,9 +304,10 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Anki sync failed.';
 }
 
-async function saveResult(headword: string, status: 'created' | 'updated' | 'existing', id: number, focusField: string, message?: string): Promise<AnkiSyncResult> {
+async function saveResult(headword: string, status: 'created' | 'updated' | 'existing', id: number, focusField: string, message?: string, lexicalId?: string): Promise<AnkiSyncResult> {
   try {
-    await recordAnkiSync(headword, id, focusField);
+    if (lexicalId) await recordAnkiSync(lexicalId, id, focusField, 'ja');
+    else await recordAnkiSync(headword, id, focusField);
     return message ? { headword, status, message } : { headword, status };
   } catch {
     return { headword, status, message: [message, 'Anki succeeded, but the local sync marker could not be saved.'].filter(Boolean).join(' ') };
@@ -234,13 +316,43 @@ async function saveResult(headword: string, status: 'created' | 'updated' | 'exi
 
 let syncing = false;
 
-export async function syncVocabulary(settings: AnkiSettings, headwords: string[]): Promise<AnkiSyncResult[]> {
+export async function syncVocabulary(settings: AnkiSettings, headwords: string[], language: ReaderLanguage = 'ko'): Promise<AnkiSyncResult[]> {
   if (syncing) throw new Error('Anki sync is already running.');
   syncing = true;
   try {
     const client = new AnkiClient(settings);
     await validateAnkiSettings(client, settings);
     const results: AnkiSyncResult[] = [];
+    if (language === 'ja') {
+      for (const id of new Set(headwords)) {
+        let headword = id;
+        try {
+          const entry = await getVocabulary(id, 'ja');
+          if (!entry?.japanese || !entry.contexts.length) continue;
+          headword = entry.headword;
+          const { note: existing, distinctHomograph } = await findJapaneseNote(client, entry, settings);
+          if (existing) {
+            const { updated, message } = await updateExistingNote(client, existing, entry, settings);
+            const tag = japaneseTag(id);
+            if (!existing.tags?.includes(tag) || !existing.tags.includes(JAPANESE_NOTE_TAG)) {
+              await client.request('addTags', { notes: [existing.noteId], tags: `${JAPANESE_NOTE_TAG} ${tag}` });
+            }
+            results.push(await saveResult(headword, updated ? 'updated' : 'existing', existing.noteId, settings.fields.word, message, id));
+          } else {
+            const note = buildNote(entry, settings);
+            if (settings.modelName !== JAPANESE_ANKI_MODEL && distinctHomograph) note.options.allowDuplicate = true;
+            if (settings.fields.image) note.fields[settings.fields.image] = await uploadImage(client, entry);
+            const message = await attachAudio(client, entry, settings.fields.audio, note.fields);
+            const noteId = await client.request('addNote', { note });
+            if (!Number.isInteger(noteId) || noteId < 1) throw new Error('Anki did not return a note ID. Retry to check the collection.');
+            results.push(await saveResult(headword, 'created', noteId, settings.fields.word, message, id));
+          }
+        } catch (error) {
+          results.push({ headword, status: 'failed', message: errorMessage(error) });
+        }
+      }
+      return results;
+    }
     const candidates: Array<{ headword: string; note: AnkiNote; message?: string }> = [];
     const pending: Array<{ headword: string; entry: VocabularyEntry }> = [];
     for (const headword of new Set(headwords.map((word) => word.trim().normalize('NFC')))) {

@@ -1,10 +1,14 @@
 import type { CaptionAudioTiming, CaptionSnapshot, CaptionTrack } from '@/types/youtube';
 
+import { hasJapaneseKana, hasJapaneseText, type ReaderLanguage } from '@/types/language';
+
 const HANGUL_PATTERN = /[\u1100-\u11ff\u3131-\u318e\uac00-\ud7a3]/;
 const CAPTION_WINDOW_SELECTOR = '.ytp-caption-window-container :is(.caption-window, .ytp-caption-window-rollup)';
 const ROLLING_WINDOW = '.ytp-caption-window-rollup';
 const ROLLING_SETTLE_MS = 450;
 const ROLLING_MAX_WAIT_MS = 1250;
+export const CAPTION_TRACK_REQUEST = 'kr-caption-track-request';
+export const CAPTION_TRACK_RESPONSE = 'kr-caption-track-response';
 const PLAYER_SELECTOR = '#movie_player, .html5-video-player';
 const VIDEO_SELECTOR = 'video.html5-main-video, video';
 
@@ -120,12 +124,27 @@ export function findActiveCaptionTrack(video: HTMLVideoElement | null): CaptionT
   return null;
 }
 
-export function isKoreanTrack(track: CaptionTrack | null): boolean {
-  if (!track) {
-    return false;
-  }
+export function isLanguageTrack(track: CaptionTrack | null, language: ReaderLanguage): boolean {
+  if (!track) return false;
+  if (track.language && track.language !== 'und') return track.language.toLowerCase().split('-')[0] === language;
+  return language === 'ja' ? /日本語|Japanese/i.test(track.label) : /한국어|Korean/i.test(track.label);
+}
 
-  return track.language.toLowerCase().startsWith('ko') || hasKorean(track.label);
+function readPlayerCaptionTrack(doc: Document): CaptionTrack | null {
+  let track: CaptionTrack | null = null;
+  const receive = (event: Event) => {
+    const data = (event as CustomEvent).detail;
+    if (data && typeof data.language === 'string' && /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/iu.test(data.language) &&
+        typeof data.label === 'string' && typeof data.kind === 'string') track = data;
+  };
+  doc.addEventListener(CAPTION_TRACK_RESPONSE, receive);
+  try { doc.dispatchEvent(new Event(CAPTION_TRACK_REQUEST)); }
+  finally { doc.removeEventListener(CAPTION_TRACK_RESPONSE, receive); }
+  return track;
+}
+
+export function matchesCaptionLanguage(snapshot: CaptionSnapshot): boolean {
+  return snapshot.matchesLanguage ?? snapshot.isKorean;
 }
 
 function hasHiddenInlineStyle(element: HTMLElement): boolean {
@@ -259,13 +278,16 @@ export function readVisibleCaptionLines(root: ParentNode): string[] {
 export function readCaptionSnapshot(
   doc: Document = document,
   url: string = doc.location?.href ?? '',
+  language: ReaderLanguage = 'ko',
 ): CaptionSnapshot {
   const player = findPlayer(doc);
   const video = findVideo(doc);
   const visible = video?.seeking ? { lines: [], hasRollingWindow: false } : readVisibleCaptions(player ?? doc);
   const lines = visible.lines;
   const text = lines.join('\n');
-  const activeTrack = findActiveCaptionTrack(video);
+  const browserTrack = findActiveCaptionTrack(video);
+  const activeTrack = browserTrack?.language && browserTrack.language !== 'und' ? browserTrack
+    : (text ? readPlayerCaptionTrack(doc) : null) ?? browserTrack;
 
   const timestamp = readVideoTimestamp(video);
   const audioTiming: CaptionAudioTiming | undefined = timestamp !== null && text ? { start: timestamp, observedAt: timestamp, caption: text } : undefined;
@@ -281,11 +303,17 @@ export function readCaptionSnapshot(
     }
   }
 
+  const matchesLanguage = !!text && (activeTrack?.language && activeTrack.language !== 'und'
+    ? isLanguageTrack(activeTrack, language)
+    : language === 'ja' ? hasJapaneseKana(text) || (hasJapaneseText(text) && !hasKorean(text) && !/\p{Script=Latin}/u.test(text))
+      : hasKorean(text) || isLanguageTrack(activeTrack, 'ko'));
   return {
+    readingLanguage: language,
+    matchesLanguage,
     audioTiming,
     lines,
     text,
-    isKorean: hasKorean(text) || (text.length > 0 && isKoreanTrack(activeTrack)),
+    isKorean: language === 'ko' && matchesLanguage,
     timestamp,
     videoId: getYouTubeVideoId(url),
     hasVideo: video !== null,
@@ -318,6 +346,7 @@ export interface CaptionMonitorOptions {
   onUpdate: (snapshot: CaptionSnapshot) => void;
   intervalMs?: number;
   locationHref?: () => string;
+  language?: () => ReaderLanguage;
 }
 
 export interface CaptionMonitor {
@@ -331,6 +360,7 @@ export function createCaptionMonitor({
   onUpdate,
   intervalMs = 250,
   locationHref = () => doc.location?.href ?? '',
+  language = () => 'ko',
 }: CaptionMonitorOptions): CaptionMonitor {
   let started = false;
   let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -344,6 +374,7 @@ export function createCaptionMonitor({
 
   let rolling: { words: RollingWord[]; firstChange: number; lastChange: number; pending: CaptionSnapshot } | null = null;
   let lastVideoId: string | null = null;
+  let lastLanguage: ReaderLanguage | undefined;
 
   const clearRollingTimer = () => {
     if (rollingTimer !== null) {
@@ -385,9 +416,9 @@ export function createCaptionMonitor({
   };
 
   const read = () => {
-    const snapshot = readCaptionSnapshot(doc, locationHref());
+    const snapshot = readCaptionSnapshot(doc, locationHref(), language());
     const key = JSON.stringify([
-      snapshot.videoId, snapshot.hasVideo, snapshot.lines, snapshot.isKorean,
+      snapshot.videoId, snapshot.hasVideo, snapshot.lines, snapshot.matchesLanguage, snapshot.readingLanguage,
       snapshot.activeTrack?.language, snapshot.isRolling,
     ]);
     const now = Date.now();
@@ -397,13 +428,14 @@ export function createCaptionMonitor({
     }
 
     lastKey = key;
-    const changedVideo = snapshot.videoId !== lastVideoId;
+    const changedVideo = snapshot.videoId !== lastVideoId || snapshot.readingLanguage !== lastLanguage;
+    lastLanguage = snapshot.readingLanguage;
     lastVideoId = snapshot.videoId;
     if (changedVideo) {
       rolling = null;
       clearRollingTimer();
     }
-    if (!snapshot.isRolling || !snapshot.isKorean || !snapshot.hasVideo || !snapshot.videoId) {
+    if (!snapshot.isRolling || !matchesCaptionLanguage(snapshot) || !snapshot.hasVideo || !snapshot.videoId) {
       rolling = null;
       clearRollingTimer();
       onUpdate(snapshot);
@@ -418,9 +450,11 @@ export function createCaptionMonitor({
         clearRollingTimer();
       }
     }
-    const incoming = snapshot.lines.join(' ').split(/\s+/u).map((text) => ({ text, time: snapshot.timestamp }));
+    const japanese = snapshot.readingLanguage === 'ja';
+    const incoming = (japanese ? [snapshot.lines.join('')] : snapshot.lines.join(' ').split(/\s+/u))
+      .map((text) => ({ text, time: snapshot.timestamp }));
     rolling = {
-      words: mergeRollingWords(rolling?.words ?? [], incoming),
+      words: japanese ? incoming : mergeRollingWords(rolling?.words ?? [], incoming),
       firstChange: Math.min(rolling?.firstChange ?? now, now),
       lastChange: now,
       pending: snapshot,

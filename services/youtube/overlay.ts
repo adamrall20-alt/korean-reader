@@ -7,7 +7,7 @@ import SubtitleReader from '@/components/SubtitleReader.vue';
 import type { TokenizedSubtitleLine } from '@/types/messages';
 import type { VocabularyContext } from '@/types/vocabulary';
 import { captureSubtitleAudio } from '@/services/youtube/audio';
-import { getYouTubeVideoId } from '@/services/youtube/captions';
+import { getYouTubeVideoId, matchesCaptionLanguage } from '@/services/youtube/captions';
 import type { CaptionAudioTiming, CaptionSnapshot } from '@/types/youtube';
 
 export const SUBTITLE_OVERLAY_HOST_ID = 'korean-reader-subtitle-overlay';
@@ -26,6 +26,7 @@ export interface SubtitleOverlay {
 }
 
 export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay & {
+  resetLanguage(): void;
   prepareCueAudio(video: HTMLVideoElement, videoId: string, timing: CaptionAudioTiming, selectedAt: number): () => Promise<string | undefined>;
 } {
   const state = reactive<{
@@ -92,6 +93,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
     app = createApp({
       setup() {
         return () => h(SubtitleReader, {
+          language: state.snapshot?.readingLanguage,
           lines: state.lines,
           visible: state.visible,
           source: state.source,
@@ -99,7 +101,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
           knownHeadwords: state.knownHeadwords,
           appearance: state.appearance,
           'data-theme': state.theme,
-          style: subtitleStyle(state.appearance),
+          style: subtitleStyle(state.appearance, state.snapshot?.readingLanguage),
         });
       },
     });
@@ -141,7 +143,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
     player: HTMLElement | null,
     lines: TokenizedSubtitleLine[] | null = null,
   ): void {
-    if (recording?.videoId === snapshot.videoId) return;
+    if (recording?.videoId === snapshot.videoId && state.snapshot?.readingLanguage === snapshot.readingLanguage) return;
     recording?.controller.abort();
     if (!player) {
       hide();
@@ -158,7 +160,7 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
       timestamp: snapshot.timestamp ?? undefined,
     } : undefined;
     state.lines = lines ?? [];
-    state.visible = snapshot.isKorean && state.lines.length > 0;
+    state.visible = matchesCaptionLanguage(snapshot) && state.lines.length > 0;
 
     if (host) {
       host.dataset.timestamp = snapshot.timestamp === null ? '' : snapshot.timestamp.toFixed(3);
@@ -179,6 +181,11 @@ export function createSubtitleOverlay(doc: Document = document): SubtitleOverlay
   return {
     update,
     prepareCueAudio,
+    resetLanguage() {
+      recording?.controller.abort();
+      state.visible = false;
+      state.lines = [];
+    },
     setKnownHeadwords(headwords) {
       state.knownHeadwords = new Set(headwords);
     },

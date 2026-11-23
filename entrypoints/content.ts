@@ -1,13 +1,14 @@
 import { observePreferences } from '@/services/storage/preferences';
 import { createTranscriptSidebar } from '@/services/youtube/sidebar';
 import { OPEN_TRANSCRIPT } from '@/services/youtube/transcript';
-import { createCaptionMonitor } from '@/services/youtube/captions';
+import { GET_READING_LANGUAGE, READING_LANGUAGE_CHANGED, readingLanguage, type ReaderLanguage } from '@/types/language';
+import { createCaptionMonitor, matchesCaptionLanguage } from '@/services/youtube/captions';
 import { createSubtitleOverlay } from '@/services/youtube/overlay';
 import { createSubtitlePresenter } from '@/services/youtube/presenter';
 import { tokenizeLines } from '@/services/korean/tokenize-client';
 import type { CaptionSnapshot } from '@/types/youtube';
 import {
-  VOCABULARY_REVISION_KEY, vocabularyRevisionChanges, type KnownHeadwordsMessage, type KnownHeadwordsResponse,
+  vocabularyRevisionKey, vocabularyRevisionChanges, type KnownHeadwordsMessage, type KnownHeadwordsResponse,
 } from '@/types/vocabulary';
 import { browser } from 'wxt/browser';
 
@@ -18,6 +19,8 @@ export default defineContentScript({
     console.info('[Korean Reader] Content script ready on YouTube.');
     document.documentElement.dataset.koreanReader = 'ready';
 
+    let language: ReaderLanguage = 'ko';
+    let selectionChanged = false;
     const overlay = createSubtitleOverlay(document);
     const sidebar = createTranscriptSidebar(overlay.prepareCueAudio);
     const stopPreferences = observePreferences((theme) => {
@@ -28,6 +31,11 @@ export default defineContentScript({
       sidebar.setAppearance(appearance);
     });
     const onMessage: Parameters<typeof browser.runtime.onMessage.addListener>[0] = (message, _sender, respond) => {
+      if (message?.type === READING_LANGUAGE_CHANGED) {
+        selectionChanged = true;
+        switchLanguage(readingLanguage(message.language));
+        respond({ ok: true });
+      }
       if (message?.type === OPEN_TRANSCRIPT) respond({ ok: sidebar.open() });
     };
     browser.runtime.onMessage.addListener(onMessage);
@@ -44,7 +52,7 @@ export default defineContentScript({
       const generation = ++vocabularyGeneration;
       try {
         const response: KnownHeadwordsResponse | undefined = await browser.runtime.sendMessage({
-          type: 'get-known-headwords',
+          type: 'get-known-headwords', ...(language === 'ja' ? { language } : {}),
         } satisfies KnownHeadwordsMessage);
         if (generation === vocabularyGeneration && response?.ok) {
           knownHeadwords = new Set(response.headwords);
@@ -58,8 +66,9 @@ export default defineContentScript({
       }
     };
     const onStorageChanged: Parameters<typeof browser.storage.onChanged.addListener>[0] = (changes, area) => {
-      if (area !== 'local' || !(VOCABULARY_REVISION_KEY in changes)) return;
-      const delta = vocabularyRevisionChanges(changes[VOCABULARY_REVISION_KEY]?.newValue);
+      const key = vocabularyRevisionKey(language);
+      if (area !== 'local' || !(key in changes)) return;
+      const delta = vocabularyRevisionChanges(changes[key]?.newValue);
       if (!delta || !knownLoaded) return void refreshKnownWords();
 
       // Patch the cached set instead of re-fetching every known headword for a single-word change.
@@ -86,9 +95,9 @@ export default defineContentScript({
           pending = undefined;
           const requestGeneration = generation;
           try {
-            const lines = await tokenizeLines(snapshot.lines);
+            const lines = await tokenizeLines(snapshot.lines, snapshot.readingLanguage);
             if (requestGeneration !== generation || (pending && !snapshot.isRolling)) continue;
-            if (lines.length === snapshot.lines.length) {
+            if (lines.length === snapshot.lines.length && (snapshot.readingLanguage !== 'ja' || lines.some((line) => line.tokens.some((token) => token.clickable)))) {
               presenter.update(snapshot, lines);
             } else {
               presenter.update(snapshot);
@@ -105,9 +114,10 @@ export default defineContentScript({
 
     const monitor = createCaptionMonitor({
       document,
+      language: () => language,
       onUpdate: (snapshot) => {
         sidebar.update(snapshot);
-        const valid = snapshot.videoId && snapshot.hasVideo && snapshot.isKorean && snapshot.lines.length;
+        const valid = snapshot.videoId && snapshot.hasVideo && matchesCaptionLanguage(snapshot) && snapshot.lines.length;
         if (!valid || videoId !== snapshot.videoId) {
           videoId = snapshot.videoId;
           generation += 1;
@@ -119,6 +129,21 @@ export default defineContentScript({
         void analyse();
       },
     });
+
+    function switchLanguage(next: ReaderLanguage) {
+      if (next === language) return;
+      language = next;
+      generation += 1;
+      pending = undefined;
+      knownLoaded = false;
+      knownHeadwords = new Set();
+      publishKnownWords();
+      sidebar.setLanguage(next);
+      overlay.resetLanguage();
+      presenter.update({ videoId: null } as CaptionSnapshot);
+      void refreshKnownWords();
+      monitor.refresh();
+    }
 
     const refresh = () => {
       sidebar.refresh();
@@ -146,5 +171,8 @@ export default defineContentScript({
     window.addEventListener('pagehide', handlePageHide, { once: true });
 
     monitor.start();
+    void Promise.resolve(browser.runtime.sendMessage({ type: GET_READING_LANGUAGE })).then((result) => {
+      if (!selectionChanged && result?.ok) switchLanguage(readingLanguage(result.language));
+    }).catch(() => {});
   },
 });

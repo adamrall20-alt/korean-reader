@@ -1,4 +1,4 @@
-import { findPlayer } from '@/services/youtube/captions';
+import { findPlayer, matchesCaptionLanguage } from '@/services/youtube/captions';
 import { setNativeCaptionsHidden } from '@/services/youtube/native-captions';
 import type { SubtitleOverlay } from '@/services/youtube/overlay';
 import type { TokenizedSubtitleLine } from '@/types/messages';
@@ -65,7 +65,7 @@ export function createSubtitlePresenter({
       return;
     }
 
-    const canShow = snapshot.isKorean && snapshot.lines.length > 0 && lines !== null;
+    const canShow = matchesCaptionLanguage(snapshot) && snapshot.lines.length > 0 && lines !== null;
 
     if (canShow) {
       clearHideTimer();

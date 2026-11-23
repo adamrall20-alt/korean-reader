@@ -6,6 +6,12 @@ Install [AnkiConnect](https://ankiweb.net/shared/info/2055492159), restart Anki 
 
 New configurations default to **Korean Reader**. If this note type is missing, the integration creates it. Existing connection and mapping settings can be reused. To change note types, choose the new type and click **Save defaults**.
 
+## Japanese deck and note type
+
+Choose **Japanese** under **Anki profile**, connect, and select an existing deck or create **Japanese Mining**. Use **Japanese Reader** or map an existing note type, then save. Both profiles share the local connection and have their own deck, note type and mappings. The two deck trees must be disjoint.
+
+Japanese Reader stores a dictionary identity in its first field. The template keeps that field out of the visible card and uses the same sentence, definitions and media fields as Korean Reader. **Pronunciation** holds the kana reading. For a custom note type, map its kana or reading field to Pronunciation. Sync identifies the clicked spelling and reading and checks that all cards from an existing note belong to the destination deck tree before it changes fields.
+
 ## Korean Reader note type
 
 | Field | Content |
@@ -21,17 +27,17 @@ Anki shows the sentence and available media on the front. The back reveals the f
 
 ## Sync mined words
 
-Open Anki and click **Sync to Anki** from the extension toolbar. Korean Reader checks the collection for matching focus words and its own note tags before adding notes. Additional sentences are appended to matching notes with a compatible mapping. Existing notes using another note type can be updated by selecting their mapping. If more than one exact match is found, resolve it in Anki before retrying.
+Open Anki, switch the toolbar to the intended language and click **Sync to Anki**. Korean Reader checks the collection for matching focus words and its own note tags before adding notes. Additional sentences are appended to matching notes with a compatible mapping. Existing notes using another note type can be updated by selecting their mapping. If more than one exact match is found, resolve it in Anki before retrying.
 
 Local Chrome mining and use of the **Known** button are available while Anki is closed. Review schedules and media sync between Anki devices through [AnkiWeb](https://docs.ankiweb.net/syncing.html) when configured in Anki.
 
 ## Import known words
 
-Use the Anki settings to preview focus words from a deck and its subdecks, then confirm the import. Existing Anki packages can be opened in Anki first. For a text export or a Korean Reader transfer file, use **Settings → Known words transfer** instead.
+Use the Anki settings to choose the language and preview focus words from a deck and its subdecks, then confirm the import. Japanese imports resolve the word and optional reading with the installed JMdict. The preview reports unresolved spellings. Existing Anki packages can be opened in Anki first. For a text export or a Korean Reader transfer file, use **Settings → Known words transfer** instead.
 
 ## Deck statistics
 
-Statistics uses the deck saved under **Settings → Anki**. AnkiConnect’s `getDeckStats` returns today's scheduled review count. Learning and new cards have their own counts in Anki. Korean Reader uses `cardReviews` to count lifetime answers and sum their recorded time in milliseconds for cards in the selected deck and its subdecks. The page shows which metrics are unavailable if individual requests fail.
+Statistics uses the deck saved under **Settings → Anki** for the currently selected language. AnkiConnect’s `getDeckStats` returns today's scheduled review count. Learning and new cards have their own counts in Anki. Korean Reader uses `cardReviews` to count lifetime answers and sum their recorded time in milliseconds for cards in the selected deck and its subdecks. The page shows which metrics are unavailable if individual requests fail.
 
 ## Troubleshoot
 

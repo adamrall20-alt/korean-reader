@@ -6,6 +6,12 @@ export function transcriptVocabulary(lines: readonly TokenizedSubtitleLine[]): M
   const words = new Map<string, Set<string>>();
   for (const line of lines) for (const token of line.tokens) {
     if (!token.clickable) continue;
+    const japaneseIds = token.japaneseIds;
+    if (japaneseIds?.length) {
+      const key = japaneseIds[0]!;
+      words.set(key, new Set([...(words.get(key) ?? []), ...japaneseIds]));
+      continue;
+    }
     const units = decomposeMorphemes(token.morphemes).filter((unit) => unit.kind === 'word' && unit.headword);
     const headwords = units.length ? units.map((unit) => unit.headword!) : token.morphemes.length ? [] : [token.text];
     const compound = units.length > 1 && units.every((unit) => unit.role === 'nominal')
@@ -25,6 +31,6 @@ export function transcriptVocabulary(lines: readonly TokenizedSubtitleLine[]): M
 
 export function vocabularyCoverage(words: ReadonlyMap<string, ReadonlySet<string>>, known: ReadonlySet<string>) {
   const total = words.size;
-  const count = [...words.values()].filter((matches) => [...matches].some((word) => isKnownHeadword(word, known))).length;
+  const count = [...words.values()].filter((matches) => [...matches].some((word) => known.has(word) || isKnownHeadword(word, known))).length;
   return { known: count, total, percentage: total ? (count / total * 100).toFixed(1) : null };
 }

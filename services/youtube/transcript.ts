@@ -1,3 +1,4 @@
+import { hasJapaneseKana, hasJapaneseText, type ReaderLanguage } from '@/types/language';
 import { normaliseCaptionText } from './captions';
 
 export const OPEN_TRANSCRIPT = 'open-transcript';
@@ -21,7 +22,13 @@ export function transcriptCue(start: unknown, end: unknown, raw: string): Transc
   };
 }
 
-export function finishTranscript(cues: TranscriptCue[]): TranscriptCue[] {
+export function finishTranscript(cues: TranscriptCue[], language: ReaderLanguage = 'ko', trustedTrack = false): TranscriptCue[] {
+  if (trustedTrack) return cues.sort((a, b) => a.start - b.start);
+  if (language === 'ja') {
+    const japanese = cues.filter(({ text }) => hasJapaneseText(text));
+    return japanese.length * 2 >= cues.length && japanese.some(({ text }) => hasJapaneseKana(text))
+      ? cues.sort((a, b) => a.start - b.start) : [];
+  }
   // YouTube's default transcript can be English with occasional Korean names or quotes.
   // Check the transcript as a whole so short foreign phrases in Korean captions stay intact.
   let letters = 0;

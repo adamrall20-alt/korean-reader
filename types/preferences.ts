@@ -1,3 +1,5 @@
+import type { ReaderLanguage } from './language';
+
 export const THEME_KEY = 'interfaceTheme';
 export const SUBTITLE_APPEARANCE_KEY = 'subtitleAppearance';
 
@@ -46,11 +48,14 @@ export type PreferencesResponse =
   | { ok: true; theme: InterfaceTheme; appearance: SubtitleAppearance }
   | { ok: false };
 
-export function subtitleStyle(appearance: SubtitleAppearance) {
+export function subtitleStyle(appearance: SubtitleAppearance, language: ReaderLanguage = 'ko') {
   return {
     '--kr-subtitle-scale': String(appearance.size / 100),
     '--kr-subtitle-color': appearance.textColor,
     '--kr-subtitle-underline': appearance.underlineColor,
-    '--kr-subtitle-font': SUBTITLE_FONTS[appearance.font].stack,
+    '--kr-subtitle-font': language === 'ja'
+      ? (appearance.font === 'serif' ? '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", serif'
+        : '"Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif')
+      : SUBTITLE_FONTS[appearance.font].stack,
   };
 }

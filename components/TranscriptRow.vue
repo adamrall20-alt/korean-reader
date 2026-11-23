@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hasJapaneseText, type ReaderLanguage } from '@/types/language';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import WordToken from '@/components/WordToken.vue';
 import { isKnownSubtitleWord, resolveRenderTokens } from '@/services/korean/dictionary-forms';
@@ -9,15 +10,16 @@ import type { SubtitleToken } from '@/types/messages';
 
 const props = defineProps<{
   cue: TranscriptCue;
+  language?: ReaderLanguage;
   active: boolean;
   knownHeadwords: ReadonlySet<string>;
   observer?: IntersectionObserver;
 }>();
 const emit = defineEmits<{ seek: []; select: [SubtitleToken, HTMLElement] }>();
 const row = ref<HTMLElement>();
-const cueHasKorean = hasKorean(props.cue.text);
-const cachedLine = cueHasKorean ? getCachedTokenizedLine(props.cue.text) : undefined;
-const hasClickableCached = Boolean(cachedLine?.tokens.some((token) => token.clickable));
+const cueHasLanguage = (props.language === 'ja' ? hasJapaneseText : hasKorean)(props.cue.text);
+const cachedLine = cueHasLanguage ? getCachedTokenizedLine(props.cue.text, props.language) : undefined;
+const hasClickableCached = Boolean(cachedLine && (props.language === 'ja' || cachedLine.tokens.some((token) => token.clickable)));
 let offset = 0;
 const tokens = shallowRef<SubtitleToken[]>(
   hasClickableCached
@@ -25,18 +27,18 @@ const tokens = shallowRef<SubtitleToken[]>(
     : props.cue.text.split(/(\s+)/u).map((text) => {
       const start = offset;
       offset += text.length;
-      return { text, id: '0:' + start, start, length: text.length, clickable: hasKorean(text), morphemes: [] };
+      return { text, id: '0:' + start, start, length: text.length, clickable: props.language !== 'ja' && hasKorean(text), morphemes: [] };
     }),
 );
 let analysis: Promise<void> | undefined = hasClickableCached ? Promise.resolve() : undefined;
 const renderedTokens = computed(() => resolveRenderTokens(tokens.value, props.knownHeadwords));
 
 function analyse() {
-  if (!cueHasKorean) return Promise.resolve();
+  if (!cueHasLanguage) return Promise.resolve();
   return analysis ??= (async () => {
     try {
-      const [line] = await tokenizeLines([props.cue.text]);
-      if (line?.tokens.some((token) => token.clickable)) {
+      const [line] = await tokenizeLines([props.cue.text], props.language);
+      if (line && (props.language === 'ja' || line.tokens.some((token) => token.clickable))) {
         tokens.value = line.tokens;
       }
     } catch {
@@ -46,10 +48,10 @@ function analyse() {
 }
 
 onMounted(() => {
-  if (!analysis && cueHasKorean && row.value && props.observer) {
+  if (!analysis && cueHasLanguage && row.value && props.observer) {
     row.value.addEventListener('kr-analyse', analyse);
     props.observer.observe(row.value);
-  }
+  } else if (!props.observer) void analyse();
 });
 onBeforeUnmount(() => {
   if (!row.value) return;
@@ -63,7 +65,7 @@ onBeforeUnmount(() => {
     <button type="button" class="kr-transcript-seek" :aria-label="'Seek to ' + formatTranscriptTime(cue.start)" @click="emit('seek')">
       <span aria-hidden="true">▶</span> {{ formatTranscriptTime(cue.start) }}
     </button>
-    <span lang="ko" class="kr-transcript-text">
+    <span :lang="language ?? 'ko'" class="kr-transcript-text">
       <template v-for="token in renderedTokens" :key="token.id">
         <WordToken
           v-if="token.clickable"

@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { browser } from 'wxt/browser';
 import ReaderPageHeader from './ReaderPageHeader.vue';
 import ReaderIcon from './ReaderIcon.vue';
 import stars from '@/assets/stars.png';
 import type { AnkiResponse } from '@/types/anki';
 import type { AnkiDeckStatistics, HistoryResponse, KnownWordHistory } from '@/types/statistics';
-import { VOCABULARY_REVISION_KEY } from '@/types/vocabulary';
+import { readingLanguage, type ReaderLanguage } from '@/types/language';
+import { vocabularyRevisionKey } from '@/types/vocabulary';
 
+const language = ref<ReaderLanguage>(readingLanguage(new URLSearchParams(location.search).get('language')));
 const history = ref<KnownWordHistory | null>(null);
 const loadingHistory = ref(true);
 const historyError = ref('');
@@ -46,6 +48,8 @@ const chart = computed(() => {
 });
 
 let historyRequest = 0;
+let deckRequest = 0;
+const languageFields = () => language.value === 'ja' ? { language: 'ja' as const } : {};
 
 async function loadHistory() {
   const request = ++historyRequest;
@@ -53,7 +57,7 @@ async function loadHistory() {
   historyError.value = '';
   try {
     const response: HistoryResponse = await browser.runtime.sendMessage({
-      type: 'get-known-word-history',
+      type: 'get-known-word-history', ...languageFields(),
     });
     if (!response.ok) throw new Error(response.error);
     if (request === historyRequest) history.value = response.history;
@@ -67,24 +71,33 @@ async function loadHistory() {
 }
 
 async function loadDeck() {
+  const request = ++deckRequest;
   loadingDeck.value = true;
   deckError.value = '';
   deck.value = null;
   try {
-    const response: AnkiResponse = await browser.runtime.sendMessage({ type: 'get-anki-deck-statistics' });
+    const response: AnkiResponse = await browser.runtime.sendMessage({ type: 'get-anki-deck-statistics', ...languageFields() });
+    if (request !== deckRequest) return;
     deckName.value = (response.ok ? response.deckStatistics?.deckName : response.deckName) ?? '';
     if (!response.ok) throw new Error(response.error);
     deck.value = response.deckStatistics ?? null;
   } catch (error) {
-    deckError.value = error instanceof Error ? error.message : 'Could not load Anki deck statistics.';
+    if (request === deckRequest) deckError.value = error instanceof Error ? error.message : 'Could not load Anki deck statistics.';
   } finally {
-    loadingDeck.value = false;
+    if (request === deckRequest) loadingDeck.value = false;
   }
 }
 
 function onStorageChanged(changes: Record<string, unknown>, area: string) {
-  if (area === 'local' && VOCABULARY_REVISION_KEY in changes) void loadHistory();
+  if (area === 'local' && vocabularyRevisionKey(language.value) in changes) void loadHistory();
 }
+
+watch(language, () => {
+  history.value = null;
+  deckName.value = '';
+  void loadHistory();
+  void loadDeck();
+});
 
 onMounted(() => {
   browser.storage.onChanged.addListener(onStorageChanged);
@@ -100,6 +113,13 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
 
     <main class="mx-auto grid max-w-5xl gap-6 px-6 py-8">
     <h1 class="sr-only">Statistics</h1>
+    <label class="flex items-center gap-3 text-sm">
+      Statistics language
+      <select v-model="language" class="rounded-lg border border-interface/15 bg-ink px-2 py-1">
+        <option value="ko">Korean</option>
+        <option value="ja">Japanese</option>
+      </select>
+    </label>
 
     <section aria-labelledby="known-words-heading" class="grid gap-4 rounded-xl border border-interface/10 bg-ink-soft p-5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
