@@ -22,6 +22,10 @@ Korean Reader is a Chrome reading and mining extension. Anki owns review schedul
 
 See [Project status](PROJECT_STATUS.md) for the latest verification. The Git history records prior experiments and original phase checklists.
 
+## In development
+
+The [Japanese support roadmap](docs/japanese-support-roadmap.md) tracks the language and storage foundation, local Japanese lookup, Japanese reading surfaces and the separate Anki deck workflow.
+
 ## Unscheduled work
 
 Potential additions include local subtitle-file import, undo for known-status changes and replay shortcuts. STDICT remains deferred until API access is available.

@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } 
 import { createDefinitionTranslator, getDefinitionTranslatorApi, translateDefinitionList } from '@/services/korean/translation';
 import { browser } from 'wxt/browser';
 import { sameVocabularyContext, type VocabularyContext, type VocabularyMessage, type VocabularyResponse } from '@/types/vocabulary';
-import type { DictionaryEntry } from '@/types/messages';
+import type { DictionaryEntry, JapaneseLookupMatch } from '@/types/messages';
 
 const props = defineProps<{
   entry: DictionaryEntry | null;
@@ -17,6 +17,7 @@ const props = defineProps<{
   recordAudio?: () => Promise<string | undefined>;
   savedContexts?: VocabularyContext[];
   isKnown?: boolean;
+  japaneseMatches?: JapaneseLookupMatch[];
 }>();
 
 const emit = defineEmits<{
@@ -25,6 +26,14 @@ const emit = defineEmits<{
 }>();
 
 const translatorApi = getDefinitionTranslatorApi();
+const selectedLexeme = ref('');
+watch(() => props.japaneseMatches, () => { selectedLexeme.value = ''; }, { flush: 'sync' });
+const selectedMatch = computed(() => props.japaneseMatches?.find(({ entry }) => entry.japanese?.id === selectedLexeme.value)
+  ?? props.japaneseMatches?.[0]);
+const entry = computed(() => selectedMatch.value?.entry ?? props.entry);
+const savedContexts = computed(() => selectedMatch.value ? selectedMatch.value.savedContexts : props.savedContexts);
+const isKnown = computed(() => selectedMatch.value?.isKnown ?? props.isKnown);
+const language = computed(() => entry.value?.japanese ? 'ja' : 'ko');
 
 const popupElement = ref<HTMLElement | null>(null);
 let resizeObserver: ResizeObserver | undefined;
@@ -51,7 +60,7 @@ function resetTranslation() {
 }
 
 const selectedDefinitions = ref<number[]>([]);
-watch(() => props.entry, (entry) => {
+watch(entry, (entry) => {
   resetTranslation();
   const definitions = entry?.definitions.length ? entry.definitions : entry?.koreanDefinitions ?? [];
   selectedDefinitions.value = definitions.length === 1 ? [0] : [];
@@ -65,7 +74,7 @@ function toggleDefinition(index: number) {
 onBeforeUnmount(resetTranslation);
 
 async function translateDefinitions() {
-  const definitions = props.entry?.koreanDefinitions;
+  const definitions = entry.value?.koreanDefinitions;
   if (!translatorApi || !definitions?.length || translating.value) return;
 
   const request = new AbortController();
@@ -102,7 +111,7 @@ const audioUnavailable = ref(false);
 const miningOutcome = ref<VocabularyResponse>();
 const savedContext = computed(() => {
   const current = props.miningContext;
-  return current && props.savedContexts?.find((context) => sameVocabularyContext(context, current));
+  return current && savedContexts.value?.find((context) => sameVocabularyContext(context, current));
 });
 
 const canAddAudio = computed(() => !!savedContext.value && !savedContext.value.audio && !!props.recordAudio);
@@ -111,54 +120,56 @@ const contextAlreadySaved = computed(() => !!savedContext.value && !canAddAudio.
 const markingKnown = ref(false);
 const knownOutcome = ref<VocabularyResponse>();
 
-watch(() => props.entry, () => {
+watch(entry, () => {
   markingKnown.value = false;
   knownOutcome.value = undefined;
 });
-watch(() => props.isKnown, (known) => {
+watch(isKnown, (known) => {
   if (!known && knownOutcome.value?.ok) knownOutcome.value = undefined;
 });
 
 async function markKnown() {
-  const { entry } = props;
-  if (!entry || props.isKnown || knownOutcome.value?.ok || markingKnown.value) return;
+  const word = entry.value;
+  if (!word || isKnown.value || knownOutcome.value?.ok || markingKnown.value) return;
 
   markingKnown.value = true;
   knownOutcome.value = undefined;
   try {
     const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({
       type: 'mark-word-known',
-      headword: entry.headword,
+      headword: word.headword,
+      ...(word.japanese ? { language: 'ja', japanese: word.japanese } : {}),
     } satisfies VocabularyMessage);
-    if (props.entry === entry) {
+    if (entry.value === word) {
       knownOutcome.value = response ?? { ok: false, error: 'Could not mark the word as known.' };
     }
   } catch {
-    if (props.entry === entry) {
+    if (entry.value === word) {
       knownOutcome.value = { ok: false, error: 'Could not mark the word as known. Try again.' };
     }
   } finally {
-    if (props.entry === entry) markingKnown.value = false;
+    if (entry.value === word) markingKnown.value = false;
   }
 }
 
 async function saveWord() {
-  const { entry, miningContext } = props;
-  if (!entry || !miningContext || mining.value || miningOutcome.value?.ok || contextAlreadySaved.value || (!props.savedContexts?.length && !selectedDefinitions.value.length)) return;
+  const { miningContext } = props;
+  const word = entry.value;
+  if (!word || !miningContext || mining.value || miningOutcome.value?.ok || contextAlreadySaved.value || (!savedContexts.value?.length && !selectedDefinitions.value.length)) return;
 
   mining.value = true;
   miningOutcome.value = undefined;
   const indices = [...selectedDefinitions.value].sort((a, b) => a - b);
-  const selectedEntry = props.savedContexts?.length ? entry : {
-    ...entry,
-    definitions: entry.definitions.filter((_, index) => indices.includes(index)),
-    koreanDefinitions: entry.definitions.length ? [] : entry.koreanDefinitions.filter((_, index) => indices.includes(index)),
+  const selectedEntry = savedContexts.value?.length ? word : {
+    ...word,
+    definitions: word.definitions.filter((_, index) => indices.includes(index)),
+    koreanDefinitions: word.definitions.length ? [] : word.koreanDefinitions.filter((_, index) => indices.includes(index)),
   };
-  const machineDefinitions = entry.definitions.length ? [] : translatedDefinitions.value.filter((_, index) => indices.includes(index));
+  const machineDefinitions = word.definitions.length ? [] : translatedDefinitions.value.filter((_, index) => indices.includes(index));
   audioUnavailable.value = false;
   try {
     const media = await props.prepareMine?.();
-    if (props.miningContext !== miningContext) return;
+    if (props.miningContext !== miningContext || entry.value !== word) return;
     let audio: string | undefined;
     if (props.recordAudio) {
       recording.value = true;
@@ -172,26 +183,27 @@ async function saveWord() {
         audioUnavailable.value = !audio;
       }
     }
-    if (savedContext.value && !audio && props.miningContext === miningContext) return;
+    if (entry.value !== word || (savedContext.value && !audio && props.miningContext === miningContext)) return;
     const response: VocabularyResponse | undefined = await browser.runtime.sendMessage({
       type: 'mine-word',
+      ...(word.japanese ? { language: 'ja' } : {}),
       entry: selectedEntry,
       context: { ...miningContext, ...media, ...(audio ? { audio } : {}) },
       machineDefinitions,
     } satisfies VocabularyMessage);
-    if (props.miningContext === miningContext) {
+    if (props.miningContext === miningContext && entry.value === word) {
       miningOutcome.value = response ?? { ok: false, error: 'Could not save the word.' };
     }
   } catch {
-    if (props.miningContext === miningContext) {
+    if (props.miningContext === miningContext && entry.value === word) {
       miningOutcome.value = { ok: false, error: 'Could not save the word. Try again.' };
     }
   } finally {
-    if (props.miningContext === miningContext) mining.value = false;
+    if (props.miningContext === miningContext && entry.value === word) mining.value = false;
   }
 }
 
-watch(() => props.miningContext, () => {
+watch([() => props.miningContext, entry], () => {
   mining.value = false;
   recording.value = false;
   audioUnavailable.value = false;
@@ -212,17 +224,25 @@ watch(() => props.miningContext, () => {
       ×
     </button>
 
-    <p class="kr-dictionary-original">{{ originalForm }}</p>
+    <p class="kr-dictionary-original" :lang="language">{{ originalForm }}</p>
 
     <p v-if="loading" class="kr-dictionary-message" role="status" aria-live="polite">Looking up definition…</p>
     <p v-else-if="error" class="kr-dictionary-message kr-dictionary-error" role="alert">{{ error }}</p>
     <template v-else-if="entry">
+      <label v-if="japaneseMatches && japaneseMatches.length > 1" class="kr-match-picker">
+        Dictionary match
+        <select :value="entry.japanese?.id" lang="ja" :disabled="mining || markingKnown" @change="selectedLexeme = ($event.target as HTMLSelectElement).value">
+          <option v-for="match in japaneseMatches" :key="match.entry.japanese?.id" :value="match.entry.japanese?.id">
+            {{ match.entry.headword }} · {{ match.entry.japanese?.reading }} · {{ match.entry.definitions[0] }}
+          </option>
+        </select>
+      </label>
       <div class="kr-dictionary-heading">
-        <h2 lang="ko">{{ entry.headword }}</h2>
+        <h2 :lang="language">{{ entry.headword }}</h2>
         <span v-if="entry.partOfSpeech">{{ entry.partOfSpeech }}</span>
         <span v-if="entry.frequencyRank" class="kr-frequency" :title="entry.frequencyRank > 80000 ? 'Not found in the Shiberu frequency list' : 'Shiberu frequency rank'">#{{ Math.min(entry.frequencyRank, 80000).toLocaleString('en-US') }}{{ entry.frequencyRank > 80000 ? '+' : '' }}</span>
       </div>
-      <p v-if="entry.pronunciation" lang="ko" class="kr-dictionary-pronunciation">
+      <p v-if="entry.pronunciation" :lang="language" class="kr-dictionary-pronunciation">
         {{ entry.pronunciation }}
       </p>
       <p v-if="entry.hanja?.length" class="kr-dictionary-pronunciation">
@@ -270,7 +290,7 @@ watch(() => props.miningContext, () => {
       </section>
       <section v-if="entry.examples.length > 0" class="kr-dictionary-section kr-dictionary-examples">
         <h3>Examples</h3>
-        <p v-for="example in entry.examples.slice(0, 2)" :key="example">{{ example }}</p>
+        <p v-for="example in entry.examples.slice(0, 2)" :key="example" :lang="language">{{ example }}</p>
       </section>
       <div class="kr-mining-actions">
         <template v-if="miningContext">

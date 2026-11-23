@@ -10,12 +10,14 @@ import { frequencyRank } from '@/services/dictionary/frequency';
 import { lookupKoreanWord } from '@/services/dictionary/krdict';
 import { clearDictionaryCache } from '@/services/dictionary/cache';
 import {
-  VOCABULARY_REVISION_KEY, type KnownHeadwordsResponse, type VocabularyMessage, type VocabularyRevision,
+  vocabularyRevisionKey, type KnownHeadwordsResponse, type VocabularyMessage, type VocabularyRevision,
 } from '@/types/vocabulary';
+import { isOptionalReaderLanguage, type ReaderLanguage } from '@/types/language';
 import { readKnownWordHistory } from '@/services/storage/statistics';
 import { getVocabulary, listKnownHeadwords, markHeadwordsKnown, normalizeHeadword } from '@/services/storage/vocabulary';
 import { handleVocabularyMessage, isVocabularyMessage } from '@/services/storage/vocabulary-messages';
 import { tokenizeSubtitleLines } from '@/services/korean/kiwi';
+import { lookupJapaneseWord, tokenizeJapaneseLines } from '@/services/japanese/analysis';
 import { headwordAliases, nominalCopulaHeadwords } from '@/services/korean/dictionary-forms';
 import type {
   GetSettingsMessage,
@@ -32,21 +34,22 @@ import type {
 
 const KRDICT_API_KEY_STORAGE = 'krDictApiKey';
 /** Without changes, YouTube tabs reload every known headword; with changes, they patch their cached set. */
-async function notifyVocabularyChanged(changes?: { known: string[]; unknown: string[] }) {
+async function notifyVocabularyChanged(changes?: { known: string[]; unknown: string[] }, language?: ReaderLanguage) {
   const revision: VocabularyRevision = { id: crypto.randomUUID(), ...changes };
-  await browser.storage.local.set({ [VOCABULARY_REVISION_KEY]: revision }).catch((error) => {
+  await browser.storage.local.set({ [vocabularyRevisionKey(language)]: revision }).catch((error) => {
     console.warn('[Korean Reader] Could not notify subtitle tabs of vocabulary changes.', error);
   });
 }
 
 function knownStatusChanges(message: VocabularyMessage): { known: string[]; unknown: string[] } | undefined {
+  const japanese = message.language === 'ja';
   switch (message.type) {
-    case 'mine-word': return { known: [normalizeHeadword(message.entry.headword)], unknown: [] };
-    case 'mark-word-known': return { known: [normalizeHeadword(message.headword)], unknown: [] };
-    case 'delete-vocabulary': return { known: [], unknown: [normalizeHeadword(message.headword)] };
+    case 'mine-word': return { known: [japanese ? message.entry.japanese!.id : normalizeHeadword(message.entry.headword)], unknown: [] };
+    case 'mark-word-known': return { known: [japanese ? message.japanese!.id : normalizeHeadword(message.headword)], unknown: [] };
+    case 'delete-vocabulary': return { known: [], unknown: [japanese ? message.lexemeId! : normalizeHeadword(message.headword)] };
     case 'set-vocabulary-status': {
-      const headword = normalizeHeadword(message.headword);
-      return message.status === 'known' ? { known: [headword], unknown: [] } : { known: [], unknown: [headword] };
+      const key = japanese ? message.lexemeId! : normalizeHeadword(message.headword);
+      return message.status === 'known' ? { known: [key], unknown: [] } : { known: [], unknown: [key] };
     }
     default: return undefined;
   }
@@ -65,6 +68,7 @@ function isTokenizeMessage(message: unknown): message is TokenizeMessage {
     typeof message === 'object' &&
     message !== null &&
     (message as { type?: unknown }).type === 'tokenize' &&
+    isOptionalReaderLanguage((message as { language?: unknown }).language) &&
     Array.isArray((message as { lines?: unknown }).lines) &&
     (message as { lines: unknown[] }).lines.every((line) => typeof line === 'string')
   );
@@ -75,6 +79,7 @@ function isLookupMessage(message: unknown): message is LookupMessage {
     typeof message === 'object' &&
     message !== null &&
     (message as { type?: unknown }).type === 'lookup' &&
+    isOptionalReaderLanguage((message as { language?: unknown }).language) &&
     typeof (message as { word?: unknown }).word === 'string' &&
     Array.isArray((message as { morphemes?: unknown }).morphemes) &&
     (message as { morphemes: unknown[] }).morphemes.every((morpheme) => {
@@ -124,18 +129,33 @@ export default defineBackground(() => {
     }
 
     if (isTokenizeMessage(message)) {
-      void tokenizeSubtitleLines(message.lines).then(
+      const japanese = message.language === 'ja';
+      const tokenize = japanese ? tokenizeJapaneseLines : tokenizeSubtitleLines;
+      void tokenize(message.lines).then(
         (lines) => sendResponse({ ok: true, lines } satisfies TokenizeResponse),
         (error: unknown) =>
           sendResponse({
             ok: false,
-            error: error instanceof Error ? error.message : 'Korean analysis failed.',
+            error: error instanceof Error ? error.message : japanese ? 'Japanese analysis failed.' : 'Korean analysis failed.',
           } satisfies TokenizeResponse),
       );
       return true;
     }
 
     if (isLookupMessage(message)) {
+      if (message.language === 'ja') {
+        void lookupJapaneseWord(message.word).then(async (entries) => {
+          if (!entries.length) throw new Error('No Japanese dictionary match found.');
+          const japaneseMatches = await Promise.all(entries.map(async (entry) => {
+            const saved = await getVocabulary(entry.japanese!.id, 'ja').catch(() => undefined);
+            return { entry, savedContexts: saved?.contexts, isKnown: saved?.status === 'known' };
+          }));
+          sendResponse({ ok: true, entry: entries[0], savedContexts: japaneseMatches[0]?.savedContexts, japaneseMatches } satisfies LookupResponse);
+        }).catch((error: unknown) => sendResponse({
+          ok: false, error: error instanceof Error ? error.message : 'Japanese dictionary lookup failed.',
+        } satisfies LookupResponse));
+        return true;
+      }
       void browser.storage.local.get(KRDICT_API_KEY_STORAGE).then(async (settings) => {
         const apiKey = settings[KRDICT_API_KEY_STORAGE];
 
@@ -176,7 +196,12 @@ export default defineBackground(() => {
 
     if ((fromWebPage || fromExtensionPage) && typeof message === 'object' && message !== null &&
       'type' in message && message.type === 'get-known-headwords') {
-      void listKnownHeadwords().then(
+      const language = 'language' in message ? message.language : undefined;
+      if (!isOptionalReaderLanguage(language)) {
+        sendResponse({ ok: false } satisfies KnownHeadwordsResponse);
+        return false;
+      }
+      void listKnownHeadwords(language).then(
         (headwords) => sendResponse({ ok: true, headwords } satisfies KnownHeadwordsResponse),
         () => sendResponse({ ok: false } satisfies KnownHeadwordsResponse),
       );
@@ -185,12 +210,13 @@ export default defineBackground(() => {
 
     if (isVocabularyMessage(message)) {
       const fromWordPopup = message.type === 'mine-word' || message.type === 'mark-word-known';
-      if (fromWordPopup ? !fromWebPage : !fromExtensionPage) return false;
+      const fromJapaneseDictionary = message.type === 'mark-word-known' && message.language === 'ja' && fromExtensionPage;
+      if (!fromJapaneseDictionary && (fromWordPopup ? !fromWebPage : !fromExtensionPage)) return false;
 
       void handleVocabularyMessage(message).then(async (response) => {
         if (response.ok && (message.type === 'mark-word-known' || message.type === 'set-vocabulary-status' ||
           message.type === 'delete-vocabulary' || (message.type === 'mine-word' && response.outcome !== 'existing'))) {
-          await notifyVocabularyChanged(knownStatusChanges(message));
+          await notifyVocabularyChanged(knownStatusChanges(message), message.language);
         }
         sendResponse(response);
       }).catch((error: unknown) => {
@@ -236,13 +262,22 @@ export default defineBackground(() => {
 
     if (message && typeof message === 'object' && 'type' in message) {
       if (message.type === 'get-known-word-history') {
-        void readKnownWordHistory(true).then(
+        const language = 'language' in message ? message.language : undefined;
+        if (!isOptionalReaderLanguage(language)) {
+          sendResponse({ ok: false, error: 'Invalid reading language.' } satisfies HistoryResponse);
+          return false;
+        }
+        void readKnownWordHistory(true, language).then(
           (history) => sendResponse({ ok: true, history } satisfies HistoryResponse),
           () => sendResponse({ ok: false, error: 'Could not access known-word history.' } satisfies HistoryResponse),
         );
         return true;
       }
       if (message.type === 'import-known-headwords') {
+        if ('language' in message && message.language !== undefined && message.language !== 'ko') {
+          sendResponse({ ok: false, error: 'Japanese known-word imports are still in development.' });
+          return false;
+        }
         const words = 'headwords' in message ? message.headwords : null;
         if (!isKnownHeadwordList(words)) {
           sendResponse({ ok: false, error: 'Invalid Korean word list.' });

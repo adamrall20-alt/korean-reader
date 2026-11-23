@@ -1,8 +1,20 @@
+import type { ReaderLanguage } from '@/types/language';
+
 export const DICTIONARY_CACHE_STORE = 'dictionaryCache';
 export const VOCABULARY_STORE = 'vocabulary';
 
 export const STATISTICS_STORE = 'statistics';
 export const VOCABULARY_STATUS_INDEX = 'status';
+const JAPANESE_VOCABULARY_STORE = 'japaneseVocabulary';
+const JAPANESE_STATISTICS_STORE = 'japaneseStatistics';
+
+export function vocabularyStore(language: ReaderLanguage = 'ko'): string {
+  return language === 'ja' ? JAPANESE_VOCABULARY_STORE : VOCABULARY_STORE;
+}
+
+export function statisticsStore(language: ReaderLanguage = 'ko'): string {
+  return language === 'ja' ? JAPANESE_STATISTICS_STORE : STATISTICS_STORE;
+}
 
 let databasePromise: Promise<IDBDatabase> | null = null;
 
@@ -23,7 +35,7 @@ export function openDatabase(): Promise<IDBDatabase> {
 
   let request: IDBOpenDBRequest;
   try {
-    request = indexedDB.open('korean-reader', 4);
+    request = indexedDB.open('korean-reader', 5);
   } catch (error) {
     return Promise.reject(error instanceof Error ? error : new Error('Could not open local storage.'));
   }
@@ -45,6 +57,11 @@ export function openDatabase(): Promise<IDBDatabase> {
       if (event.oldVersion < 3) {
         request.transaction!.objectStore(VOCABULARY_STORE).createIndex(VOCABULARY_STATUS_INDEX, 'status');
         request.result.createObjectStore(STATISTICS_STORE);
+      }
+      if (event.oldVersion < 5) {
+        request.result.createObjectStore(JAPANESE_VOCABULARY_STORE, { keyPath: 'japanese.id' })
+          .createIndex(VOCABULARY_STATUS_INDEX, 'status');
+        request.result.createObjectStore(JAPANESE_STATISTICS_STORE);
       }
     };
     request.onsuccess = () => {

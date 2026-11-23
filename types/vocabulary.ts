@@ -1,6 +1,11 @@
-import type { DictionaryEntry } from '@/types/messages';
+import type { DictionaryEntry, JapaneseLexeme } from '@/types/messages';
+import type { ReaderLanguage } from './language';
 
 export const VOCABULARY_REVISION_KEY = 'vocabularyRevision';
+
+export function vocabularyRevisionKey(language: ReaderLanguage = 'ko'): string {
+  return language === 'ja' ? 'japaneseVocabularyRevision' : VOCABULARY_REVISION_KEY;
+}
 
 /**
  * Value written to `VOCABULARY_REVISION_KEY` after vocabulary changes. When `known`/`unknown` are present,
@@ -30,6 +35,7 @@ export interface VocabularySummary {
 
 export interface KnownHeadwordsMessage {
   type: 'get-known-headwords';
+  language?: ReaderLanguage;
 }
 
 export type KnownHeadwordsResponse = { ok: true; headwords: string[] } | { ok: false };
@@ -44,6 +50,8 @@ export interface VocabularyContext {
   timestamp?: number;
   image?: string;
   audio?: string;
+  /** UTF-16 offsets in the saved sentence. */
+  focusSpan?: { start: number; length: number };
 }
 
 export interface VocabularyEntry extends DictionaryEntry {
@@ -57,14 +65,14 @@ export interface VocabularyEntry extends DictionaryEntry {
   updatedAt: string;
 }
 
-export type VocabularyMessage =
+export type VocabularyMessage = { language?: ReaderLanguage } & (
   | { type: 'mine-word'; entry: DictionaryEntry; context: VocabularyContext; machineDefinitions: string[] }
-  | { type: 'mark-word-known'; headword: string }
+  | { type: 'mark-word-known'; headword: string; japanese?: JapaneseLexeme }
   | { type: 'list-vocabulary' }
   | { type: 'get-vocabulary-summary' }
-  | { type: 'edit-vocabulary'; headword: string; definitions: string[] }
-  | { type: 'set-vocabulary-status'; headword: string; status: VocabularyStatus }
-  | { type: 'delete-vocabulary'; headword: string };
+  | { type: 'edit-vocabulary'; headword: string; lexemeId?: string; definitions: string[] }
+  | { type: 'set-vocabulary-status'; headword: string; lexemeId?: string; status: VocabularyStatus }
+  | { type: 'delete-vocabulary'; headword: string; lexemeId?: string });
 
 export type VocabularyResponse =
   | {

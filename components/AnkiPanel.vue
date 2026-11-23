@@ -3,13 +3,15 @@ import { computed, onMounted, ref, watch } from 'vue';
 import type { VocabularyEntry } from '@/types/vocabulary';
 import { createDefinitionTranslator, translateDefinitionList } from '@/services/korean/translation';
 import { browser } from 'wxt/browser';
+import type { ReaderLanguage } from '@/types/language';
 import {
   ANKI_DEFAULT_FIELDS, ANKI_FIELD_ROLES, DEFAULT_ANKI_SETTINGS,
   type AnkiFieldRole, type AnkiImportPreview, type AnkiMessage, type AnkiResponse, type AnkiSettings, type AnkiSyncResult, type AnkiTranslation,
 } from '@/types/anki';
 
-const props = defineProps<{ vocabulary?: VocabularyEntry[]; knownCount?: number }>();
+const props = defineProps<{ vocabulary?: VocabularyEntry[]; knownCount?: number; language?: ReaderLanguage }>();
 const emit = defineEmits<{ synced: []; imported: [] }>();
+const japanese = props.language === 'ja' ? { language: 'ja' as const } : {};
 const settings = ref<AnkiSettings>({ ...DEFAULT_ANKI_SETTINGS, fields: { ...ANKI_DEFAULT_FIELDS } });
 const decks = ref<string[]>([]);
 const importDeck = ref('');
@@ -106,7 +108,7 @@ async function readFields() {
 async function loadConnection(requestPermission: boolean) {
   connected.value = false;
   importPreview.value = undefined;
-  const result = await request({ type: 'connect-anki', ...connection(), requestPermission });
+  const result = await request({ type: 'connect-anki', ...japanese, ...connection(), requestPermission });
   decks.value = result.decks ?? [];
   models.value = result.models ?? [];
   if (!decks.value.includes(settings.value.deckName)) settings.value.deckName = '';
@@ -150,7 +152,7 @@ function configuration(): AnkiSettings {
 
 function saveDefaults() {
   void run(async () => {
-    await request({ type: 'save-anki-settings', settings: configuration() });
+    await request({ type: 'save-anki-settings', ...japanese, settings: configuration() });
     notice.value = 'Anki defaults saved.';
     if (props.vocabulary) deckSettingsOpen.value = false;
   });
@@ -203,7 +205,7 @@ function syncAll() {
 
 onMounted(() => {
   void run(async () => {
-    const response = await request({ type: 'get-anki-settings' });
+    const response = await request({ type: 'get-anki-settings', ...japanese });
     if (response.settings) {
       settings.value = { ...response.settings, fields: { ...response.settings.fields } };
     }
@@ -279,7 +281,7 @@ onMounted(() => {
 
     </details>
 
-    <section v-if="vocabulary === undefined" aria-labelledby="anki-import-heading" class="space-y-2 border-t border-interface/10 pt-3">
+    <section v-if="vocabulary === undefined && language !== 'ja'" aria-labelledby="anki-import-heading" class="space-y-2 border-t border-interface/10 pt-3">
       <h3 id="anki-import-heading" class="text-sm font-medium">Import known words</h3>
       <p v-if="!connected" class="text-xs text-muted">Open Anki Desktop and connect above to choose a deck.</p>
       <template v-else>
@@ -319,6 +321,7 @@ onMounted(() => {
       </div>
       <p v-if="!configured" class="mt-1 text-xs text-muted">Connect Anki and configure a deck in Settings to check.</p>
       <p v-else-if="countError" class="mt-1 text-xs text-danger">Could not check Anki. Refresh the connection to retry.</p>
+      <p v-if="settings.deckName" class="mt-1 break-words text-xs text-muted">Korean deck · {{ settings.deckName }}</p>
       <button
         type="button"
         :disabled="busy || !configured || !vocabulary.length"

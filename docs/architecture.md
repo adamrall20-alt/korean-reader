@@ -33,6 +33,10 @@
 
 IndexedDB is scoped to the extension ID and browser profile. Vocabulary mutations and known-word snapshots use one read-write transaction. Known words are read by status index, and the Chrome toolbar requests a summary without media. Settings use `chrome.storage.local`.
 
+Version 5 adds separate Japanese vocabulary and history stores. Existing Korean records and chart keys stay in their original stores. Japanese mining messages carry a lexical identifier and a span in the original sentence. Each language publishes vocabulary updates through its own storage key. Reading requests without a language default to Korean. Japanese background routes use the imported local index, which groups form keys and entry records into separate IndexedDB buckets and reads the relevant buckets per request.
+
+Anki settings share a local connection. Each language has its own deck, note type and mappings. The background checks the selected deck trees for overlap before saving a profile. Japanese profile setup can use an existing note type, with Japanese card sync gated until deck-scoped matching is available.
+
 Anki settings, bulk imports and writes are accepted only from extension pages. Content scripts can request the data they need to display reading tools. The webpage parser uses temporary active-tab access. YouTube content entry points run on watch pages.
 
 ## Related documentation

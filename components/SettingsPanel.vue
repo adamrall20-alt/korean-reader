@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import AnkiPanel from './AnkiPanel.vue';
+import JapaneseDictionarySettings from './JapaneseDictionarySettings.vue';
 import VocabularyManager from '@/components/VocabularyManager.vue';
 import KnownWordsImport from '@/components/KnownWordsImport.vue';
 import { onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import type { SettingsResponse } from '@/types/messages';
+import type { ReaderLanguage } from '@/types/language';
 import stars from '@/assets/stars.png';
 import ReaderPageHeader from './ReaderPageHeader.vue';
 import ReaderIcon from './ReaderIcon.vue';
@@ -63,6 +65,7 @@ const settingsMessage = ref('');
 const savingSettings = ref(false);
 const clearingCache = ref(false);
 const vocabularyRevision = ref(0);
+const ankiLanguage = ref<ReaderLanguage>('ko');
 
 onMounted(async () => {
   try {
@@ -130,7 +133,7 @@ const sections = [
   {
     id: 'dictionary',
     title: 'Dictionary',
-    description: 'KRDict API key, lookup preferences and local dictionary cache controls.',
+    description: 'Korean dictionary settings and offline Japanese dictionary import.',
   },
   {
     id: 'anki',
@@ -301,8 +304,19 @@ const sections = [
               >
                 {{ clearingCache ? 'Clearing…' : 'Clear dictionary cache' }}
               </button>
+              <JapaneseDictionarySettings :theme="theme" />
             </div>
-            <AnkiPanel v-else-if="section.id === 'anki'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
+            <div v-else-if="section.id === 'anki'" class="mt-4 space-y-3 border-t border-interface/10 pt-4">
+              <label class="grid gap-1 text-xs">
+                Anki profile
+                <select v-model="ankiLanguage" class="w-fit rounded-lg border border-interface/15 bg-ink px-2 py-1">
+                  <option value="ko">Korean</option>
+                  <option value="ja">Japanese</option>
+                </select>
+              </label>
+              <p v-if="ankiLanguage === 'ja'" class="text-xs text-muted">Choose an existing deck and note type. Japanese mining and sync are coming in later phases.</p>
+              <AnkiPanel :key="ankiLanguage" :language="ankiLanguage" @imported="vocabularyRevision += 1" />
+            </div>
             <KnownWordsImport v-else-if="section.id === 'import-known'" class="mt-4 border-t border-interface/10 pt-4" @imported="vocabularyRevision += 1" />
             <template v-else-if="section.id === 'storage'">
               <details class="mt-4 border-t border-interface/10 pt-4"><summary class="cursor-pointer text-sm font-medium">Known words and vocabulary</summary><VocabularyManager :key="vocabularyRevision" /></details>

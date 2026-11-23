@@ -66,6 +66,28 @@ describe('DictionaryPopup mining', () => {
     timestamp: 12.5,
   };
 
+  it('mines the selected Japanese reading and preserves the original span', async () => {
+    const organism = {
+      headword: '生物', originalForm: '生物', definitions: ['organism'], koreanDefinitions: [], examples: [],
+      japanese: { id: '1:せいぶつ', reading: 'せいぶつ', aliases: ['生物'] }, pronunciation: 'せいぶつ',
+    };
+    const rawFood = { ...organism, definitions: ['raw food'],
+      japanese: { ...organism.japanese, id: '1:なまもの', reading: 'なまもの' }, pronunciation: 'なまもの' };
+    const context = { ...miningContext, originalForm: '生物', sentence: '生物です。', focusSpan: { start: 0, length: 2 } };
+    sendMessage.mockReset().mockResolvedValue({ ok: true, outcome: 'mined' });
+    const wrapper = mount(DictionaryPopup, { props: {
+      ...props, entry: organism, originalForm: '生物', miningContext: context,
+      japaneseMatches: [{ entry: organism, isKnown: true }, { entry: rawFood, isKnown: false }],
+    } });
+    expect(wrapper.get('.kr-known-button').text()).toBe('✓ Known');
+    await wrapper.get('select').setValue(rawFood.japanese.id);
+    expect(wrapper.get('.kr-dictionary-pronunciation').text()).toBe('なまもの');
+    expect(wrapper.get('.kr-known-button').text()).toBe('Known');
+    await wrapper.get('.kr-mine-button:not(.kr-known-button)').trigger('click');
+    await flushPromises();
+    expect(sendMessage).toHaveBeenCalledExactlyOnceWith({ type: 'mine-word', language: 'ja', entry: rawFood, context, machineDefinitions: [] });
+  });
+
   it('explains an already known headword without indicating ongoing work', () => {
     const wrapper = mount(DictionaryPopup, { props: { ...props, isKnown: true } });
     const button = wrapper.get('.kr-known-button');

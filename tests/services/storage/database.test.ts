@@ -5,6 +5,9 @@ import {
   DICTIONARY_CACHE_STORE,
   openDatabase,
   STATISTICS_STORE,
+  statisticsStore,
+  vocabularyStore,
+  VOCABULARY_STATUS_INDEX,
   VOCABULARY_STORE,
 } from '@/services/storage/database';
 import { readKnownWordHistory } from '@/services/storage/statistics';
@@ -61,6 +64,7 @@ function installFakeIndexedDb(
     error: Error | null;
     onsuccess: (() => void) | null;
     onerror: (() => void) | null;
+    onupgradeneeded: ((event: { oldVersion: number }) => void) | null;
   }) => void,
 ) {
   let calls = 0;
@@ -71,7 +75,7 @@ function installFakeIndexedDb(
       error: null as Error | null,
       onsuccess: null as (() => void) | null,
       onerror: null as (() => void) | null,
-      onupgradeneeded: null as ((event: unknown) => void) | null,
+      onupgradeneeded: null as ((event: { oldVersion: number }) => void) | null,
       onblocked: null as ((event: unknown) => void) | null,
     };
     openBehavior(calls, request);
@@ -104,7 +108,24 @@ describe('IndexedDB connection reuse', () => {
     expect(second).toBe(db);
     expect(third).toBe(db);
     expect(open).toHaveBeenCalledTimes(1);
-    expect(open).toHaveBeenCalledWith('korean-reader', 4);
+    expect(open).toHaveBeenCalledWith('korean-reader', 5);
+  });
+
+  it('adds Japanese stores on upgrade without recreating Korean stores', async () => {
+    const createIndex = vi.fn();
+    const db = { ...createFakeDatabase(), createObjectStore: vi.fn(() => ({ createIndex })) };
+    installFakeIndexedDb((_call, request) => {
+      queueMicrotask(() => {
+        request.result = db;
+        request.onupgradeneeded?.({ oldVersion: 4 });
+        request.onsuccess?.();
+      });
+    });
+    await openDatabase();
+    expect(db.createObjectStore.mock.calls).toEqual([
+      [vocabularyStore('ja'), { keyPath: 'japanese.id' }], [statisticsStore('ja')],
+    ]);
+    expect(createIndex).toHaveBeenCalledWith(VOCABULARY_STATUS_INDEX, 'status');
   });
 
   it('clears the cached connection when opening fails asynchronously or throws synchronously', async () => {

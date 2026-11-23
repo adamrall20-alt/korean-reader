@@ -1,4 +1,5 @@
 import type { AnkiDeckStatistics } from './statistics';
+import type { ReaderLanguage } from './language';
 
 export const ANKI_FIELD_ROLES = ['word', 'sentence', 'definition', 'pronunciation', 'image', 'audio'] as const;
 export type AnkiFieldRole = typeof ANKI_FIELD_ROLES[number];
@@ -51,9 +52,9 @@ export interface AnkiImportPreview {
 
 export type AnkiMessage =
   | { type: 'get-anki-deck-statistics' }
-  | { type: 'get-anki-settings' }
-  | { type: 'save-anki-settings'; settings: AnkiSettings }
-  | { type: 'connect-anki'; port: number; apiKey: string; requestPermission: boolean }
+  | { type: 'get-anki-settings'; language?: ReaderLanguage }
+  | { type: 'save-anki-settings'; settings: AnkiSettings; language?: ReaderLanguage }
+  | { type: 'connect-anki'; port: number; apiKey: string; requestPermission: boolean; language?: ReaderLanguage }
   | { type: 'get-anki-fields'; port: number; apiKey: string; modelName: string }
   | { type: 'count-unsynced'; settings: AnkiSettings }
   | { type: 'preview-anki-import'; settings: AnkiSettings; deckName: string }

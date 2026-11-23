@@ -89,6 +89,13 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
       </div>
     </header>
     <section class="flex-1 space-y-3 bg-cover bg-center px-5 py-5" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
+      <label class="flex items-center justify-between gap-2 text-xs text-muted">
+        Reading language
+        <select class="rounded-lg border border-interface/15 bg-ink px-2 py-1 text-paper">
+          <option value="ko">Korean</option>
+          <option value="ja" disabled>Japanese (coming soon)</option>
+        </select>
+      </label>
       <AnkiPanel :vocabulary="minedEntries" :known-count="knownCount" @synced="loadVocabulary" />
       <button type="button" class="reader-icon-link flex w-full items-center justify-center gap-2 rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10" @click="openSidebar">
         <ReaderIcon name="transcript" class="size-4 text-accent" /> Open Sidebar

@@ -15,6 +15,10 @@ const { listeners, mineWord, getVocabulary, markHeadwordsKnown, setStorage, list
     message: [] as Array<(...args: unknown[]) => boolean | undefined>,
   },
 }));
+const { lookupJapaneseWord, tokenizeJapaneseLines } = vi.hoisted(() => ({
+  lookupJapaneseWord: vi.fn(), tokenizeJapaneseLines: vi.fn(),
+}));
+vi.mock('@/services/japanese/analysis', () => ({ lookupJapaneseWord, tokenizeJapaneseLines }));
 
 vi.mock('@/services/storage/vocabulary', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/services/storage/vocabulary')>(),
@@ -97,6 +101,44 @@ describe('background entrypoint', () => {
     await expect(new Promise((resolve) => listener(message, { url }, resolve))).resolves.toEqual({ ok: true, outcome: 'mined' });
     expect(mineWord).toHaveBeenCalledWith(message);
     expect(listener({ ...message, context: { ...message.context, sourceUrl: 'javascript:void(0)' } }, { url }, vi.fn())).toBe(false);
+  });
+
+  it('validates Japanese mining spans and publishes Japanese identity changes only', async () => {
+    const url = 'https://example.com/article';
+    const listener = listeners.message[0]!;
+    const message = {
+      type: 'mine-word', language: 'ja',
+      entry: {
+        headword: '食べる', originalForm: '食べなかった', definitions: ['to eat'], koreanDefinitions: [], examples: [],
+        japanese: { id: '1358280:たべる', reading: 'たべる', aliases: ['食べる', 'たべる'] },
+      },
+      context: { sentence: '🍜を食べなかった。', originalForm: '食べなかった', sourceTitle: 'Article', sourceUrl: url,
+        focusSpan: { start: 3, length: 6 } },
+      machineDefinitions: [],
+    };
+    const respond = vi.fn();
+    expect(listener({ ...message, language: 'ko' }, { url }, respond)).toBe(false);
+    expect(listener({ ...message, context: { ...message.context, focusSpan: { start: 2, length: 6 } } }, { url }, respond)).toBe(false);
+    mineWord.mockResolvedValueOnce('mined');
+    await expect(new Promise((resolve) => listener(message, { url }, resolve))).resolves.toEqual({ ok: true, outcome: 'mined' });
+    expect(setStorage).toHaveBeenCalledExactlyOnceWith({
+      japaneseVocabularyRevision: { id: expect.any(String), known: ['1358280:たべる'], unknown: [] },
+    });
+  });
+
+  it('routes Japanese messages and uses lexical identity for saved contexts', async () => {
+    const listener = listeners.message[0]!;
+    const sender = { url: 'https://example.com/article' };
+    const text = '食べる';
+    const entry = { headword: text, japanese: { id: '1:たべる', reading: 'たべる', aliases: [text] }, definitions: ['eat'] };
+    lookupJapaneseWord.mockResolvedValueOnce([entry]);
+    getVocabulary.mockResolvedValueOnce({ contexts: [], status: 'known' });
+    tokenizeJapaneseLines.mockResolvedValueOnce([{ text, tokens: [] }]);
+    await expect(new Promise((resolve) => listener({ type: 'tokenize', language: 'ja', lines: [text] }, sender, resolve)))
+      .resolves.toEqual({ ok: true, lines: [{ text, tokens: [] }] });
+    await expect(new Promise((resolve) => listener({ type: 'lookup', language: 'ja', word: text, morphemes: [] }, sender, resolve)))
+      .resolves.toMatchObject({ ok: true, entry, japaneseMatches: [{ entry, isKnown: true, savedContexts: [] }] });
+    expect(getVocabulary).toHaveBeenCalledExactlyOnceWith('1:たべる', 'ja');
   });
 
   it('accepts a valid Known action from webpages and notifies tabs after saving', async () => {

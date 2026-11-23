@@ -1,5 +1,13 @@
 # Dictionary integration
 
+## Japanese offline dictionary
+
+Open **Settings → Dictionary → Japanese dictionary** and download the recommended JMdict Simplified English archive. Import the `.json.tgz` file as downloaded or select an extracted English `.json` from an upstream release. The importer checks the recommended November 2026 archive against the release SHA-256, displays the installed version and date, and indexes the data locally. To update, select **Replace dictionary** and import a newer English release. Vocabulary stays in its own database when the dictionary is replaced.
+
+Use **Try a Japanese word** to look up a spelling or an inflected word such as `食べなかった`. The popup shows readings and senses available for the chosen spelling. It offers a reading selector when a spelling matches several entries. The examples-enabled English release includes example sentences. Japanese lookup runs without an API key after import.
+
+JMdict data is the work of Jim Breen and the Electronic Dictionary Research and Development Group and is distributed under CC BY-SA 4.0. The JSON is produced by JMdict Simplified. Example sentences in its examples-enabled release come from the Tanaka corpus maintained by Tatoeba. [JMdict project](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project) · [EDRDG licence](https://www.edrdg.org/edrdg/licence.html) · [JMdict Simplified releases](https://github.com/scriptin/jmdict-simplified/releases)
+
 ## Status
 
 Dictionary lookup, popup functionality, dictionary-form matching and caching are implemented. Vocabulary mining saves selected definition(s) with the subtitle context. Definition selection was added in Phase 8; its live verification remains pending.
