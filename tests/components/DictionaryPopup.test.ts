@@ -108,6 +108,7 @@ describe('DictionaryPopup mining', () => {
     expect(known.attributes('aria-pressed')).toBe('true');
     expect(known.attributes('disabled')).toBeDefined();
     expect(wrapper.text()).toContain('Marked as known.');
+    expect(wrapper.get('[role="status"] .kr-word-sparkle').attributes('aria-hidden')).toBe('true');
     await wrapper.setProps({ isKnown: true });
     await wrapper.setProps({ isKnown: false });
     expect(known.attributes('disabled')).toBeUndefined();
@@ -133,6 +134,7 @@ describe('DictionaryPopup mining', () => {
       machineDefinitions: [],
     });
     expect(wrapper.text()).toContain('✓ Mined');
+    expect(wrapper.get('[role="status"] .kr-word-sparkle').attributes('aria-hidden')).toBe('true');
     expect(wrapper.find('.kr-mine-button:not(.kr-known-button)').exists()).toBe(false);
   });
 

@@ -29,6 +29,10 @@ Local Chrome mining and use of the **Known** button are available while Anki is 
 
 Use the Anki settings to preview focus words from a deck and its subdecks, then confirm the import. Existing Anki packages can be opened in Anki first. For a text export or a Korean Reader transfer file, use **Settings → Known words transfer** instead.
 
+## Deck statistics
+
+Statistics uses the deck saved under **Settings → Anki**. AnkiConnect’s `getDeckStats` returns today's scheduled review count. Learning and new cards have their own counts in Anki. Korean Reader uses `cardReviews` to count lifetime answers and sum their recorded time in milliseconds for cards in the selected deck and its subdecks. The page shows which metrics are unavailable if individual requests fail.
+
 ## Troubleshoot
 
 - **Anki unreachable** — Open Anki, check the add-on is enabled and verify the port.

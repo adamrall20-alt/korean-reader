@@ -56,7 +56,15 @@ export async function handleAnkiMessage(message: AnkiMessage): Promise<AnkiRespo
     const stored: unknown = (await browser.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
     const settings = isSettings(stored) ? stored : DEFAULT_ANKI_SETTINGS;
     if (message.type === 'get-anki-deck-statistics') {
-      return { ok: true, deckStatistics: await readDeckStatistics(settings) };
+      try {
+        return { ok: true, deckStatistics: await readDeckStatistics(settings) };
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : 'Could not load Anki deck statistics.',
+          deckName: settings.deckName,
+        };
+      }
     }
     return { ok: true, settings };
   }

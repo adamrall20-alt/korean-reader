@@ -71,4 +71,4 @@ export type AnkiResponse = {
   importPreview?: AnkiImportPreview;
   markedKnown?: number;
   results?: AnkiSyncResult[];
-} | { ok: false; error: string };
+} | { ok: false; error: string; deckName?: string };

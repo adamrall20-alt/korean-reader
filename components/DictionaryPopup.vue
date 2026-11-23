@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ReaderIcon from './ReaderIcon.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } from 'vue';
 import { createDefinitionTranslator, getDefinitionTranslatorApi, translateDefinitionList } from '@/services/korean/translation';
 import { browser } from 'wxt/browser';
@@ -276,7 +277,8 @@ watch(() => props.miningContext, () => {
           <p v-if="!savedContexts?.length && (entry.definitions.length || entry.koreanDefinitions.length) > 1" class="kr-dictionary-message">Select one or more definitions to mine.</p>
           <p v-if="!miningContext.image" class="kr-dictionary-message" role="status">Video image unavailable; the word can still be saved.</p>
           <p v-if="audioUnavailable" role="status">Subtitle audio unavailable.</p>
-          <p v-if="miningOutcome?.ok || contextAlreadySaved" role="status">
+          <p v-if="miningOutcome?.ok || contextAlreadySaved" role="status" :class="{ 'kr-word-celebration': miningOutcome?.ok && miningOutcome.outcome !== 'existing' }">
+            <ReaderIcon v-if="miningOutcome?.ok && miningOutcome.outcome !== 'existing'" name="sparkle" class="kr-word-sparkle" />
             {{ miningOutcome?.ok && miningOutcome.outcome === 'mined' ? '✓ Mined'
               : miningOutcome?.ok && miningOutcome.outcome === 'added' ? '✓ Sentence saved'
               : miningOutcome?.ok && miningOutcome.outcome === 'audio-added' ? '✓ Audio saved'
@@ -309,7 +311,9 @@ watch(() => props.miningContext, () => {
         <p v-if="miningOutcome && !miningOutcome.ok" class="kr-dictionary-error" role="alert">
           {{ miningOutcome.error }}
         </p>
-        <p v-if="knownOutcome?.ok" role="status">Marked as known.</p>
+        <p v-if="knownOutcome?.ok" role="status" class="kr-word-celebration">
+          <ReaderIcon name="sparkle" class="kr-word-sparkle" /> Marked as known.
+        </p>
         <p v-else-if="knownOutcome" class="kr-dictionary-error" role="alert">{{ knownOutcome.error }}</p>
       </div>
     </template>

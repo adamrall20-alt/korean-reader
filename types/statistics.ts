@@ -10,10 +10,9 @@ export interface KnownWordHistory {
 
 export interface AnkiDeckStatistics {
   deckName: string;
-  reviewsToday: number;
-  reviewsNextWeek: number;
-  knownWords: number;
-  totalWords: number;
+  reviewsToday: number | null;
+  reviewsNextWeek: number | null;
+  coverage: { knownWords: number; totalWords: number } | null;
   history: { totalReviews: number; reviewMilliseconds: number } | null;
 }
 

@@ -262,3 +262,28 @@
 .kr-subtitles[data-theme="light"] :is(.kr-definition-button, .kr-dictionary-close, .kr-mine-button, .kr-translate-button):focus-visible { outline-color: #15803d; }
 
 .kr-subtitles[data-theme="light"] .kr-dictionary-heading .kr-frequency { color: #166534; }
+
+.kr-word-celebration {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.kr-word-sparkle {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  color: #16a34a;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kr-word-sparkle {
+    animation: kr-word-spark 460ms ease-out both;
+  }
+}
+
+@keyframes kr-word-spark {
+  0% { transform: scale(0.5) rotate(-25deg); }
+  45% { transform: translateY(-0.2em) scale(1.24) rotate(9deg); }
+  100% { transform: none; }
+}

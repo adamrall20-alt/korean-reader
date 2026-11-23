@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
-import logo from '@/assets/New logo update.png';
+import ReaderPageHeader from './ReaderPageHeader.vue';
+import ReaderIcon from './ReaderIcon.vue';
 import stars from '@/assets/stars.png';
 import type { AnkiResponse } from '@/types/anki';
 import type { AnkiDeckStatistics, HistoryResponse, KnownWordHistory } from '@/types/statistics';
@@ -11,6 +12,7 @@ const history = ref<KnownWordHistory | null>(null);
 const loadingHistory = ref(true);
 const historyError = ref('');
 const deck = ref<AnkiDeckStatistics | null>(null);
+const deckName = ref('');
 const loadingDeck = ref(true);
 const deckError = ref('');
 const dateFormat = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -70,6 +72,7 @@ async function loadDeck() {
   deck.value = null;
   try {
     const response: AnkiResponse = await browser.runtime.sendMessage({ type: 'get-anki-deck-statistics' });
+    deckName.value = (response.ok ? response.deckStatistics?.deckName : response.deckName) ?? '';
     if (!response.ok) throw new Error(response.error);
     deck.value = response.deckStatistics ?? null;
   } catch (error) {
@@ -93,21 +96,16 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
 
 <template>
   <div class="min-h-screen bg-cover bg-center bg-fixed text-paper" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
-    <header class="relative z-10 border-b border-interface/10 bg-ink">
-      <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-4">
-        <img :src="logo" alt="" class="size-9 object-contain" />
-        <div>
-          <p class="text-sm font-semibold tracking-tight">Korean Reader</p>
-          <p class="text-xs text-muted">Statistics</p>
-        </div>
-      </div>
-    </header>
+    <ReaderPageHeader page="statistics" />
 
     <main class="mx-auto grid max-w-5xl gap-6 px-6 py-8">
+    <h1 class="sr-only">Statistics</h1>
 
     <section aria-labelledby="known-words-heading" class="grid gap-4 rounded-xl border border-interface/10 bg-ink-soft p-5">
       <div class="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="known-words-heading" class="font-semibold">Known words over time</h2>
+        <h2 id="known-words-heading" class="flex items-center gap-2 font-semibold">
+          <ReaderIcon name="statistics" class="size-5 shrink-0 text-accent" /> Known words over time
+        </h2>
         <p v-if="history" class="text-xs text-muted">Since {{ formatDate(history.baseline.at) }}</p>
       </div>
       <p v-if="historyError" class="text-sm text-danger" role="alert">{{ historyError }} <button type="button" class="underline" @click="loadHistory()">Retry</button></p>
@@ -131,7 +129,7 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
             <div class="relative h-36">
               <svg class="size-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" role="img" :aria-label="`Known words went from ${history.baseline.count} to ${current.count}`">
                 <path d="M0 8H100 M0 50H100 M0 92H100" class="stroke-line" fill="none" vector-effect="non-scaling-stroke" />
-                <path :d="chart.path" class="stroke-accent" fill="none" stroke-width="2" vector-effect="non-scaling-stroke" />
+                <path :d="chart.path" class="reader-chart-line stroke-accent" fill="none" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
               </svg>
               <span aria-hidden="true" class="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent" :style="{ left: chart.end.x + '%', top: chart.end.y + '%' }" />
             </div>
@@ -159,41 +157,52 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
 
     <section aria-labelledby="anki-deck-heading" class="grid gap-4 rounded-xl border border-interface/10 bg-ink-soft p-5">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="anki-deck-heading" class="font-semibold">Anki deck <span v-if="deck" class="ml-1 text-accent">{{ deck.deckName }}</span></h2>
+        <h2 id="anki-deck-heading" class="flex items-center gap-2 font-semibold">
+          <ReaderIcon name="anki" class="size-5 shrink-0 text-accent" />
+          <span>Anki deck <span v-if="deckName" class="ml-1 text-accent">{{ deckName }}</span></span>
+        </h2>
         <button type="button" class="rounded-lg border border-interface/15 px-3 py-1.5 text-sm hover:bg-interface/5 disabled:opacity-50" :disabled="loadingDeck" @click="loadDeck">Refresh</button>
       </div>
       <p v-if="loadingDeck" role="status" class="text-sm text-muted">Loading Anki deck statistics…</p>
-      <p v-else-if="deckError" role="alert" class="text-sm text-danger">{{ deckError }}</p>
-      <dl v-else-if="deck" class="grid gap-4 sm:grid-cols-3">
-        <div>
-          <dt class="text-sm text-muted">Reviews left today</dt>
-          <dd class="text-2xl font-semibold tabular-nums">{{ formatCount(deck.reviewsToday) }}</dd>
-        </div>
-        <div>
-          <dt class="text-sm text-muted">Due in the next 7 days</dt>
-          <dd class="text-2xl font-semibold tabular-nums">{{ formatCount(deck.reviewsNextWeek) }}</dd>
-        </div>
-        <div>
-          <dt class="text-sm text-muted">Deck words marked known</dt>
-          <dd class="text-2xl font-semibold tabular-nums">{{ deck.totalWords ? Math.round(deck.knownWords / deck.totalWords * 100) + '%' : '—' }}</dd>
-          <dd class="text-xs text-muted">{{ deck.totalWords ? formatCount(deck.knownWords) + ' of ' + formatCount(deck.totalWords) + ' unique words' : 'No usable focus words' }}</dd>
-        </div>
-        <template v-if="deck.history">
+      <div v-else-if="deckError" class="text-sm">
+        <p role="alert" class="text-danger">{{ deckError }}</p>
+        <a href="/options.html#anki" class="mt-2 inline-block text-muted underline">Anki settings</a>
+      </div>
+      <template v-else-if="deck">
+        <dl class="grid gap-4 sm:grid-cols-3">
           <div>
-            <dt class="text-sm text-muted">Reviews all time</dt>
-            <dd class="text-2xl font-semibold tabular-nums">{{ formatCount(deck.history.totalReviews) }}</dd>
+            <dt class="text-sm text-muted">Reviews left today</dt>
+            <dd v-if="deck.reviewsToday !== null" class="text-2xl font-semibold tabular-nums">{{ formatCount(deck.reviewsToday) }}</dd>
+            <dd v-else class="mt-1 text-sm text-muted">Unavailable from AnkiConnect</dd>
+          </div>
+          <div>
+            <dt class="text-sm text-muted">Total reviews done</dt>
+            <dd v-if="deck.history" class="text-2xl font-semibold tabular-nums">{{ formatCount(deck.history.totalReviews) }}</dd>
+            <dd v-else class="mt-1 text-sm text-muted">History unavailable</dd>
           </div>
           <div>
             <dt class="text-sm text-muted">Time spent reviewing</dt>
-            <dd class="text-2xl font-semibold tabular-nums">{{ formatReviewTime(deck.history.reviewMilliseconds) }}</dd>
+            <dd v-if="deck.history" class="text-2xl font-semibold tabular-nums">{{ formatReviewTime(deck.history.reviewMilliseconds) }}</dd>
+            <dd v-else class="mt-1 text-sm text-muted">History unavailable</dd>
           </div>
-        </template>
-        <div v-else class="text-sm text-muted">
-          <dt>Review history</dt>
-          <dd>Unavailable from AnkiConnect</dd>
-        </div>
-      </dl>
-      <p v-else class="text-sm text-muted">Choose an Anki deck in <a href="/options.html" class="underline">Settings</a> to see its statistics.</p>
+        </dl>
+        <dl class="grid gap-4 border-t border-interface/10 pt-4 sm:grid-cols-3">
+          <div>
+            <dt class="text-sm text-muted">Due in the next 7 days</dt>
+            <dd v-if="deck.reviewsNextWeek !== null" class="text-2xl font-semibold tabular-nums">{{ formatCount(deck.reviewsNextWeek) }}</dd>
+            <dd v-else class="mt-1 text-sm text-muted">Unavailable from AnkiConnect</dd>
+          </div>
+          <div>
+            <dt class="text-sm text-muted">Deck words marked known</dt>
+            <template v-if="deck.coverage?.totalWords">
+              <dd class="text-2xl font-semibold tabular-nums">{{ Math.round(deck.coverage.knownWords / deck.coverage.totalWords * 100) }}%</dd>
+              <dd class="text-xs text-muted">{{ formatCount(deck.coverage.knownWords) }} of {{ formatCount(deck.coverage.totalWords) }} unique words</dd>
+            </template>
+            <dd v-else class="mt-1 text-sm text-muted">{{ deck.coverage ? 'No usable focus words' : 'Deck coverage unavailable' }}</dd>
+          </div>
+        </dl>
+      </template>
+      <p v-else class="text-sm text-muted">Choose an Anki deck in <a href="/options.html#anki" class="underline">Settings</a> to see its statistics.</p>
     </section>
     </main>
   </div>

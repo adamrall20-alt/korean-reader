@@ -15,6 +15,11 @@ describe('SettingsPanel', () => {
     const text = wrapper.text();
 
     expect(wrapper.get('h1').text()).toBe('Settings');
+    const pages = wrapper.get('nav[aria-label="Extension pages"]');
+    expect(pages.get('a[aria-current="page"]').attributes('href')).toBe('/options.html');
+    expect(pages.get('a[href="/statistics.html"]').text()).toBe('Statistics');
+    const categories = wrapper.get('nav[aria-label="Settings sections"]');
+    expect(categories.findAll('a svg[aria-hidden="true"]')).toHaveLength(6);
 
     for (const category of ['General', 'Dictionary', 'Anki', 'Known words transfer', 'Appearance', 'Storage']) {
       expect(text).toContain(category);

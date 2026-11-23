@@ -6,7 +6,8 @@ import { onMounted, ref } from 'vue';
 import { browser } from 'wxt/browser';
 import type { SettingsResponse } from '@/types/messages';
 import stars from '@/assets/stars.png';
-import logo from '@/assets/New logo update.png';
+import ReaderPageHeader from './ReaderPageHeader.vue';
+import ReaderIcon from './ReaderIcon.vue';
 import { requestPreferences } from '@/services/storage/preferences';
 import {
   DEFAULT_SUBTITLE_APPEARANCE, MAX_SUBTITLE_SIZE, MIN_SUBTITLE_SIZE, SUBTITLE_FONTS,
@@ -157,15 +158,7 @@ const sections = [
 <template>
   <div class="min-h-screen bg-cover bg-center bg-fixed text-paper" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
     <a href="#settings-main-content" class="skip-link">Skip to main content</a>
-    <header class="relative z-10 border-b border-interface/10 bg-ink">
-      <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-4">
-        <img :src="logo" alt="" class="size-9 object-contain" />
-        <div>
-          <p class="text-sm font-semibold tracking-tight">Korean Reader</p>
-          <p class="text-xs text-muted">Settings</p>
-        </div>
-      </div>
-    </header>
+    <ReaderPageHeader page="settings" />
 
     <main id="settings-main-content" tabindex="-1" class="mx-auto grid max-w-5xl gap-6 px-6 py-8 md:grid-cols-[190px_1fr]">
       <nav aria-label="Settings sections" class="md:sticky md:top-6 md:self-start md:max-h-[calc(100dvh-3rem)] md:overflow-y-auto">
@@ -176,8 +169,9 @@ const sections = [
           <li v-for="section in sections" :key="section.id">
             <a
               :href="`#${section.id}`"
-              class="block rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-interface/5 hover:text-paper"
+              class="reader-icon-link flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-interface/5 hover:text-paper"
             >
+              <ReaderIcon :name="section.id" class="size-4 shrink-0 text-accent" />
               {{ section.title }}
             </a>
           </li>
@@ -201,7 +195,10 @@ const sections = [
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 class="text-base font-medium">{{ section.title }}</h2>
+                <h2 class="flex items-center gap-2.5 text-base font-medium">
+                  <ReaderIcon :name="section.id" class="size-4 shrink-0 text-accent" />
+                  {{ section.title }}
+                </h2>
                 <p class="mt-2 max-w-xl text-sm leading-6 text-muted">
                   {{ section.description }}
                 </p>

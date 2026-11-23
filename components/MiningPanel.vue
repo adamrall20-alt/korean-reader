@@ -5,7 +5,8 @@ import { OPEN_TRANSCRIPT } from '@/services/youtube/transcript';
 import { TOGGLE_PARSE_PAGE } from '@/services/webpage/parser';
 import { browser } from 'wxt/browser';
 import { VOCABULARY_REVISION_KEY, type VocabularySummary, type VocabularyResponse } from '@/types/vocabulary';
-import logo from '@/assets/New logo update.png';
+import PenguinMark from './PenguinMark.vue';
+import ReaderIcon from './ReaderIcon.vue';
 import stars from '@/assets/stars.png';
 
 const summary = ref<VocabularySummary>();
@@ -75,25 +76,27 @@ onBeforeUnmount(() => browser.storage.onChanged.removeListener(onStorageChanged)
   <main class="flex min-h-[280px] flex-col bg-ink text-paper">
     <header class="border-b border-interface/10 px-5 py-4">
       <div class="flex items-center gap-3">
-        <img :src="logo" alt="" class="size-9 object-contain" />
+        <PenguinMark />
         <h1 class="min-w-0 truncate text-base font-semibold tracking-tight">Korean Reader</h1>
         <div class="ml-auto flex shrink-0 items-center gap-1.5">
-          <button type="button" class="grid size-8 place-items-center rounded-lg border border-interface/10 text-accent hover:bg-accent/10" aria-label="Open Statistics" title="Open Statistics" @click="browser.tabs.create({ url: browser.runtime.getURL('/statistics.html') })">
-            <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
-              <path d="M3 13V9m5 4V3m5 10V6" />
-            </svg>
+          <button type="button" class="reader-icon-link grid size-8 place-items-center rounded-lg border border-interface/10 text-accent hover:bg-accent/10" aria-label="Open Statistics" title="Open Statistics" @click="browser.tabs.create({ url: browser.runtime.getURL('/statistics.html') })">
+            <ReaderIcon name="statistics" class="size-4" />
           </button>
-          <button type="button" class="grid size-8 shrink-0 place-items-center rounded-lg border border-interface/10 text-muted transition-colors hover:bg-interface/10 hover:text-paper" aria-label="Open settings" title="Open settings" @click="browser.runtime.openOptionsPage()">
-            <span aria-hidden="true">⚙</span>
+          <button type="button" class="reader-icon-link grid size-8 shrink-0 place-items-center rounded-lg border border-interface/10 text-muted transition-colors hover:bg-interface/10 hover:text-paper" aria-label="Open settings" title="Open settings" @click="browser.runtime.openOptionsPage()">
+            <ReaderIcon name="settings" class="size-4" />
           </button>
         </div>
       </div>
     </header>
     <section class="flex-1 space-y-3 bg-cover bg-center px-5 py-5" :style="{ backgroundImage: `linear-gradient(var(--reading-backdrop), var(--reading-backdrop)), url(${stars})` }">
       <AnkiPanel :vocabulary="minedEntries" :known-count="knownCount" @synced="loadVocabulary" />
-      <button type="button" class="w-full rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10" @click="openSidebar">Open Sidebar</button>
+      <button type="button" class="reader-icon-link flex w-full items-center justify-center gap-2 rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10" @click="openSidebar">
+        <ReaderIcon name="transcript" class="size-4 text-accent" /> Open Sidebar
+      </button>
       <p v-if="sidebarError" class="text-xs text-danger" role="alert">{{ sidebarError }}</p>
-      <button type="button" :disabled="parsing" class="w-full rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10 disabled:opacity-50" @click="parsePage">{{ parsing ? 'Parsing…' : 'Parse Page' }}</button>
+      <button type="button" :disabled="parsing" class="reader-icon-link flex w-full items-center justify-center gap-2 rounded-lg border border-interface/20 px-3 py-2 text-sm font-medium hover:bg-interface/10 disabled:opacity-50" @click="parsePage">
+        <ReaderIcon name="page" class="size-4 text-accent" /> {{ parsing ? 'Parsing…' : 'Parse Page' }}
+      </button>
       <p v-if="parseError" class="text-xs text-danger" role="alert">{{ parseError }}</p>
       <div v-if="error" class="text-xs text-danger" role="alert">{{ error }} <button class="underline" @click="loadVocabulary">Reload</button></div>
       <p class="text-xs text-muted">Version {{ version }}</p>

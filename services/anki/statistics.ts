@@ -13,29 +13,22 @@ export async function readDeckStatistics(settings: AnkiSettings): Promise<AnkiDe
   if (!Number.isSafeInteger(deckId)) throw new Error('Choose an available Anki deck in Settings.');
 
   const selectedDecks = Object.keys(decks).filter((name) => name === deckName || name.startsWith(deckName + '::'));
-  const [stats, upcoming, words, history] = await Promise.all([
-    client.request('getDeckStats', { decks: [deckName] }),
+  const [reviewsToday, reviewsNextWeek, coverage, history] = await Promise.all([
+    client.request('getDeckStats', { decks: [deckName] }).then((stats) => {
+      const count = stats?.[String(deckId)]?.review_count;
+      return typeof count === 'number' && Number.isSafeInteger(count) && count >= 0 ? count : null;
+    }).catch(() => null),
     client.request('findCards', {
       query: `${deckSearch(deckName)} is:review -is:suspended -is:learn prop:due>=1 prop:due<=7`,
-    }),
-    previewKnownWords(settings, deckName),
+    }).then((cards) => Array.isArray(cards) ? cards.length : null).catch(() => null),
+    previewKnownWords(settings, deckName).then(({ alreadyKnown, total }) => ({
+      knownWords: alreadyKnown,
+      totalWords: total,
+    })).catch(() => null),
     readReviewHistory(client, selectedDecks).catch(() => null),
   ]);
-  const selected = stats?.[String(deckId)];
-  if (!selected || !Number.isInteger(selected.review_count) || selected.review_count < 0) {
-    throw new Error('AnkiConnect did not return the review count for the selected deck.');
-  }
-
-  return {
-    deckName,
-    reviewsToday: selected.review_count,
-    reviewsNextWeek: upcoming.length,
-    knownWords: words.alreadyKnown,
-    totalWords: words.total,
-    history,
-  };
+  return { deckName, reviewsToday, reviewsNextWeek, coverage, history };
 }
-
 
 async function readReviewHistory(client: AnkiClient, decks: string[]) {
   let totalReviews = 0;

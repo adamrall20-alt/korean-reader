@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ReaderIcon from './ReaderIcon.vue';
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import SubtitleReader from '@/components/SubtitleReader.vue';
 import TranscriptRow from '@/components/TranscriptRow.vue';
@@ -163,7 +164,7 @@ function startResize(event: PointerEvent) {
     ></div>
     <header>
       <div class="kr-transcript-heading">
-        <h2>Korean transcript</h2>
+        <h2><ReaderIcon name="transcript" class="kr-transcript-icon" /> Korean transcript</h2>
         <span v-if="coverageState === 'ready' && coverage.percentage !== null" class="kr-transcript-coverage" :title="coverageTitle" :aria-label="coverageTitle">
           {{ coverage.percentage }}% known<span v-if="status === 'collecting'"> (partial)</span>
         </span>

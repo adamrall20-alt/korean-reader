@@ -155,3 +155,16 @@
 
 .kr-transcript-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
 .kr-transcript-coverage { color: var(--muted); font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; }
+
+.kr-transcript-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.kr-transcript-icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  color: var(--accent);
+}

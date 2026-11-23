@@ -114,3 +114,24 @@
     background: color-mix(in srgb, var(--color-accent) 35%, transparent);
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .reader-chart-line {
+    animation: reader-show-chart 250ms ease-out;
+  }
+
+  @media (hover: hover) {
+    .reader-icon-link:not(:disabled) svg {
+      transition: transform 180ms ease-out;
+    }
+
+    .reader-icon-link:not(:disabled):hover svg {
+      transform: translateY(-2px) rotate(-9deg);
+    }
+  }
+}
+
+@keyframes reader-show-chart {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
