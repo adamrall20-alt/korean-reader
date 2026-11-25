@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AnkiClient, type AnkiNote, type AnkiNoteInfo } from '@/services/anki/client';
+import { buildJapaneseReaderModelParams, ensureReaderModel, JAPANESE_READER_CARD_TEMPLATES, KOREAN_READER_CARD_TEMPLATES } from '@/services/anki/model';
 import { countUnsynced, syncVocabulary } from '@/services/anki/sync';
-import type { AnkiNote, AnkiNoteInfo } from '@/services/anki/client';
 import { ANKI_DEFAULT_FIELDS, DEFAULT_ANKI_SETTINGS, JAPANESE_ANKI_ID_FIELD, JAPANESE_ANKI_MODEL } from '@/types/anki';
 import type { VocabularyEntry } from '@/types/vocabulary';
 
@@ -112,5 +113,51 @@ describe('Japanese Anki sync', () => {
     const custom = { ...profile, modelName: 'Custom' };
     await expect(syncVocabulary(custom, [id, otherId], 'ja')).resolves.toMatchObject([{ status: 'created' }, { status: 'created' }]);
     expect(written.map(({ options }) => options.allowDuplicate)).toEqual([false, true]);
+  });
+
+  it('places focus word and hiragana pronunciation at the top of the Japanese card front and upgrades legacy templates', async () => {
+    const model = buildJapaneseReaderModelParams();
+    const front = model.cardTemplates[0]!.Front;
+    const back = model.cardTemplates[0]!.Back;
+    expect(front.indexOf('{{Focus Word}}')).toBeGreaterThan(-1);
+    expect(front.indexOf('{{Pronunciation}}')).toBeGreaterThan(front.indexOf('{{Focus Word}}'));
+    expect(front.indexOf('{{Audio}}')).toBeGreaterThan(front.indexOf('{{Pronunciation}}'));
+    expect(front.indexOf('{{Sentence}}')).toBeGreaterThan(front.indexOf('{{Image}}'));
+    expect(back).not.toContain('{{Focus Word}}');
+    expect(back).toContain('{{Definition}}');
+
+    const updated: unknown[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const { action, params } = JSON.parse(String(init?.body));
+      if (action === 'modelTemplates') {
+        return Response.json({
+          result: {
+            'Card 1': {
+              Front: KOREAN_READER_CARD_TEMPLATES[0]!.Front.replaceAll('lang="ko"', 'lang="ja"'),
+              Back: KOREAN_READER_CARD_TEMPLATES[0]!.Back.replaceAll('lang="ko"', 'lang="ja"'),
+            },
+          },
+          error: null,
+        });
+      }
+      if (action === 'updateModelTemplates') {
+        updated.push(params);
+        return Response.json({ result: null, error: null });
+      }
+      throw new Error(action);
+    });
+    const client = new AnkiClient(profile);
+    await ensureReaderModel(client, [JAPANESE_ANKI_MODEL], JAPANESE_ANKI_MODEL);
+    expect(updated).toEqual([{
+      model: {
+        name: JAPANESE_ANKI_MODEL,
+        templates: {
+          'Card 1': {
+            Front: JAPANESE_READER_CARD_TEMPLATES[0]!.Front,
+            Back: JAPANESE_READER_CARD_TEMPLATES[0]!.Back,
+          },
+        },
+      },
+    }]);
   });
 });

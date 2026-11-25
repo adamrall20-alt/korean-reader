@@ -10,7 +10,7 @@ New configurations default to **Korean Reader**. If this note type is missing, t
 
 Choose **Japanese** under **Anki profile**, connect, and select an existing deck or create **Japanese Mining**. Use **Japanese Reader** or map an existing note type, then save. Both profiles share the local connection and have their own deck, note type and mappings. The two deck trees must be disjoint.
 
-Japanese Reader stores a dictionary identity in its first field. The template keeps that field out of the visible card and uses the same sentence, definitions and media fields as Korean Reader. **Pronunciation** holds the kana reading. For a custom note type, map its kana or reading field to Pronunciation. Sync identifies the clicked spelling and reading and checks that all cards from an existing note belong to the destination deck tree before it changes fields.
+Japanese Reader stores a dictionary identity in its first field. The template keeps that field out of the visible card, shows the focus word and kana pronunciation at the top of the front above the media and sentence, and reveals the definition on the back. **Pronunciation** holds the kana reading. For a custom note type, map its kana or reading field to Pronunciation. Sync identifies the clicked spelling and reading and checks that all cards from an existing note belong to the destination deck tree before it changes fields.
 
 ## Korean Reader note type
 

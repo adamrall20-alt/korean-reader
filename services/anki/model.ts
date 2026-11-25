@@ -21,6 +21,29 @@ export const KOREAN_READER_CARD_TEMPLATES: AnkiCardTemplate[] = [
   },
 ];
 
+export const JAPANESE_READER_CARD_TEMPLATES: AnkiCardTemplate[] = [
+  {
+    Name: 'Card 1',
+    Front: [
+      '<div class="kr-word" lang="ja">{{Focus Word}}</div>',
+      '{{#Pronunciation}}<div class="kr-pronunciation" lang="ja">[{{Pronunciation}}]</div>{{/Pronunciation}}',
+      '{{#Audio}}<div class="kr-audio">{{Audio}}</div>{{/Audio}}',
+      '{{#Image}}<div class="kr-image">{{Image}}</div>{{/Image}}',
+      '<div class="kr-sentence" lang="ja">{{Sentence}}</div>',
+    ].join('\n'),
+    Back: [
+      '{{FrontSide}}',
+      '<hr id="answer">',
+      '<div class="kr-definition">{{Definition}}</div>',
+    ].join('\n'),
+  },
+];
+
+const LEGACY_JAPANESE_CARD_TEMPLATE = {
+  Front: KOREAN_READER_CARD_TEMPLATES[0]!.Front.replaceAll('lang="ko"', 'lang="ja"'),
+  Back: KOREAN_READER_CARD_TEMPLATES[0]!.Back.replaceAll('lang="ko"', 'lang="ja"'),
+};
+
 export const KOREAN_READER_CARD_CSS = [
   '.card {',
   '  font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;',
@@ -42,7 +65,7 @@ export const KOREAN_READER_CARD_CSS = [
   '#answer { border: 0; border-top: 1px solid rgba(156, 163, 175, 0.35); margin: 18px 0; }',
   '.kr-definition { font-size: 18px; text-align: left; max-width: 640px; margin: 0 auto 16px; }',
   '.kr-word { font-size: 24px; font-weight: 700; color: #f59e0b; }',
-  '.kr-pronunciation { font-size: 16px; color: #6b7280; margin-top: 4px; }',
+  '.kr-pronunciation { font-size: 16px; color: #6b7280; margin-top: 4px; margin-bottom: 12px; }',
   '.nightMode .kr-pronunciation, .night_mode .kr-pronunciation { color: #9ca3af; }',
 ].join('\n');
 
@@ -62,9 +85,7 @@ export function buildJapaneseReaderModelParams(): AnkiCreateModelParams {
     modelName: JAPANESE_ANKI_MODEL,
     inOrderFields: [JAPANESE_ANKI_ID_FIELD, ...korean.inOrderFields],
     css: KOREAN_READER_CARD_CSS.replace('"Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR"', '"Hiragino Sans", "Yu Gothic", "Noto Sans JP"'),
-    cardTemplates: korean.cardTemplates!.map(({ Name, Front, Back }) => ({
-      Name, Front: Front.replaceAll('lang="ko"', 'lang="ja"'), Back: Back.replaceAll('lang="ko"', 'lang="ja"'),
-    })),
+    cardTemplates: JAPANESE_READER_CARD_TEMPLATES.map((template) => ({ ...template })),
   };
 }
 
@@ -74,7 +95,19 @@ export async function ensureReaderModel(
   modelName = ANKI_DEFAULT_MODEL_NAME,
 ): Promise<string[]> {
   const models = existingModels ?? await client.request('modelNames', undefined);
-  if (models.includes(modelName)) return models;
+  if (models.includes(modelName)) {
+    if (modelName === JAPANESE_ANKI_MODEL) {
+      const templates = await client.request('modelTemplates', { modelName }).catch(() => null);
+      const card = templates?.['Card 1'];
+      if (card && card.Front.trim() === LEGACY_JAPANESE_CARD_TEMPLATE.Front && card.Back.trim() === LEGACY_JAPANESE_CARD_TEMPLATE.Back) {
+        const next = JAPANESE_READER_CARD_TEMPLATES[0]!;
+        await client.request('updateModelTemplates', {
+          model: { name: modelName, templates: { [next.Name]: { Front: next.Front, Back: next.Back } } },
+        });
+      }
+    }
+    return models;
+  }
   await client.request('createModel', modelName === JAPANESE_ANKI_MODEL ? buildJapaneseReaderModelParams() : buildKoreanReaderModelParams());
   return [...models, modelName];
 }

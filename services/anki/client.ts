@@ -41,6 +41,8 @@ interface Actions {
   deckNames: [undefined, string[]];
   modelNames: [undefined, string[]];
   modelFieldNames: [{ modelName: string }, string[]];
+  modelTemplates: [{ modelName: string }, Record<string, { Front: string; Back: string }>];
+  updateModelTemplates: [{ model: { name: string; templates: Record<string, { Front: string; Back: string }> } }, null];
   createModel: [AnkiCreateModelParams, unknown];
   deckNamesAndIds: [undefined, Record<string, number>];
   getDeckStats: [{ decks: string[] }, Record<string, { review_count: number }>];
